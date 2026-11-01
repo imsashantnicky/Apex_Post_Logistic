@@ -1,8 +1,7 @@
 using System.Net;
-using ApexPost.Application.Abstractions;
 using ApexPost.Domain.Personnel;
 using ApexPost.IntegrationTests.Support;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 namespace ApexPost.IntegrationTests.Authentication;
 
@@ -113,10 +112,11 @@ public sealed class SignInTests(ApexFactory factory) : IClassFixture<ApexFactory
 
     private async Task ChangeAsync(string email, Action<Staff> change)
     {
-        var staff = factory.Services.GetRequiredService<IRepository<Staff, Guid>>();
-        var all = await staff.ListAsync(CancellationToken.None);
-        var member = all.Single(candidate => candidate.Email == email);
+        await using var database = factory.OpenDatabase();
+        var member = await database.Set<Staff>().SingleAsync(
+            candidate => candidate.Email == email,
+            CancellationToken.None);
         change(member);
-        await staff.UpdateAsync(member, member.Version, CancellationToken.None);
+        await database.SaveChangesAsync(CancellationToken.None);
     }
 }

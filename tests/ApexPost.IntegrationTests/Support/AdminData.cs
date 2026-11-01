@@ -1,7 +1,6 @@
-using ApexPost.Application.Abstractions;
 using ApexPost.Domain.Branches;
 using ApexPost.Domain.Personnel;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 namespace ApexPost.IntegrationTests.Support;
 
@@ -10,16 +9,17 @@ internal static class AdminData
 {
     public static async Task<Staff> StaffAsync(this ApexFactory factory, string email)
     {
-        var staff = factory.Services.GetRequiredService<IRepository<Staff, Guid>>();
-        var all = await staff.ListAsync(CancellationToken.None);
-        return Assert.Single(all, member => member.Email == email);
+        await using var database = factory.OpenDatabase();
+        return await database.Set<Staff>().AsNoTracking().SingleAsync(member => member.Email == email);
     }
 
     public static async Task<Branch> BranchAsync(this ApexFactory factory, string code)
     {
-        var branches = factory.Services.GetRequiredService<IRepository<Branch, BranchCode>>();
-        var branch = await branches.GetAsync(new BranchCode(code), CancellationToken.None);
-        Assert.NotNull(branch);
-        return branch;
+        var branchCode = new BranchCode(code);
+        await using var database = factory.OpenDatabase();
+        return await database.Set<Branch>()
+            .AsNoTracking()
+            .Include(branch => branch.Counters.OrderBy(counter => counter.Number))
+            .SingleAsync(branch => branch.Id == branchCode);
     }
 }

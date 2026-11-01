@@ -1,12 +1,13 @@
-using ApexPost.Application.Abstractions;
+using System.Text.Json;
 using ApexPost.Application.DTOs;
-using ApexPost.Infrastructure.Persistence.Json;
+using ApexPost.Infrastructure.Persistence.Mappers;
+using ApexPost.Infrastructure.Persistence.Records;
 using ApexPost.Web.Middleware;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 namespace ApexPost.IntegrationTests.Support;
 
-/// <summary>Reads back what a request left in the audit log.</summary>
+/// <summary>Reads back what a request left in the audit table.</summary>
 internal static class AuditTrail
 {
     public static async Task<AuditEntry> EntryForAsync(ApexFactory factory, HttpResponseMessage response, string name)
@@ -16,13 +17,30 @@ internal static class AuditTrail
         return Assert.Single(entries, entry => entry.CorrelationId == correlationId && entry.Event == name);
     }
 
-    public static Task<string> RawFileAsync(ApexFactory factory) =>
-        File.ReadAllTextAsync(factory.DataFile(DataFiles.Audit), TestContext.Current.CancellationToken);
+    /// <summary>The audit rows exactly as stored, as text.</summary>
+    public static async Task<string> RawRowsAsync(ApexFactory factory)
+    {
+        await using var database = factory.OpenDatabase();
+        var rows = await database.Set<AuditEntryRecord>().AsNoTracking().ToListAsync();
+        return JsonSerializer.Serialize(rows);
+    }
+
+    /// <summary>The identity checks exactly as stored, as text.</summary>
+    public static async Task<string> RawChecksAsync(ApexFactory factory)
+    {
+        await using var database = factory.OpenDatabase();
+        var rows = await database.Set<IdentityVerificationRecord>().AsNoTracking().ToListAsync();
+        return JsonSerializer.Serialize(rows);
+    }
 
     public static async Task<IReadOnlyList<AuditEntry>> EntriesAsync(ApexFactory factory)
     {
-        var store = factory.Services.GetRequiredService<IAuditStore>();
-        var page = new PageRequest(1, PageRequest.MaximumSize);
-        return (await store.ReadAsync(page, TestContext.Current.CancellationToken)).Items;
+        await using var database = factory.OpenDatabase();
+        var rows = await database.Set<AuditEntryRecord>()
+            .AsNoTracking()
+            .OrderByDescending(record => record.At)
+            .ThenByDescending(record => record.Id)
+            .ToListAsync();
+        return [.. rows.Select(AuditEntryMapper.ToEntry)];
     }
 }

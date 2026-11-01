@@ -72,8 +72,8 @@ public sealed partial class ReportPagesTests(ApexFactory factory) : IClassFixtur
     [Fact]
     public async Task Refunded_sale_leaves_the_daily_sales()
     {
-        using var clerk = await CounterBrowser.SignInAsync(factory, "clerk1.br003@apexpost.test");
-        using var manager = await CounterBrowser.SignInAsync(factory, "manager.br003@apexpost.test");
+        using var clerk = await CounterBrowser.SignInAsync(factory, "clerk1.br005@apexpost.test");
+        using var manager = await CounterBrowser.SignInAsync(factory, "manager.br005@apexpost.test");
         var counter = await Counter.OpenAsync(clerk);
         using var added = await counter.AddRetailAsync(Sku);
         using var paid = await counter.PayAsync();
