@@ -1,0 +1,19 @@
+@model BranchFilter
+@if (Model.Choices.Count > 0)
+{
+    <div class="field">
+        <label for="branch">Branch</label>
+        <select id="branch" name="branch">
+            @if (Model.AllowAll)
+            {
+                <option value="">All branches</option>
+            }
+            @foreach (var choice in Model.Choices)
+            {
+                <option value="@choice.Code" selected="@(choice.Code == Model.Selected)">
+                    @choice.Code @choice.Name
+                </option>
+            }
+        </select>
+    </div>
+}

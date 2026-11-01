@@ -1,0 +1,47 @@
+@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService Authorization
+@{
+    var isSignedIn = User.Identity?.IsAuthenticated == true;
+    var canTransact = isSignedIn && (await Authorization.AuthorizeAsync(User, ApexPolicies.CanTransact)).Succeeded;
+    var role = User.Role is { } staffRole ? EnumText.Label(staffRole) : null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · ApexPost Counter</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" asp-controller="Dashboard" asp-action="Index">ApexPost Counter</a>
+        @if (isSignedIn)
+        {
+            <nav class="nav" aria-label="Main">
+                <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+                <a asp-controller="Catalogue" asp-action="Index">Catalogue</a>
+                <a asp-controller="Transactions" asp-action="Index">Transactions</a>
+                @if (canTransact)
+                {
+                    <a asp-controller="Transactions" asp-action="New">New transaction</a>
+                }
+            </nav>
+            <div class="who">
+                <span>@User.Identity?.Name · @role · @User.BranchCode</span>
+                <form asp-controller="Account" asp-action="Logout" method="post">
+                    <button type="submit" class="link-button">Sign out</button>
+                </form>
+            </div>
+        }
+    </header>
+    <main class="content">
+        <partial name="_Flash" />
+        @RenderBody()
+    </main>
+    <footer class="footer">
+        ApexPost Counter Platform · Week 2 · Correlation ID @Context.TraceIdentifier
+    </footer>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

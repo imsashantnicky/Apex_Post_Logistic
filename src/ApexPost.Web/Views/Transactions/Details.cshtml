@@ -1,0 +1,45 @@
+@model CounterPage
+@{
+    ViewData["Title"] = "Transaction";
+    var transaction = Model.Transaction;
+    var opened = $"{transaction.Id} · {transaction.Branch} · opened {transaction.OpenedAt:yyyy-MM-dd HH:mm}";
+}
+<partial name="_PageHeader" model='new PageHeader("Transaction", opened, null, transaction.Status.ToString())' />
+
+<partial name="_Basket" model="Model" />
+
+@if (Model.CanWork)
+{
+    <div class="three-up">
+        <partial name="_AddRetailForm" model="Model" />
+        <partial name="_AddShippingForm" model="Model" />
+        <partial name="_AddMoneyOrderForm" model="Model" />
+    </div>
+    <div class="split">
+        <partial name="_VerifyIdentityForm" model="Model" />
+        <partial name="_PaymentForm" model="Model" />
+    </div>
+}
+
+@if (transaction.Status != TransactionStatus.Open && transaction.Verification is not null)
+{
+    <p class="fact">Identity: @transaction.Verification</p>
+}
+@if (transaction.ReversalReason is not null)
+{
+    <p class="fact">Reason: @transaction.ReversalReason</p>
+}
+
+@if (Model.CanVoid || Model.CanRefund)
+{
+    <div class="split">
+        @if (Model.CanVoid)
+        {
+            <partial name="_ReversalForm" model='new ReversalForm("Void", "Void transaction", transaction.Id)' />
+        }
+        @if (Model.CanRefund)
+        {
+            <partial name="_ReversalForm" model='new ReversalForm("Refund", "Refund transaction", transaction.Id)' />
+        }
+    </div>
+}

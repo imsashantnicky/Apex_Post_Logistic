@@ -1,0 +1,15 @@
+@model ReversalForm
+<section class="card">
+    <details>
+        <summary class="button button-outline">@Model.Title</summary>
+        <form asp-action="@Model.Action" asp-route-id="@Model.TransactionId" method="post" class="form"
+              data-confirm="@Model.Title? This cannot be undone.">
+            <div class="field">
+                <label for="@Model.ReasonId">Reason</label>
+                <textarea id="@Model.ReasonId" name="Reason" rows="3" maxlength="@TextLimits.Reason"
+                          required></textarea>
+            </div>
+            <button type="submit" class="button button-outline">Confirm</button>
+        </form>
+    </details>
+</section>

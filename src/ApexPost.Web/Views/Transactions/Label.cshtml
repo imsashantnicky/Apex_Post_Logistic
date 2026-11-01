@@ -1,0 +1,38 @@
+@model ShippingLabel
+@{
+    ViewData["Title"] = "Shipping label";
+}
+<div class="label-actions">
+    <a class="button button-outline" asp-action="Details" asp-route-id="@ViewData["id"]">Back to the transaction</a>
+    <button type="button" class="button" data-print>Print</button>
+</div>
+
+<article class="card shipping-label">
+    <h1>ApexPost</h1>
+    <p class="label-reference">@Model.Reference</p>
+    <div class="split">
+        <div>
+            <h2>From</h2>
+            <p>@Model.FromBranchName (@Model.FromBranch)</p>
+        </div>
+        <div>
+            <h2>To</h2>
+            <address>
+                @Model.Recipient.Name<br />
+                @Model.Recipient.Street<br />
+                @Model.Recipient.City @Model.Recipient.PostalCode<br />
+                @Model.Recipient.Country
+            </address>
+        </div>
+    </div>
+    <dl class="label-facts">
+        <dt>Weight</dt>
+        <dd>@Model.Weight</dd>
+        <dt>Service</dt>
+        <dd>@Model.Level @Model.Type</dd>
+        <dt>Zone</dt>
+        <dd>@Model.ZoneCode</dd>
+        <dt>Tracking</dt>
+        <dd>@Model.TrackingNumber</dd>
+    </dl>
+</article>

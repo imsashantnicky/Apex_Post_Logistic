@@ -2,6 +2,7 @@ using ApexPost.Application.Extensions;
 using ApexPost.Domain.Branches;
 using ApexPost.Domain.Common;
 using ApexPost.Domain.Transactions;
+using ApexPost.Domain.Verification;
 
 namespace ApexPost.Application.DTOs;
 
@@ -23,7 +24,9 @@ public sealed record TransactionDetails(
     Money AmountDue,
     PaymentMethod? PaymentMethod,
     bool RequiresVerification,
+    bool HasPassedVerification,
     string? Verification,
+    VerificationResult? VerificationResult,
     string? ReversalReason,
     int Version)
 {
@@ -48,7 +51,9 @@ public sealed record TransactionDetails(
             transaction.Payment is null ? total : transaction.AmountDue,
             transaction.Payment?.Method,
             transaction.RequiresVerification(verificationThreshold),
+            transaction.HasPassedVerification,
             transaction.VerificationSummary,
+            transaction.Verifications is [.., var latest] ? latest.Result : null,
             transaction.Reversal?.Reason,
             transaction.Version);
     }

@@ -1,0 +1,28 @@
+@model CatalogueItem
+@{
+    ViewData["Title"] = "Adjust stock";
+    var header = new PageHeader(
+        "Adjust stock",
+        Help: "A positive change adds stock, a negative one removes it. The reason is required.");
+}
+<partial name="_PageHeader" model="header" />
+
+<section class="card narrow">
+    <h2>@Model.Sku @Model.Name</h2>
+    <p class="muted">In stock now: @Model.InStock</p>
+    <form asp-action="Adjust" method="post" class="form">
+        <input type="hidden" name="Sku" value="@Model.Sku" />
+        <div class="field">
+            <label for="Change">Change</label>
+            <input id="Change" name="Change" type="number" step="1" required />
+        </div>
+        <div class="field">
+            <label for="Reason">Reason</label>
+            <textarea id="Reason" name="Reason" rows="3" maxlength="@TextLimits.Reason" required></textarea>
+        </div>
+        <div class="actions">
+            <button type="submit" class="button">Save adjustment</button>
+            <a class="button button-outline" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</section>
