@@ -22,3 +22,7 @@ dotnet_sort_system_directives_first = true
 # Test method names use underscores (Given_When_Then style), so CA1707 is turned off for tests only.
 [tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+# EF Core writes the migrations, so analyzers skip them as generated code.
+[src/ApexPost.Infrastructure/Persistence/Migrations/*.cs]
+generated_code = true
