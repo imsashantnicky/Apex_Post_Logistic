@@ -56,6 +56,20 @@ public sealed class IntegrationEndpointTests(ApexFactory factory) : IClassFixtur
         await AssertProblemAsync(response, HttpStatusCode.Forbidden);
     }
 
+    [Theory]
+    [InlineData("X-Forwarded-For")]
+    [InlineData("X-Real-IP")]
+    [InlineData("Forwarded")]
+    public async Task Forwarded_header_cannot_get_past_the_allowlist(string header)
+    {
+        using var client = PartnerClient.Create(factory, address: PartnerClient.BlockedAddress);
+        client.DefaultRequestHeaders.TryAddWithoutValidation(header, PartnerClient.AllowedAddress);
+
+        using var response = await GetAsync(client, PartnerClient.Parcel);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     [Fact]
     public async Task Partner_gets_json_errors_even_when_it_asks_for_html()
     {

@@ -18,7 +18,7 @@ public class ApexFactory : WebApplicationFactory<Program>
     public const string BurstPartnerKey = "burst-partner-key-for-tests";
     public const string PartnerOrigin = "https://tracking.partner.example";
 
-    private readonly string _dataFolder = Path.Combine(Path.GetTempPath(), "apexpost-web-" + Guid.NewGuid());
+    public string DataFolder { get; } = Path.Combine(Path.GetTempPath(), "apexpost-web-" + Guid.NewGuid());
 
     public CapturedLogs Logs { get; } = new();
 
@@ -26,7 +26,7 @@ public class ApexFactory : WebApplicationFactory<Program>
 
     protected virtual IEnumerable<KeyValuePair<string, string?>> ExtraSettings => [];
 
-    public string DataFile(string fileName) => Path.Combine(_dataFolder, fileName);
+    public string DataFile(string fileName) => Path.Combine(DataFolder, fileName);
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -36,7 +36,7 @@ public class ApexFactory : WebApplicationFactory<Program>
         builder.ConfigureAppConfiguration((_, configuration) => configuration
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Storage:DataFolder"] = _dataFolder,
+                ["Storage:DataFolder"] = DataFolder,
                 ["Seed:Enabled"] = "true",
                 ["Seed:DemoPassword"] = DemoPassword,
                 ["Passwords:Iterations"] = "1000",
@@ -50,9 +50,9 @@ public class ApexFactory : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (disposing && Directory.Exists(_dataFolder))
+        if (disposing && Directory.Exists(DataFolder))
         {
-            Directory.Delete(_dataFolder, recursive: true);
+            Directory.Delete(DataFolder, recursive: true);
         }
     }
 }
