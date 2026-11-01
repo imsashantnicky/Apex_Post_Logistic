@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ApexPost.Web.Controllers;
 
@@ -30,6 +31,7 @@ public sealed class AccountController(LoginService login, AttributeModelValidato
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(ApexRateLimits.Login)]
     [HttpPost]
     public async Task<IActionResult> Login(LoginCommand command, string? returnUrl, CancellationToken cancellationToken)
     {
