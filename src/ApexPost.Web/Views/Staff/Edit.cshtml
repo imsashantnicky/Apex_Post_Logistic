@@ -1,0 +1,61 @@
+@model StaffFormPage
+@{
+    var member = Model.Member!;
+    ViewData["Title"] = member.Name;
+    var header = new PageHeader(
+        member.Name,
+        $"{EnumText.Label(member.Role)} · {member.HomeBranch}",
+        "Changes to role or branch apply on the member's next request.",
+        member.IsActive ? "Active" : "Inactive");
+}
+<partial name="_PageHeader" model="header" />
+
+<div class="split">
+    <section class="card">
+        <h2>Details</h2>
+        <partial name="_StaffForm" model="Model" />
+    </section>
+    <div>
+        <section class="card">
+            <h2>Set password</h2>
+            <form asp-action="SetPassword" asp-route-id="@member.Id" method="post" class="form">
+                <div class="field">
+                    <label for="NewPassword">New password</label>
+                    <input id="NewPassword" name="Password" type="password" autocomplete="new-password"
+                           minlength="@Model.MinimumPasswordLength" maxlength="@PasswordCommand.MaximumLength"
+                           required />
+                    <span class="hint">At least @Model.MinimumPasswordLength characters.</span>
+                </div>
+                <button type="submit" class="button">Set password</button>
+            </form>
+        </section>
+        @if (!member.IsActive)
+        {
+            <section class="card">
+                <h2>Access</h2>
+                <form asp-action="Activate" asp-route-id="@member.Id" method="post" class="form">
+                    <input type="hidden" name="version" value="@member.Version" />
+                    <button type="submit" class="button">Activate</button>
+                </form>
+            </section>
+        }
+        else if (!Model.IsOwnAccount)
+        {
+            <section class="card">
+                <details>
+                    <summary class="button button-outline">Deactivate</summary>
+                    <form asp-action="Deactivate" asp-route-id="@member.Id" method="post" class="form"
+                          data-confirm="Deactivate @member.Name? They are signed out at once.">
+                        <input type="hidden" name="version" value="@member.Version" />
+                        <div class="field">
+                            <label for="reason">Reason</label>
+                            <textarea id="reason" name="reason" rows="3" maxlength="@TextLimits.Reason"
+                                      required></textarea>
+                        </div>
+                        <button type="submit" class="button button-outline">Confirm</button>
+                    </form>
+                </details>
+            </section>
+        }
+    </div>
+</div>
