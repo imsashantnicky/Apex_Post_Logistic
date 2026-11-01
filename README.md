@@ -3,8 +3,8 @@
 ApexPost Counter Platform is an ASP.NET Core MVC application (.NET 10, C# 14) for postal counters. One counter sells
 retail goods together with parcel and letter shipping, money orders and identity verification in a single basket. A
 clerk builds the basket and takes payment, a Branch Manager voids or refunds, an Auditor reads reports and the audit
-log, and an Administrator manages staff and branches. Data is kept in JSON files behind repository interfaces, so
-next week's database replaces only the Infrastructure project.
+log, and an Administrator manages staff and branches. Data is kept in SQL Server through EF Core 10, behind the
+repository and query ports of the Application project.
 
 The design and its reasoning are in [DESIGN.md](DESIGN.md). A sample of the audit log from a real run is in
 [AUDIT-SAMPLE.json](AUDIT-SAMPLE.json).
@@ -15,7 +15,7 @@ The design and its reasoning are in [DESIGN.md](DESIGN.md). A sample of the audi
 | --- | --- | --- |
 | `src/ApexPost.Domain` | Entities, value objects, business rules and events | Nothing |
 | `src/ApexPost.Application` | Use cases, ports, reports, settings and validation | Domain |
-| `src/ApexPost.Infrastructure` | JSON storage, audit store, password hashing, cache, simulated partners, seed data | Application |
+| `src/ApexPost.Infrastructure` | EF Core storage, audit store, password hashing, cache, simulated partners, seed data | Application |
 | `src/ApexPost.Web` | MVC front end, middleware, filters and the composition root | Application, Infrastructure |
 | `tests/ApexPost.UnitTests` | Rules, services, infrastructure, layering scans and measurements | Domain, Application, Infrastructure |
 | `tests/ApexPost.IntegrationTests` | The real application through `WebApplicationFactory` | Web |
@@ -23,8 +23,9 @@ The design and its reasoning are in [DESIGN.md](DESIGN.md). A sample of the audi
 
 ## Run it
 
-You need the .NET 10 SDK (see [global.json](global.json)). Demo data is created only in Development, and its shared
-password and the partner API key come from user-secrets, never from the repository.
+You need the .NET 10 SDK (see [global.json](global.json)) and a SQL Server. Demo data is created only in Development,
+and its shared password, the partner API key and the connection string come from user-secrets, never from the
+repository.
 
 On Windows, run [setup-secrets.bat](setup-secrets.bat), which asks for both values. Anywhere else:
 
@@ -33,7 +34,18 @@ dotnet user-secrets set "Seed:DemoPassword" "<a password of your choice>" --proj
 dotnet user-secrets set "Integration:ApiKeys:AcmeCouriers" "<a long random key>" --project src/ApexPost.Web
 ```
 
-Then start the application:
+`setup-secrets.bat` stores only a placeholder for the database, so set a real connection string. Then create the tables,
+because the application never runs migrations:
+
+```bash
+dotnet user-secrets set "ConnectionStrings:ApexPostDb" "<your connection string>" --project src/ApexPost.Web
+dotnet tool restore
+dotnet ef database update --project src/ApexPost.Infrastructure
+```
+
+Then start the application. The first start in Development fills an empty database; it is skipped while `Branches` has
+rows. The demo accounts keep the password that was set at that moment, so changing `Seed:DemoPassword` later needs a new
+seed.
 
 ```bash
 dotnet dev-certs https --trust
@@ -42,18 +54,7 @@ dotnet run --project src/ApexPost.Web --launch-profile https
 
 Open <https://localhost:7242>. The sign-in cookie is `Secure`, so use the HTTPS address.
 
-Requests are still served from the JSON files. SQL Server is optional for now: without `ConnectionStrings:ApexPostDb`
-it is left alone. With it, create the tables first, because the application never runs migrations, and then start the
-application once in Development to fill them (skipped while `Branches` has rows). `setup-secrets.bat` stores only a
-placeholder, so replace it with a real connection string or remove it, or the application stops at startup.
-
-```bash
-dotnet user-secrets set "ConnectionStrings:ApexPostDb" "<your connection string>" --project src/ApexPost.Web
-dotnet tool restore
-dotnet ef database update --project src/ApexPost.Infrastructure
-```
-
-[sql/perf/volume-seed.sql](sql/perf/volume-seed.sql) then multiplies that data for performance tests, to about 200k
+[sql/perf/volume-seed.sql](sql/perf/volume-seed.sql) multiplies that data for performance tests, to about 200k
 transactions and 600k retail lines of fictional data. Run it once, on a development database only. The row counts of
 the seed and of a volume run are in [docs/perf/](docs/perf/).
 
@@ -67,6 +68,10 @@ To build and test:
 dotnet build Apex_Post_Logistic.slnx -c Release
 dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"
 ```
+
+The integration tests need a SQL Server. They use `ConnectionStrings:ApexPostTestServer` from the environment, or else
+the server of `ConnectionStrings:ApexPostDb`. Each test class creates, migrates and seeds a temporary `ApexPostTests_...`
+database and drops it afterwards, so your own database is not touched.
 
 To see the measurements in [DESIGN.md](DESIGN.md#8-async-taskwhenall-semaphoreslim-valuetask-and-measured-numbers):
 
@@ -95,7 +100,8 @@ same pattern, such as `clerk1.br003@apexpost.test` and `manager.br004@apexpost.t
   home branch applies to an open session on the next request, and deactivation ends it. Administrators cannot
   deactivate themselves or change their own role, so an active administrator always remains.
 - **Catalogue and stock:** products with SKU, category, price and tax category, stock per branch, and manager stock
-  adjustments with a reason.
+  adjustments with a reason. Administrators revise the prices of a category in one set-based update; baskets keep the
+  prices they were built with.
 - **Counter transaction:** one basket mixing retail items, shipments and money orders, with tax previewed while the
   basket is open and frozen at payment. Shipping label preview, and cash rounding to the nearest 0.05.
 - **Business rules:** stock never goes negative, parcels over the limit for their service level are rejected, money
@@ -126,8 +132,9 @@ their own branch; Auditors and Administrators can see all branches. The dashboar
 ### Audit log
 
 Sign-ins, sales, money orders, identity verification, voids, refunds, stock adjustments, staff and branch changes and
-denied access are written to the append-only `audit.jsonl` in the data folder. Each entry names the staff member, role,
-branch, action, key route values, outcome, duration and correlation ID. Auditors and Administrators read it at `/Audit`
+denied access are written to the append-only `AuditEntries` table, after the business commit and in a transaction of
+their own, so a failed audit write can neither break nor undo a sale. Each entry names the staff member, role, branch,
+action, key route values, outcome, duration and correlation ID. Auditors and Administrators read it at `/Audit`
 and download it from `/Audit/Export`, from an address on `Security:AdminAllowedIps`. Passwords and document numbers are
 not recorded, and anything shaped like a document or card number is masked before it reaches the store.
 
@@ -156,8 +163,8 @@ Settings live in `src/ApexPost.Web/appsettings.json`. Secrets belong in user-sec
 
 | Key | Meaning |
 | --- | --- |
-| `ConnectionStrings:ApexPostDb` | SQL Server database, from user-secrets; optional while requests use JSON |
-| `Storage:DataFolder` | Folder of the JSON files, relative to the web project |
+| `ConnectionStrings:ApexPostDb` | SQL Server database, from user-secrets |
+| `ConnectionStrings:ApexPostTestServer` | SQL Server for the integration tests, from the environment |
 | `Seed:Enabled`, `Seed:DemoPassword` | Demo data, in Development only; the password comes from user-secrets |
 | `Passwords:Iterations`, `Passwords:MinimumLength` | PBKDF2 cost and the shortest allowed password |
 | `Tax:StandardPercent`, `Tax:ReducedPercent`, `Tax:ExemptPercent` | Tax rates |
@@ -184,8 +191,9 @@ to keep it that way.
 - `src/ApexPost.Domain` is grouped by subject: `Branches`, `Catalogue`, `Inventory`, `Personnel`, `Pricing`, `Rules`,
   `Shipping`, `Transactions` and `Verification`.
 - `src/ApexPost.Application` has one folder per kind of code, such as `Services`, `Reports` and `Validation`.
-- `src/ApexPost.Infrastructure/Persistence/Json` holds the storage: `Records` for the file shape and `Mapping` for the
-  conversion from and to the domain.
+- `src/ApexPost.Infrastructure/Persistence` holds the EF Core model and migrations, and `Repositories` holds what the
+  application calls: `UnitOfWork`, the repositories, `Queries` for read screens and `Sql/SqlAuditStore`.
+  `Persistence/Json` is the Week 2 file storage, which the web host no longer uses.
 - `src/ApexPost.Web` holds `Controllers`, `Views`, `ViewModels`, `Middleware`, `Filters`, `Security` and `Health`.
 
 ## Screenshots
@@ -195,13 +203,13 @@ behaviour instead.
 
 ## Test results
 
-Release build on 2026-11-01: 0 warnings, 0 errors.
+Release build on 2026-11-02: 0 warnings, 0 errors.
 
 | Project | Passed | Failed | Skipped |
 | --- | --- | --- | --- |
-| `ApexPost.UnitTests` (measurements excluded) | 483 | 0 | 0 |
-| `ApexPost.IntegrationTests` | 269 | 0 | 0 |
-| **Total** | **752** | **0** | **0** |
+| `ApexPost.UnitTests` (measurements excluded) | 497 | 0 | 0 |
+| `ApexPost.IntegrationTests` (on SQL Server) | 318 | 0 | 0 |
+| **Total** | **815** | **0** | **0** |
 
 The 7 measurement tests are excluded from these counts and from CI. Their numbers are in
 [DESIGN.md](DESIGN.md#8-async-taskwhenall-semaphoreslim-valuetask-and-measured-numbers).
@@ -214,12 +222,15 @@ The 7 measurement tests are excluded from these counts and from CI. Their number
   browser call only works from an allowed address. CORS does not replace the API key or the allowlist.
 - A call refused by the IP allowlist, the API key or the rate limiter is logged but not audited: it stops in middleware,
   before any action filter runs. A failed sign-in is audited without the email that was typed.
-- Paying, voiding and refunding change two files, which is not atomic. See
-  [Path to a database](DESIGN.md#12-path-to-a-database).
+- `StockGate` and the rate limiter work within one application instance; between servers the row versions decide.
+- A failed audit write is only logged, so that action has no row in `AuditEntries`. See
+  [ADR-016](DESIGN.md#adr-016-audit-store-versus-unit-of-work).
+- A counter with past transactions cannot be removed, because the database keeps the history.
+- A price revision clears the catalogue cache of one server; another server shows the old price for up to
+  `Catalog:CacheSeconds`.
 - During maintenance the stylesheet is also blocked, so the 503 page shows unstyled.
 - Notifications are kept in memory: the newest 200 survive until the application restarts, and the seeded history
   raises none.
 - Setting a new password does not end the member's open sessions; deactivating the account does.
-- Report rows are built in memory from the JSON files, so a report reads all transactions on every request.
-- The audit log is append-only through its interface, but anyone with access to the data folder can edit the file.
+- The audit log is append-only through its interface, but anyone with write access to the database can edit the table.
 - `setup-secrets.bat` has not been run: the project was developed on macOS.

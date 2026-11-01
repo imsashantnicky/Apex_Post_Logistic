@@ -12,8 +12,8 @@ internal sealed class BranchConfiguration : IEntityTypeConfiguration<Branch>
     {
         builder.ToTable("Branches", table => table.HasCheckConstraint("CK_Branches_Hours", "[OpensAt] < [ClosesAt]"));
         builder.HasKey(branch => branch.Id);
-        builder.Ignore("Version");
         builder.Ignore(branch => branch.Code);
+        builder.Property(branch => branch.Version).IsConcurrencyToken().HasDefaultValue(ColumnRules.FirstVersion);
 
         builder.Property(branch => branch.Id).HasColumnName("Code").HasConversion<BranchCodeConverter>()
             .HasMaxLength(5).IsUnicode(false).ValueGeneratedNever();

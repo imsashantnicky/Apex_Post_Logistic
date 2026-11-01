@@ -10,13 +10,14 @@ internal sealed partial class CounterBrowser : IDisposable
     private const string LoginPath = "/Account/Login";
     private const string TokenField = "__RequestVerificationToken";
     private const string HtmlMediaType = "text/html";
+    private const string JsonMediaType = "application/json";
     private const int FirstAddress = 0x0A000000;
 
     private static int _lastAddress;
 
     private readonly HttpClient _http;
 
-    public CounterBrowser(ApexFactory factory)
+    public CounterBrowser(WebApplicationFactory<Program> factory)
     {
         _http = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -36,7 +37,10 @@ internal sealed partial class CounterBrowser : IDisposable
     /// <summary>Asks for pages as a real browser does, so that errors arrive as HTML.</summary>
     public void AcceptHtml() => _http.DefaultRequestHeaders.Accept.ParseAdd(HtmlMediaType);
 
-    public static async Task<CounterBrowser> SignInAsync(ApexFactory factory, string email)
+    /// <summary>Asks for JSON, as a script calling a form does, so that errors arrive as Problem Details.</summary>
+    public void AcceptJson() => _http.DefaultRequestHeaders.Accept.ParseAdd(JsonMediaType);
+
+    public static async Task<CounterBrowser> SignInAsync(WebApplicationFactory<Program> factory, string email)
     {
         var browser = new CounterBrowser(factory);
         using var response = await browser.PostAsync(LoginPath, LoginPath, Login(email, ApexFactory.DemoPassword));
@@ -69,6 +73,10 @@ internal sealed partial class CounterBrowser : IDisposable
             [TokenField] = token,
         });
     }
+
+    /// <summary>The antiforgery token this browser gets from a page it may open.</summary>
+    public async Task<string> TokenFromAsync(string pagePath) =>
+        Token().Match(await ReadPageAsync(pagePath)).Groups[1].Value;
 
     public async Task<HttpResponseMessage> PostWithoutPageAsync(string formPath, Dictionary<string, string> fields)
     {

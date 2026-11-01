@@ -10,9 +10,6 @@ builder.Host.UseDefaultServiceProvider(options =>
     options.ValidateOnBuild = true;
 });
 
-builder.Services.AddJsonPersistence(builder.Configuration);
-
-// JSON still serves every request. SQL Server only receives the demo data so far, and connects only when it is used.
 builder.Services.AddSqlPersistence(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApexApplication(builder.Configuration);

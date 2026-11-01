@@ -74,3 +74,38 @@
         </div>
     }
 </section>
+
+@if (Model.CanRevisePrices)
+{
+    <section class="card narrow">
+        <h2>Revise prices</h2>
+        <p class="muted">
+            Changes the list prices of one category or of all products. Baskets keep the prices they were built with.
+        </p>
+        <form asp-action="RevisePrices" method="post" class="form">
+            <div class="field">
+                <label for="RevisionCategory">Category</label>
+                <select id="RevisionCategory" name="category">
+                    <option value="">All categories</option>
+                    @foreach (var option in EnumText.Options<ProductCategory>())
+                    {
+                        <option value="@option.Value">@option.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="field">
+                <label for="RevisionPercent">Percent (a cut is negative)</label>
+                <input id="RevisionPercent" name="percent" type="number" step="0.01"
+                       min="-@PriceRevisionCommand.MaximumPercent" max="@PriceRevisionCommand.MaximumPercent"
+                       required />
+            </div>
+            <div class="field">
+                <label for="RevisionReason">Reason</label>
+                <textarea id="RevisionReason" name="reason" rows="2" maxlength="@TextLimits.Reason" required></textarea>
+            </div>
+            <div class="actions">
+                <button type="submit" class="button">Revise prices</button>
+            </div>
+        </form>
+    </section>
+}

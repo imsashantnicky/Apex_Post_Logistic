@@ -17,7 +17,7 @@ internal sealed class StaffConfiguration : IEntityTypeConfiguration<Staff>
     {
         builder.ToTable("Staff", table => table.HasCheckConstraint("CK_Staff_Role", ColumnRules.In<StaffRole>("Role")));
         builder.HasKey(staff => staff.Id);
-        builder.Ignore("Version");
+        builder.Property(staff => staff.Version).IsConcurrencyToken().HasDefaultValue(ColumnRules.FirstVersion);
         builder.Ignore(staff => staff.CanSignIn);
         builder.Ignore(staff => staff.CanTransact);
 

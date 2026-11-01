@@ -1,7 +1,6 @@
 using ApexPost.Application.Abstractions;
 using ApexPost.Application.Exceptions;
 using ApexPost.Application.Extensions;
-using ApexPost.Domain.Branches;
 using ApexPost.Domain.Personnel;
 using ApexPost.Domain.Transactions;
 
@@ -13,9 +12,10 @@ namespace ApexPost.Application.Services;
 /// </summary>
 public sealed class TransactionAccess(
     ICurrentUser user,
-    IRepository<Staff, Guid> staff,
-    IRepository<Branch, BranchCode> branches,
-    IRepository<CounterTransaction, Guid> transactions)
+    IStaffRepository staff,
+    IBranchRepository branches,
+    ICounterTransactionRepository transactions,
+    ITransactionQueries queries)
 {
     public ICurrentUser User => user;
 
@@ -23,10 +23,10 @@ public sealed class TransactionAccess(
         await staff.GetAsync(user.StaffId, cancellationToken).ConfigureAwait(false)
             ?? throw new ForbiddenException("The signed-in account no longer exists.");
 
-    /// <summary>Loads a transaction the user may see.</summary>
+    /// <summary>A read-only copy of a transaction the user may see.</summary>
     public async Task<CounterTransaction> ReadAsync(Guid id, CancellationToken cancellationToken)
     {
-        var transaction = await transactions.GetAsync(id, cancellationToken).ConfigureAwait(false)
+        var transaction = await queries.FindAsync(id, cancellationToken).ConfigureAwait(false)
             ?? throw new NotFoundException($"Transaction {id} does not exist.");
         user.RequireBranch(transaction.Branch);
         return transaction;
@@ -57,15 +57,15 @@ public sealed class TransactionAccess(
         return LoadWithStaffAsync(id, cancellationToken);
     }
 
-    public Task AddAsync(CounterTransaction transaction, CancellationToken cancellationToken) =>
-        transactions.AddAsync(transaction, cancellationToken);
+    public void Add(CounterTransaction transaction) => transactions.Add(transaction);
 
-    public Task SaveAsync(CounterTransaction transaction, CancellationToken cancellationToken) =>
-        transactions.UpdateAsync(transaction, transaction.Version, cancellationToken);
+    public void Update(CounterTransaction transaction) => transactions.Update(transaction);
 
     private async Task<(CounterTransaction, Staff)> LoadWithStaffAsync(Guid id, CancellationToken cancellationToken)
     {
-        var transaction = await ReadAsync(id, cancellationToken).ConfigureAwait(false);
+        var transaction = await transactions.GetAsync(id, cancellationToken).ConfigureAwait(false)
+            ?? throw new NotFoundException($"Transaction {id} does not exist.");
+        user.RequireBranch(transaction.Branch);
         return (transaction, await CurrentStaffAsync(cancellationToken).ConfigureAwait(false));
     }
 }

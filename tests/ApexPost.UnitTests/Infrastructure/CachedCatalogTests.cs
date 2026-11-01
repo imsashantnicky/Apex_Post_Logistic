@@ -37,6 +37,19 @@ public sealed class CachedCatalogTests : IDisposable
     public void Dispose() => _catalog.Dispose();
 
     [Fact]
+    public async Task Refresh_makes_the_next_read_load_the_products_again()
+    {
+        var sku = new Sku(TestData.FirstSku);
+        await Products.FindAsync(sku, Ct);
+        await Products.FindAsync(sku, Ct);
+
+        Products.Refresh();
+        await Products.FindAsync(sku, Ct);
+
+        Assert.Equal(2, _catalog.Loads);
+    }
+
+    [Fact]
     public async Task Repeated_reads_load_once()
     {
         const int Reads = 50;

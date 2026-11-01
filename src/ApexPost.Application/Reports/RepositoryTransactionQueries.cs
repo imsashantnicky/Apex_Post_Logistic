@@ -36,4 +36,7 @@ public sealed class RepositoryTransactionQueries(
         ];
         return rows.ToPage(page);
     }
+
+    public Task<CounterTransaction?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        transactions.GetAsync(id, cancellationToken);
 }

@@ -1,5 +1,9 @@
+using ApexPost.Infrastructure.Persistence;
+using ApexPost.Web.Composition;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -8,9 +12,10 @@ using Microsoft.Extensions.Logging;
 namespace ApexPost.IntegrationTests.Support;
 
 /// <summary>
-/// The real application with the demo data on a temp folder, fast password hashing, known partner keys, a short
-/// courier timeout, captured logs and a remote address chosen per client. The connection string is blanked, because
-/// Development also loads the user-secrets and no test may write to a real database.
+/// The real application on a throw-away SQL Server database of its own, migrated and seeded, with fast password
+/// hashing, known partner keys, a short courier timeout, captured logs and a remote address chosen per client. The
+/// server comes from ConnectionStrings:ApexPostTestServer, or else from the application's own user-secrets; the
+/// application's database itself is never touched, and the temporary one is dropped with the factory.
 /// </summary>
 public class ApexFactory : WebApplicationFactory<Program>
 {
@@ -19,7 +24,21 @@ public class ApexFactory : WebApplicationFactory<Program>
     public const string BurstPartnerKey = "burst-partner-key-for-tests";
     public const string PartnerOrigin = "https://tracking.partner.example";
 
-    public string DataFolder { get; } = Path.Combine(Path.GetTempPath(), "apexpost-web-" + Guid.NewGuid());
+    private const string TestServerName = "ApexPostTestServer";
+    private const string ApplicationDatabaseName = "ApexPostDb";
+
+    private bool _databaseCreated;
+
+    public ApexFactory()
+    {
+        var server = new SqlConnectionStringBuilder(ServerConnection())
+        {
+            InitialCatalog = "ApexPostTests_" + Guid.NewGuid().ToString("N"),
+        };
+        ConnectionString = server.ConnectionString;
+    }
+
+    public string ConnectionString { get; }
 
     public CapturedLogs Logs { get; } = new();
 
@@ -27,7 +46,12 @@ public class ApexFactory : WebApplicationFactory<Program>
 
     protected virtual IEnumerable<KeyValuePair<string, string?>> ExtraSettings => [];
 
-    public string DataFile(string fileName) => Path.Combine(DataFolder, fileName);
+    /// <summary>A context for reading or changing the data behind a test's back; starts the host first.</summary>
+    public ApexPostDbContext OpenDatabase()
+    {
+        _ = Services;
+        return NewContext();
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -37,10 +61,9 @@ public class ApexFactory : WebApplicationFactory<Program>
         builder.ConfigureAppConfiguration((_, configuration) => configuration
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Storage:DataFolder"] = DataFolder,
                 ["Seed:Enabled"] = "true",
                 ["Seed:DemoPassword"] = DemoPassword,
-                ["ConnectionStrings:ApexPostDb"] = string.Empty,
+                [$"ConnectionStrings:{ApplicationDatabaseName}"] = ConnectionString,
                 ["Passwords:Iterations"] = "1000",
                 ["Courier:TimeoutMilliseconds"] = "300",
                 ["Integration:ApiKeys:Acme"] = PartnerKey,
@@ -49,12 +72,38 @@ public class ApexFactory : WebApplicationFactory<Program>
             .AddInMemoryCollection(ExtraSettings));
     }
 
+    /// <summary>The application never migrates by itself, so the database must exist before the host starts.</summary>
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        using var database = NewContext();
+        database.Database.Migrate();
+        _databaseCreated = true;
+        return base.CreateHost(builder);
+    }
+
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (disposing && Directory.Exists(DataFolder))
+        if (disposing && _databaseCreated)
         {
-            Directory.Delete(DataFolder, recursive: true);
+            using var database = NewContext();
+            database.Database.EnsureDeleted();
+            _databaseCreated = false;
         }
+    }
+
+    private ApexPostDbContext NewContext() =>
+        new(new DbContextOptionsBuilder<ApexPostDbContext>().UseSqlServer(ConnectionString).Options);
+
+    private static string ServerConnection()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddUserSecrets(typeof(ApexRoutes).Assembly, optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+        return configuration.GetConnectionString(TestServerName)
+            ?? configuration.GetConnectionString(ApplicationDatabaseName)
+            ?? throw new InvalidOperationException(
+                $"Set ConnectionStrings:{TestServerName}, or run setup-secrets.bat, to reach a SQL Server.");
     }
 }

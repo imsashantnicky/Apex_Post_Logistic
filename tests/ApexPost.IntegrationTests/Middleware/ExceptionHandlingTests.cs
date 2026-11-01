@@ -1,28 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using ApexPost.Infrastructure.Persistence.Json;
 using ApexPost.IntegrationTests.Support;
 using Microsoft.Extensions.Logging;
 
 namespace ApexPost.IntegrationTests.Middleware;
 
-/// <summary>Outside Development. A malformed staff file makes the sign-in fail with an unexpected exception.</summary>
-public sealed class ExceptionHandlingTests(ProductionFactory factory)
-    : IClassFixture<ProductionFactory>, IAsyncLifetime
+/// <summary>Outside Development. A broken staff repository makes the sign-in fail unexpectedly.</summary>
+public sealed class ExceptionHandlingTests(BrokenSignInFactory factory) : IClassFixture<BrokenSignInFactory>
 {
     private const string LoginPath = "/Account/Login";
-
-    public async ValueTask InitializeAsync()
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(factory.DataFile(DataFiles.Staff))!);
-        await File.WriteAllTextAsync(
-            factory.DataFile(DataFiles.Staff),
-            "{ not json",
-            TestContext.Current.CancellationToken);
-    }
-
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
     public async Task Json_caller_gets_problem_details_without_internals()
@@ -42,7 +29,7 @@ public sealed class ExceptionHandlingTests(ProductionFactory factory)
             problem.GetProperty("correlationId").GetString());
         var body = problem.GetRawText();
         Assert.False(problem.TryGetProperty("stackTrace", out _));
-        Assert.DoesNotContain("staff.json", body, StringComparison.Ordinal);
+        Assert.DoesNotContain(BrokenSignInFactory.Internals, body, StringComparison.Ordinal);
         Assert.DoesNotContain("   at ", body, StringComparison.Ordinal);
     }
 
@@ -62,7 +49,7 @@ public sealed class ExceptionHandlingTests(ProductionFactory factory)
         Assert.Contains("Trace ID:", page, StringComparison.Ordinal);
         Assert.Contains("Correlation ID:", page, StringComparison.Ordinal);
         Assert.Contains("Back to the start", page, StringComparison.Ordinal);
-        Assert.DoesNotContain("staff.json", page, StringComparison.Ordinal);
+        Assert.DoesNotContain(BrokenSignInFactory.Internals, page, StringComparison.Ordinal);
     }
 
     [Fact]

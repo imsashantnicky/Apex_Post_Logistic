@@ -1,5 +1,4 @@
 using System.Net;
-using ApexPost.Infrastructure.Persistence.Json;
 using ApexPost.IntegrationTests.Support;
 
 namespace ApexPost.IntegrationTests.Security;
@@ -7,7 +6,7 @@ namespace ApexPost.IntegrationTests.Security;
 public sealed class SensitiveDataTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string DocumentNumber = "QK7654321";
-    private const string MaskedNumber = "****4321";
+    private const string StoredLastCharacters = "\"DocumentLast4\":\"4321\"";
 
     [Fact]
     public async Task Document_number_is_only_stored_masked_and_is_never_logged()
@@ -18,12 +17,12 @@ public sealed class SensitiveDataTests(ApexFactory factory) : IClassFixture<Apex
         using var verified = await counter.VerifyAsync(DocumentNumber);
 
         Assert.Equal(HttpStatusCode.Redirect, verified.StatusCode);
-        Assert.Contains(MaskedNumber, await ReadDataFileAsync(DataFiles.Transactions), StringComparison.Ordinal);
+        var checks = await AuditTrail.RawChecksAsync(factory);
+        Assert.Contains(StoredLastCharacters, checks, StringComparison.Ordinal);
+        Assert.DoesNotContain(DocumentNumber, checks, StringComparison.Ordinal);
+        Assert.DoesNotContain(DocumentNumber, await AuditTrail.RawRowsAsync(factory), StringComparison.Ordinal);
+        Assert.DoesNotContain(DocumentNumber, await counter.PageAsync(), StringComparison.Ordinal);
         AssertAbsentFromLogs(DocumentNumber);
-        foreach (var file in Directory.GetFiles(factory.DataFolder))
-        {
-            Assert.DoesNotContain(DocumentNumber, await ReadDataFileAsync(file), StringComparison.Ordinal);
-        }
     }
 
     [Fact]
@@ -39,14 +38,8 @@ public sealed class SensitiveDataTests(ApexFactory factory) : IClassFixture<Apex
         await factory.Logs.WaitForAsync(
             entry => entry.Message.Contains(PartnerClient.Parcel, StringComparison.Ordinal));
         AssertAbsentFromLogs(ApexFactory.PartnerKey);
-        foreach (var file in Directory.GetFiles(factory.DataFolder))
-        {
-            Assert.DoesNotContain(ApexFactory.PartnerKey, await ReadDataFileAsync(file), StringComparison.Ordinal);
-        }
+        Assert.DoesNotContain(ApexFactory.PartnerKey, await AuditTrail.RawRowsAsync(factory), StringComparison.Ordinal);
     }
-
-    private Task<string> ReadDataFileAsync(string file) =>
-        File.ReadAllTextAsync(factory.DataFile(file), TestContext.Current.CancellationToken);
 
     private void AssertAbsentFromLogs(string secret)
     {

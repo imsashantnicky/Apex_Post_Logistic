@@ -1,25 +1,29 @@
-using ApexPost.Infrastructure.Persistence.Json;
+using ApexPost.Domain.Branches;
 using ApexPost.IntegrationTests.Support;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace ApexPost.IntegrationTests.Middleware;
 
 public sealed class TemporaryStorageTests
 {
+    private const string ApplicationDatabase = "ApexPostDb";
+
     [Fact]
-    public void Every_factory_stores_its_data_in_its_own_temp_folder()
+    public async Task Every_factory_stores_its_data_in_its_own_temporary_database()
     {
-        using var first = new ApexFactory();
-        using var second = new ApexFactory();
+        await using var first = new ApexFactory();
+        await using var second = new ApexFactory();
+        _ = first.Services.GetRequiredService<IServiceScopeFactory>();
+        _ = second.Services.GetRequiredService<IServiceScopeFactory>();
 
-        var folder = first.Services.GetRequiredService<IOptions<JsonStorageSettings>>().Value.DataFolder;
-        _ = second.Services;
+        var firstName = new SqlConnectionStringBuilder(first.ConnectionString).InitialCatalog;
+        var secondName = new SqlConnectionStringBuilder(second.ConnectionString).InitialCatalog;
 
-        Assert.Equal(first.DataFolder, folder);
-        Assert.StartsWith(Path.GetTempPath(), folder, StringComparison.Ordinal);
-        Assert.NotEqual(first.DataFolder, second.DataFolder);
-        Assert.True(File.Exists(first.DataFile(DataFiles.Transactions)));
-        Assert.True(File.Exists(second.DataFile(DataFiles.Transactions)));
+        Assert.NotEqual(ApplicationDatabase, firstName);
+        Assert.NotEqual(firstName, secondName);
+        await using var database = first.OpenDatabase();
+        Assert.True(await database.Set<Branch>().AnyAsync(TestContext.Current.CancellationToken));
     }
 }

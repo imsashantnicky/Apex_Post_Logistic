@@ -148,7 +148,7 @@ public sealed class DevelopmentHistory(
             transaction.RecordVerification(clerk, Check(document, VerificationResult.Failed, openedAt));
         }
 
-        transaction.RecordVerification(clerk, Check(document, VerificationResult.Passed, openedAt));
+        transaction.RecordVerification(clerk, Check(document, VerificationResult.Passed, openedAt.AddMinutes(1)));
     }
 
     private IdentityVerification Check(DocumentType document, VerificationResult result, DateTimeOffset at) =>

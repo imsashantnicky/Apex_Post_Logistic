@@ -93,10 +93,7 @@ public sealed partial class CounterWorkflowTests(ApexFactory factory) : IClassFi
 
         await counter.VerifyAsync(DocumentNumber);
 
-        var stored = await File.ReadAllTextAsync(
-            factory.DataFile("transactions.json"),
-            TestContext.Current.CancellationToken);
-        Assert.DoesNotContain(DocumentNumber, stored, StringComparison.Ordinal);
+        Assert.DoesNotContain(DocumentNumber, await AuditTrail.RawChecksAsync(factory), StringComparison.Ordinal);
         Assert.DoesNotContain(DocumentNumber, await counter.PageAsync(), StringComparison.Ordinal);
     }
 

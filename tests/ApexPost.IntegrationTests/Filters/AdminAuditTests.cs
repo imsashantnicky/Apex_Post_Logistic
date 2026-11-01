@@ -28,7 +28,7 @@ public sealed class AdminAuditTests(ApexFactory factory) : IClassFixture<ApexFac
         var member = await factory.StaffAsync("audited@apexpost.test");
         Assert.Equal(member.Id.ToString(), entry.RouteValues["id"]);
         Assert.Equal("Administrator", entry.Role?.ToString());
-        Assert.DoesNotContain(Secret, await AuditTrail.RawFileAsync(factory), StringComparison.Ordinal);
+        Assert.DoesNotContain(Secret, await AuditTrail.RawRowsAsync(factory), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class AdminAuditTests(ApexFactory factory) : IClassFixture<ApexFac
         var entry = await AuditTrail.EntryForAsync(factory, deactivated, AuditEvents.StaffDeactivated);
         Assert.Equal("Left the company.", entry.RouteValues["reason"]);
         Assert.Equal(id.ToString(), entry.RouteValues["id"]);
-        Assert.DoesNotContain(Secret, await AuditTrail.RawFileAsync(factory), StringComparison.Ordinal);
+        Assert.DoesNotContain(Secret, await AuditTrail.RawRowsAsync(factory), StringComparison.Ordinal);
     }
 
     [Fact]
