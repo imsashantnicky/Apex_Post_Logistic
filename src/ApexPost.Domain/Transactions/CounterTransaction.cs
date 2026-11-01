@@ -13,7 +13,7 @@ namespace ApexPost.Domain.Transactions;
 /// </summary>
 public sealed class CounterTransaction : Entity<Guid>
 {
-    private readonly List<ILineItem> _lines = [];
+    private readonly List<TransactionLine> _lines = [];
     private readonly List<IdentityVerification> _verifications = [];
     private readonly List<IDomainEvent> _events = [];
 
@@ -229,7 +229,7 @@ public sealed class CounterTransaction : Entity<Guid>
             throw new DomainException("This line is already in the basket.");
         }
 
-        _lines.Add(line);
+        _lines.Add(line as TransactionLine ?? throw new DomainException("This kind of line is not supported."));
     }
 
     private void EnsureOpen()

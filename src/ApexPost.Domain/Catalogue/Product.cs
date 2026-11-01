@@ -16,6 +16,13 @@ public sealed class Product : Entity<Sku>
         TaxCategory = Guard.Defined(taxCategory, nameof(TaxCategory));
     }
 
+    // Only for persistence frameworks; they fill the properties from stored values.
+    private Product()
+    {
+        Name = null!;
+        UnitPrice = null!;
+    }
+
     public Sku Sku => Id;
 
     public string Name { get; }

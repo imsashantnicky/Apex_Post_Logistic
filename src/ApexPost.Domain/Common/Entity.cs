@@ -14,6 +14,12 @@ public abstract class Entity<TId> : IEquatable<Entity<TId>>
         Id = id;
     }
 
+    // Only for persistence frameworks: they set the identity right after creating the object.
+    protected Entity()
+    {
+        Id = default!;
+    }
+
     public TId Id { get; }
 
     /// <summary>Version of the stored state this entity was loaded from, used for optimistic concurrency.</summary>

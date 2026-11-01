@@ -7,27 +7,40 @@ using ApexPost.Domain.Shipping;
 namespace ApexPost.Domain.Transactions;
 
 /// <summary>A priced shipment to a destination zone. Shipping is taxed at the standard rate.</summary>
-public sealed record ShippingLineItem(Guid Id, Shipment Shipment, string ZoneCode, Money Price) : ILineItem
+public sealed record ShippingLineItem : TransactionLine
 {
     private const string TrackingPrefix = "AP";
     private const string PlainGuidFormat = "N";
     private const int TrackingDigits = 10;
 
-    public Guid Id { get; } = Guard.NotEmpty(Id, "Line id");
+    public ShippingLineItem(Guid id, Shipment shipment, string zoneCode, Money price)
+        : this(id, zoneCode, price)
+    {
+        Shipment = Guard.Required(shipment, nameof(Shipment));
+    }
 
-    public Shipment Shipment { get; } = Guard.Required(Shipment, nameof(Shipment));
+    // Used by EF Core: the shipment is a separate row and is attached after the line is read.
+    private ShippingLineItem(Guid id, string zoneCode, Money price)
+        : base(id)
+    {
+        ZoneCode = Guard.NotBlank(zoneCode, "Zone code", TextLimits.ZoneCode).ToUpperInvariant();
+        Price = Guard.Required(price, nameof(Price)).IsPositive
+            ? price
+            : throw new DomainException("A shipping price must be greater than zero.");
+        Shipment = null!;
+    }
 
-    public string ZoneCode { get; } = Guard.NotBlank(ZoneCode, "Zone code", TextLimits.ZoneCode).ToUpperInvariant();
+    public Shipment Shipment { get; }
 
-    public Money Price { get; } = Guard.Required(Price, nameof(Price)).IsPositive
-        ? Price
-        : throw new DomainException("A shipping price must be greater than zero.");
+    public string ZoneCode { get; }
 
-    public string Description => $"{Shipment.Level} {Shipment.Type} to zone {ZoneCode}";
+    public Money Price { get; }
 
-    public Money Total => Price;
+    public override string Description => $"{Shipment.Level} {Shipment.Type} to zone {ZoneCode}";
 
-    public TaxCategory TaxCategory => TaxCategory.Standard;
+    public override Money Total => Price;
+
+    public override TaxCategory TaxCategory => TaxCategory.Standard;
 
     /// <summary>The number printed on the label, taken from the random part of the line id.</summary>
     public string TrackingNumber =>
