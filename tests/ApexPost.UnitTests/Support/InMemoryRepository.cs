@@ -16,7 +16,11 @@ internal sealed class InMemoryRepository<TEntity, TId>(Func<TEntity, int, TEntit
     private readonly Dictionary<TId, TEntity> _items = [];
     private readonly Lock _lock = new();
 
+    private int _listCount;
+
     public int UpdateCount { get; private set; }
+
+    public int ListCount => Volatile.Read(ref _listCount);
 
     public async Task<TEntity?> GetAsync(TId id, CancellationToken cancellationToken)
     {
@@ -35,6 +39,7 @@ internal sealed class InMemoryRepository<TEntity, TId>(Func<TEntity, int, TEntit
         CancellationToken cancellationToken)
     {
         await Task.Yield();
+        Interlocked.Increment(ref _listCount);
         lock (_lock)
         {
             return [.. _items.Values.Where(specification.IsSatisfiedBy).Select(item => copy(item, item.Version))];
