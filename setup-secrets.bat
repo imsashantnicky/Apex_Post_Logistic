@@ -7,5 +7,8 @@ dotnet user-secrets set "Seed:DemoPassword" "%DEMO_PASSWORD%" --project src\Apex
 if errorlevel 1 exit /b 1
 dotnet user-secrets set "Integration:ApiKeys:AcmeCouriers" "%API_KEY%" --project src\ApexPost.Web
 if errorlevel 1 exit /b 1
+dotnet user-secrets set "ConnectionStrings:ApexPostDb" "Server=<server>;Database=<database>;User Id=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=True" --project src\ApexPost.Web
+if errorlevel 1 exit /b 1
+echo Replace the ConnectionStrings:ApexPostDb placeholder with your own value before using SQL Server.
 echo Secrets stored. Start the application with: dotnet run --project src\ApexPost.Web --launch-profile https
 endlocal
