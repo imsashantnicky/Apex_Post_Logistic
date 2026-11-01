@@ -63,11 +63,7 @@ public sealed class CounterTransaction : Entity<Guid>
     /// <summary>The only way to start a transaction: the branch must be open and the clerk allowed there.</summary>
     public static CounterTransaction Open(Branch branch, Counter counter, Staff clerk, DateTimeOffset now)
     {
-        if (!branch.IsActive)
-        {
-            throw new DomainException($"Branch {branch.Code} is closed and cannot accept transactions.");
-        }
-
+        branch.EnsureOpen();
         if (!branch.Counters.Contains(counter))
         {
             throw new DomainException($"The counter does not belong to branch {branch.Code}.");

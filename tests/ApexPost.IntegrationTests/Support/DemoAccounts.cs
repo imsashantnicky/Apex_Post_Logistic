@@ -12,4 +12,5 @@ internal static class DemoAccounts
     public const string InactiveClerk = "clerk4.br002@apexpost.test";
     public const string Auditor = "auditor1@apexpost.test";
     public const string Administrator = "admin1@apexpost.test";
+    public const string SecondAdministrator = "admin2@apexpost.test";
 }

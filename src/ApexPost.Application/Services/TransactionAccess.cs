@@ -1,6 +1,7 @@
 using ApexPost.Application.Abstractions;
 using ApexPost.Application.Exceptions;
 using ApexPost.Application.Extensions;
+using ApexPost.Domain.Branches;
 using ApexPost.Domain.Personnel;
 using ApexPost.Domain.Transactions;
 
@@ -13,6 +14,7 @@ namespace ApexPost.Application.Services;
 public sealed class TransactionAccess(
     ICurrentUser user,
     IRepository<Staff, Guid> staff,
+    IRepository<Branch, BranchCode> branches,
     IRepository<CounterTransaction, Guid> transactions)
 {
     public ICurrentUser User => user;
@@ -30,13 +32,20 @@ public sealed class TransactionAccess(
         return transaction;
     }
 
-    /// <summary>Loads a transaction for counter work by a clerk or manager of the same branch.</summary>
-    public Task<(CounterTransaction Transaction, Staff Clerk)> ForCounterWorkAsync(
+    /// <summary>
+    /// Loads a transaction for counter work by a clerk or manager of the same branch. The branch may have closed
+    /// since the basket was opened: it then takes no more work, and only a void can end the basket.
+    /// </summary>
+    public async Task<(CounterTransaction Transaction, Staff Clerk)> ForCounterWorkAsync(
         Guid id,
         CancellationToken cancellationToken)
     {
         user.RequireRole(StaffRole.CounterClerk, StaffRole.BranchManager);
-        return LoadWithStaffAsync(id, cancellationToken);
+        var (transaction, clerk) = await LoadWithStaffAsync(id, cancellationToken).ConfigureAwait(false);
+        var branch = await branches.GetAsync(transaction.Branch, cancellationToken).ConfigureAwait(false)
+            ?? throw new NotFoundException($"Branch {transaction.Branch} does not exist.");
+        branch.EnsureOpen();
+        return (transaction, clerk);
     }
 
     /// <summary>Loads a transaction for a void or refund by a Branch Manager of the same branch.</summary>

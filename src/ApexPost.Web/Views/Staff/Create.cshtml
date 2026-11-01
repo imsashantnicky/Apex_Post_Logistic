@@ -1,0 +1,10 @@
+@model StaffFormPage
+@{
+    ViewData["Title"] = "Add staff";
+    var header = new PageHeader("Add staff", Help: "The new member signs in with this email and password.");
+}
+<partial name="_PageHeader" model="header" />
+
+<section class="card narrow">
+    <partial name="_StaffForm" model="Model" />
+</section>

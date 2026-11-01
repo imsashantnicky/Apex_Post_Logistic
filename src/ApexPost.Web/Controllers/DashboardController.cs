@@ -1,5 +1,4 @@
 using ApexPost.Application.Abstractions;
-using ApexPost.Application.DTOs;
 using ApexPost.Application.Extensions;
 using ApexPost.Application.Reports;
 using ApexPost.Application.Services;
@@ -11,10 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ApexPost.Web.Controllers;
 
 public sealed class DashboardController(ReportService reports, BranchService branches, ICurrentUser user)
-    : ApexController
+    : BranchScopedController(branches, user)
 {
-    private const string AllBranches = "All branches";
-
     [Authorize(Policy = ApexPolicies.SameBranchOnly)]
     [HttpGet]
     public async Task<IActionResult> Index(string? branch, CancellationToken cancellationToken)
@@ -25,16 +22,7 @@ public sealed class DashboardController(ReportService reports, BranchService bra
         }
 
         var dashboard = await reports.DashboardAsync(code, cancellationToken);
-        var scope = dashboard.Branch is { } selected
-            ? BranchLabel(await branches.GetAsync(selected, cancellationToken))
-            : AllBranches;
-        IReadOnlyList<BranchSummary> choices = user.SeesAllBranches ? await branches.ListAsync(cancellationToken) : [];
-        return View(new DashboardPage(
-            dashboard,
-            scope,
-            new BranchFilter(choices, dashboard.Branch, AllowAll: true),
-            user.CanTransact));
+        var toolbar = await ToolbarAsync(dashboard.Branch, cancellationToken);
+        return View(new DashboardPage(dashboard, toolbar, CurrentUser.CanTransact, CurrentUser.CanViewReports));
     }
-
-    private static string BranchLabel(BranchSummary branch) => $"{branch.Name} ({branch.Code})";
 }

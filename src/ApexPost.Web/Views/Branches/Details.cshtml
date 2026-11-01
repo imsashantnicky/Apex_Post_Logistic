@@ -1,0 +1,70 @@
+@model BranchSummary
+@{
+    ViewData["Title"] = Model.Name;
+    var code = Model.Code.Value;
+    var header = new PageHeader(
+        Model.Name,
+        $"{code} · {Model.Region} · {Model.OpensAt:HH:mm}–{Model.ClosesAt:HH:mm}",
+        "A closed branch takes no new work; managers can still void open baskets and refund sales.",
+        Model.IsActive ? "Open" : "Closed");
+}
+<partial name="_PageHeader" model="header" />
+
+<div class="split">
+    <section class="card">
+        <h2>Counters</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Counter</th>
+                        <th scope="col"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var counter in Model.Counters)
+                    {
+                        <tr>
+                            <td>Counter @counter.Number</td>
+                            <td class="num">
+                                @if (Model.Counters.Count > 1)
+                                {
+                                    <form asp-action="RemoveCounter" asp-route-id="@code" method="post"
+                                          class="inline-form" data-confirm="Remove counter @counter.Number?">
+                                        <input type="hidden" name="counterId" value="@counter.Id" />
+                                        <input type="hidden" name="version" value="@Model.Version" />
+                                        <button type="submit" class="button button-outline">
+                                            Remove<span class="sr-only"> counter @counter.Number</span>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <form asp-action="AddCounter" asp-route-id="@code" method="post" class="more">
+            <input type="hidden" name="version" value="@Model.Version" />
+            <button type="submit" class="button">Add counter</button>
+        </form>
+    </section>
+    <section class="card">
+        <h2>Status</h2>
+        @if (Model.IsActive)
+        {
+            <form asp-action="Close" asp-route-id="@code" method="post" class="form"
+                  data-confirm="Close @Model.Name? Its clerks can no longer work on any basket.">
+                <input type="hidden" name="version" value="@Model.Version" />
+                <button type="submit" class="button button-outline">Close branch</button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="Reopen" asp-route-id="@code" method="post" class="form">
+                <input type="hidden" name="version" value="@Model.Version" />
+                <button type="submit" class="button">Reopen branch</button>
+            </form>
+        }
+    </section>
+</div>

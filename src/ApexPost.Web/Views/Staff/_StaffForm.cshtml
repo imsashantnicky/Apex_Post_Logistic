@@ -1,0 +1,60 @@
+@using ApexPost.Domain.Personnel
+@model StaffFormPage
+@{
+    var member = Model.Member;
+    var isNew = member is null;
+}
+<form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@member?.Id" method="post" class="form">
+    @if (member is not null)
+    {
+        <input type="hidden" name="version" value="@member.Version" />
+    }
+    <div class="field">
+        <label for="Name">Name</label>
+        <input id="Name" name="Name" value="@member?.Name" maxlength="@TextLimits.Name" required />
+    </div>
+    <div class="field">
+        <label for="Email">Email</label>
+        <input id="Email" name="Email" type="email" value="@member?.Email" maxlength="@TextLimits.Email"
+               autocomplete="off" required />
+    </div>
+    <div class="field">
+        <label for="Role">Role</label>
+        <select id="Role" name="Role" required>
+            @foreach (var option in EnumText.Options<StaffRole>())
+            {
+                <option value="@option.Value" selected="@(option.Value == member?.Role.ToString())">
+                    @option.Text
+                </option>
+            }
+        </select>
+        @if (Model.IsOwnAccount)
+        {
+            <span class="hint">You cannot change your own role.</span>
+        }
+    </div>
+    <div class="field">
+        <label for="HomeBranch">Home branch</label>
+        <select id="HomeBranch" name="HomeBranch" required>
+            @foreach (var branch in Model.Branches)
+            {
+                <option value="@branch.Code" selected="@(branch.Code == member?.HomeBranch)">
+                    @branch.Code @branch.Name
+                </option>
+            }
+        </select>
+    </div>
+    @if (isNew)
+    {
+        <div class="field">
+            <label for="Password">Password</label>
+            <input id="Password" name="Password" type="password" autocomplete="new-password"
+                   minlength="@Model.MinimumPasswordLength" maxlength="@PasswordCommand.MaximumLength" required />
+            <span class="hint">At least @Model.MinimumPasswordLength characters.</span>
+        </div>
+    }
+    <div class="actions">
+        <button type="submit" class="button">@(isNew ? "Add staff member" : "Save changes")</button>
+        <a class="button button-outline" asp-action="Index">Cancel</a>
+    </div>
+</form>

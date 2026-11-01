@@ -15,6 +15,8 @@ public static class CurrentUserExtensions
 
         public bool CanTransact => user.Role is StaffRole.CounterClerk or StaffRole.BranchManager;
 
+        public bool CanViewReports => user.Role is not StaffRole.CounterClerk;
+
         public void RequireRole(params ReadOnlySpan<StaffRole> roles)
         {
             if (!roles.Contains(user.Role))

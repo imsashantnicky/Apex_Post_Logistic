@@ -5,6 +5,8 @@ namespace ApexPost.Domain.Branches;
 /// <summary>A postal branch with opening hours, an open/closed status and at least one counter.</summary>
 public sealed class Branch : Entity<BranchCode>
 {
+    private const string CounterRequired = "A branch needs at least one counter.";
+
     private readonly List<Counter> _counters;
 
     public Branch(
@@ -42,6 +44,14 @@ public sealed class Branch : Entity<BranchCode>
 
     public IReadOnlyList<Counter> Counters => _counters.AsReadOnly();
 
+    public void EnsureOpen()
+    {
+        if (!IsActive)
+        {
+            throw new DomainException($"Branch {Code} is closed and cannot accept transactions.");
+        }
+    }
+
     public void Close()
     {
         if (!IsActive)
@@ -75,12 +85,24 @@ public sealed class Branch : Entity<BranchCode>
         return counter;
     }
 
+    public void RemoveCounter(Guid id)
+    {
+        var counter = _counters.Find(existing => existing.Id == id)
+            ?? throw new DomainException($"Branch {Code} has no such counter.");
+        if (_counters.Count == 1)
+        {
+            throw new DomainException(CounterRequired);
+        }
+
+        _counters.Remove(counter);
+    }
+
     private static List<Counter> ValidCounters(IEnumerable<Counter> counters)
     {
         List<Counter> list = [.. counters];
         if (list.Count == 0)
         {
-            throw new DomainException("A branch needs at least one counter.");
+            throw new DomainException(CounterRequired);
         }
 
         var isUnique = list.Distinct().Count() == list.Count

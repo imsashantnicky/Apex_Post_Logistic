@@ -1,0 +1,24 @@
+@{
+    ViewData["Title"] = "Reports";
+    var header = new PageHeader("Reports", Help: "Each report can be filtered by branch; managers see their own.");
+}
+<partial name="_PageHeader" model="header" />
+
+<div class="report-grid">
+    <section class="card">
+        <h2><a asp-action="DailySales">Daily sales</a></h2>
+        <p>Paid sales per day and branch, split into retail and services.</p>
+    </section>
+    <section class="card">
+        <h2><a asp-action="LowStock">Low stock</a></h2>
+        <p>Items at or below the low-stock threshold right now.</p>
+    </section>
+    <section class="card">
+        <h2><a asp-action="ShippingVolume">Shipping volume</a></h2>
+        <p>Paid shipments by destination zone and service level.</p>
+    </section>
+    <section class="card">
+        <h2><a asp-action="MoneyOrders">Money orders and identity checks</a></h2>
+        <p>Money orders and identity verifications per branch.</p>
+    </section>
+</div>
