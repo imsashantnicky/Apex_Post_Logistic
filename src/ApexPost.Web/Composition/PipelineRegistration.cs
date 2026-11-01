@@ -1,3 +1,4 @@
+using ApexPost.Web.Filters;
 using ApexPost.Web.Health;
 using ApexPost.Web.Middleware;
 using ApexPost.Web.Security;
@@ -18,6 +19,7 @@ public static class PipelineRegistration
         services.Configure<SecuritySettings>(configuration.GetSection(SecuritySettings.SectionName));
         services.Configure<IntegrationSettings>(configuration.GetSection(IntegrationSettings.SectionName));
         services.Configure<RateLimitSettings>(configuration.GetSection(RateLimitSettings.SectionName));
+        services.Configure<PerformanceSettings>(configuration.GetSection(PerformanceSettings.SectionName));
 
         services.AddExceptionHandler<ProblemExceptionHandler>();
         services.AddHealthChecks().AddCheck<DataStoreHealthCheck>(DataStoreCheck);

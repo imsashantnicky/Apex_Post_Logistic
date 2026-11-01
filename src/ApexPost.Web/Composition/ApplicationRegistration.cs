@@ -38,6 +38,7 @@ public static class ApplicationRegistration
         services.AddScoped<BranchService>();
         services.AddScoped<StaffService>();
         services.AddScoped<ReportService>();
+        services.AddScoped<AuditService>();
         return services;
     }
 }

@@ -20,7 +20,7 @@ public sealed partial class ProblemExceptionHandler(
     {
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(exception);
-        var status = StatusFor(exception);
+        var status = ProblemResponses.StatusFor(exception);
         Log(exception, status);
 
         var problem = ProblemResponses.Create(httpContext, status, SafeDetail(exception));
@@ -39,18 +39,6 @@ public sealed partial class ProblemExceptionHandler(
         await ProblemResponses.WriteJsonAsync(httpContext, problem);
         return true;
     }
-
-    private static int StatusFor(Exception exception) => exception switch
-    {
-        NotFoundException => StatusCodes.Status404NotFound,
-        ForbiddenException => StatusCodes.Status403Forbidden,
-        ValidationFailedException or DomainException => StatusCodes.Status400BadRequest,
-        ConcurrencyException => StatusCodes.Status409Conflict,
-        ExternalServiceTimeoutException => StatusCodes.Status504GatewayTimeout,
-        ExternalServiceException => StatusCodes.Status502BadGateway,
-        BadHttpRequestException badRequest => badRequest.StatusCode,
-        _ => StatusCodes.Status500InternalServerError,
-    };
 
     /// <summary>Only rule messages are written for users; any other message stays in the log.</summary>
     private static string? SafeDetail(Exception exception) =>
