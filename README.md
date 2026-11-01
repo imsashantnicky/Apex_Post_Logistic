@@ -54,7 +54,8 @@ dotnet ef database update --project src/ApexPost.Infrastructure
 ```
 
 [sql/perf/volume-seed.sql](sql/perf/volume-seed.sql) then multiplies that data for performance tests, to about 200k
-transactions and 600k lines of fictional data. Run it once, on a development database only:
+transactions and 600k retail lines of fictional data. Run it once, on a development database only. The row counts of
+the seed and of a volume run are in [docs/perf/](docs/perf/).
 
 ```bash
 sqlcmd -S localhost -E -C -d ApexPostDb -b -i sql/perf/volume-seed.sql
