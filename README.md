@@ -113,6 +113,4 @@ and anything shaped like a document or card number is masked before it reaches t
 - Notifications are kept in memory: the newest 200 survive until the application restarts, and the seeded history
   raises none.
 - Setting a new password does not end the member's open sessions; deactivating the account does.
-- A refused Add staff form returns empty apart from the error message, because the form follows Post/Redirect/Get and
-  the typed values are not kept.
 - Report rows are built in memory from the JSON files, so a report reads all transactions on every request.
