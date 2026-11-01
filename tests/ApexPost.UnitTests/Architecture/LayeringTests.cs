@@ -20,6 +20,16 @@ public sealed class LayeringTests
         Assert.DoesNotContain(outerLayer, ReferencedProductAssemblies("ApexPost.Application"));
     }
 
+    [Theory]
+    [InlineData("ApexPost.Domain")]
+    [InlineData("ApexPost.Application")]
+    public void Inner_layers_know_nothing_about_json(string innerLayer)
+    {
+        var references = Assembly.Load(innerLayer).GetReferencedAssemblies().Select(reference => reference.Name);
+
+        Assert.DoesNotContain("System.Text.Json", references);
+    }
+
     private static string[] ReferencedProductAssemblies(string assemblyName) =>
     [
         .. Assembly.Load(assemblyName)
