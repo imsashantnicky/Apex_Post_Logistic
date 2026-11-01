@@ -10,6 +10,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\ApexPost.UnitTests\Architecture\CodeUsage.cs" Link="Architecture\CodeUsage.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 
