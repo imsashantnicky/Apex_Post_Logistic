@@ -3,6 +3,8 @@
     --panel: #ffffff;
     --text: #1d2733;
     --muted: #66758a;
+    --muted-on-bg: #5b6a7e;
+    --field-line: #7a8799;
     --brand: #c8102e;
     --brand-dark: #9d0c24;
     --line: #dde3ea;
@@ -38,6 +40,27 @@ a {
 :focus-visible {
     outline: 3px solid var(--info);
     outline-offset: 2px;
+}
+
+.topbar :focus-visible {
+    outline-color: #ffffff;
+}
+
+.skip-link {
+    position: absolute;
+    left: -100vw;
+    padding: 0.5rem 1rem;
+    background: var(--panel);
+}
+
+.skip-link:focus {
+    left: 0.5rem;
+    top: 0.5rem;
+    z-index: 1;
+}
+
+main:focus {
+    outline: none;
 }
 
 h1,
@@ -132,7 +155,7 @@ h2 {
 
 .footer {
     padding: 0.75rem 1rem;
-    color: var(--muted);
+    color: var(--muted-on-bg);
     font-size: 0.8rem;
     text-align: center;
     overflow-wrap: anywhere;
@@ -145,6 +168,7 @@ h2 {
 
 .page-header p {
     margin: 0.15rem 0 0;
+    color: var(--muted-on-bg);
 }
 
 .muted {
@@ -186,6 +210,10 @@ h2 {
     margin: 3rem auto;
 }
 
+.centre-card > .button {
+    margin-top: 0.75rem;
+}
+
 .brand-title {
     color: var(--brand);
 }
@@ -198,8 +226,13 @@ h2 {
 }
 
 .values {
+    min-width: 12rem;
     font-size: 0.8rem;
     overflow-wrap: anywhere;
+}
+
+.nowrap {
+    white-space: nowrap;
 }
 
 .stack {
@@ -282,7 +315,7 @@ table {
 th {
     padding: 0.5rem 0.6rem;
     background: var(--bg);
-    color: var(--muted);
+    color: var(--muted-on-bg);
     font-size: 0.72rem;
     letter-spacing: 0.04em;
     text-align: left;
@@ -471,10 +504,19 @@ textarea {
     width: 100%;
     padding: 0.45rem 0.55rem;
     background: var(--panel);
-    border: 1px solid #8b98a9;
+    border: 1px solid var(--field-line);
     border-radius: 6px;
     color: var(--text);
     font: inherit;
+}
+
+[aria-invalid="true"] {
+    border-color: var(--bad);
+}
+
+.field-error {
+    color: var(--bad);
+    font-size: 0.85rem;
 }
 
 .toolbar .field {
@@ -508,6 +550,11 @@ textarea {
 .button:hover {
     background: var(--brand-dark);
     border-color: var(--brand-dark);
+}
+
+.button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .button-outline {
@@ -580,6 +627,12 @@ details .form {
     max-width: 640px;
 }
 
+.label-brand {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
 .label-reference {
     margin: 0.25rem 0 1rem;
     font-size: 1.2rem;
@@ -607,8 +660,11 @@ address {
 }
 
 @media print {
+    .skip-link,
     .topbar,
     .footer,
+    .alert,
+    .label-screen,
     .label-actions {
         display: none;
     }

@@ -41,7 +41,7 @@
         }
         else
         {
-            <div class="table-wrap">
+            <div class="table-wrap" tabindex="0" role="region" aria-label="Table">
                 <table>
                     <thead>
                         <tr>
@@ -57,7 +57,7 @@
                         {
                             <tr>
                                 @if (dashboard.Branch is null) { <td>@row.Branch</td> }
-                                <td>@row.Sku</td>
+                                <td class="nowrap">@row.Sku</td>
                                 <td>@row.Product</td>
                                 <td class="num">@row.Quantity</td>
                                 <td class="num">@dashboard.LowStock.Threshold</td>

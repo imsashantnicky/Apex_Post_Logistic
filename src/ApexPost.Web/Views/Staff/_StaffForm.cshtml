@@ -3,27 +3,31 @@
 @{
     var member = Model.Member;
     var isNew = member is null;
+    var form = isNew ? "Create" : "Edit";
+    var role = TempData.FieldValue(form, "Role") ?? member?.Role.ToString();
+    var homeBranch = TempData.FieldValue(form, "HomeBranch") ?? member?.HomeBranch.Value;
 }
-<form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@member?.Id" method="post" class="form">
+<form asp-action="@form" asp-route-id="@member?.Id" method="post" class="form">
     @if (member is not null)
     {
         <input type="hidden" name="version" value="@member.Version" />
     }
     <div class="field">
         <label for="Name">Name</label>
-        <input id="Name" name="Name" value="@member?.Name" maxlength="@TextLimits.Name" required />
+        <input apex-form="@form" id="Name" name="Name" value="@member?.Name" maxlength="@TextLimits.Name" required />
     </div>
     <div class="field">
         <label for="Email">Email</label>
-        <input id="Email" name="Email" type="email" value="@member?.Email" maxlength="@TextLimits.Email"
+        <input apex-form="@form"
+               id="Email" name="Email" type="email" value="@member?.Email" maxlength="@TextLimits.Email"
                autocomplete="off" required />
     </div>
     <div class="field">
         <label for="Role">Role</label>
-        <select id="Role" name="Role" required>
+        <select apex-form="@form" id="Role" name="Role" required>
             @foreach (var option in EnumText.Options<StaffRole>())
             {
-                <option value="@option.Value" selected="@(option.Value == member?.Role.ToString())">
+                <option value="@option.Value" selected="@(option.Value == role)">
                     @option.Text
                 </option>
             }
@@ -35,10 +39,10 @@
     </div>
     <div class="field">
         <label for="HomeBranch">Home branch</label>
-        <select id="HomeBranch" name="HomeBranch" required>
+        <select apex-form="@form" id="HomeBranch" name="HomeBranch" required>
             @foreach (var branch in Model.Branches)
             {
-                <option value="@branch.Code" selected="@(branch.Code == member?.HomeBranch)">
+                <option value="@branch.Code" selected="@(branch.Code.Value == homeBranch)">
                     @branch.Code @branch.Name
                 </option>
             }
@@ -48,7 +52,7 @@
     {
         <div class="field">
             <label for="Password">Password</label>
-            <input id="Password" name="Password" type="password" autocomplete="new-password"
+            <input apex-form="@form" id="Password" name="Password" type="password" autocomplete="new-password"
                    minlength="@Model.MinimumPasswordLength" maxlength="@PasswordCommand.MaximumLength" required />
             <span class="hint">At least @Model.MinimumPasswordLength characters.</span>
         </div>

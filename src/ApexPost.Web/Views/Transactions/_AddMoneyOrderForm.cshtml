@@ -7,15 +7,15 @@
     <form asp-action="AddMoneyOrder" asp-route-id="@Model.Transaction.Id" method="post" class="form">
         <div class="field">
             <label for="Amount">Amount</label>
-            <input id="Amount" name="Amount" type="number" min="0.01" step="0.01" required />
+            <input apex-form="AddMoneyOrder" id="Amount" name="Amount" type="number" min="0.01" step="0.01" required />
         </div>
         <div class="field">
             <label for="Sender">Sender</label>
-            <input id="Sender" name="Sender" maxlength="@TextLimits.Name" required />
+            <input apex-form="AddMoneyOrder" id="Sender" name="Sender" maxlength="@TextLimits.Name" required />
         </div>
         <div class="field">
             <label for="Recipient">Recipient</label>
-            <input id="Recipient" name="Recipient" maxlength="@TextLimits.Name" required />
+            <input apex-form="AddMoneyOrder" id="Recipient" name="Recipient" maxlength="@TextLimits.Name" required />
         </div>
         <button type="submit" class="button">Add money order</button>
     </form>

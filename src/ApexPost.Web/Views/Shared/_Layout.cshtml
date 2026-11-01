@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="topbar">
         <a class="brand" asp-controller="Dashboard" asp-action="Index">ApexPost Counter</a>
         @if (isSignedIn)
@@ -54,7 +55,7 @@
             </div>
         }
     </header>
-    <main class="content">
+    <main id="main" class="content" tabindex="-1">
         <partial name="_Flash" />
         @RenderBody()
     </main>

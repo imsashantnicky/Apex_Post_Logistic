@@ -26,7 +26,8 @@ public static partial class AuditRedactor
             StringComparer.OrdinalIgnoreCase);
     }
 
-    private static bool IsSensitive(string name)
+    /// <summary>True for a name that may hold a secret, such as a password, a card or a document number.</summary>
+    public static bool IsSensitive(string name)
     {
         var letters = string.Concat(name.Where(char.IsAsciiLetter));
         return SensitiveNames.Any(sensitive => letters.Contains(sensitive, StringComparison.OrdinalIgnoreCase));

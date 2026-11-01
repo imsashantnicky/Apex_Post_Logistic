@@ -68,7 +68,9 @@ public sealed class TransactionsController(
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
     {
         var transaction = await checkout.GetAsync(id, cancellationToken);
-        var canWork = user.CanTransact && transaction.Status == TransactionStatus.Open;
+        var isOpen = transaction.Status == TransactionStatus.Open;
+        var branchClosed = isOpen && !(await branches.GetAsync(transaction.Branch, cancellationToken)).IsActive;
+        var canWork = user.CanTransact && isOpen && !branchClosed;
         IReadOnlyList<CatalogueItem> products = canWork
             ? await catalogue.SearchAsync(new CatalogueQuery(), cancellationToken)
             : [];
@@ -79,7 +81,8 @@ public sealed class TransactionsController(
             shippingZones,
             rules.VerificationThreshold,
             canWork,
-            user.Role == StaffRole.BranchManager));
+            user.Role == StaffRole.BranchManager,
+            branchClosed));
     }
 
     [HttpGet]
