@@ -1,7 +1,7 @@
 namespace ApexPost.Application.Exceptions;
 
 /// <summary>Thrown when a record changed after it was loaded (HTTP 409).</summary>
-public sealed class ConcurrencyException : Exception
+public class ConcurrencyException : Exception
 {
     public ConcurrencyException()
     {

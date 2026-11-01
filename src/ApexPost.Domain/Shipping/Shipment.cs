@@ -37,5 +37,10 @@ public sealed record Shipment
     public Address Recipient { get; }
 
     /// <summary>The heavier of the actual and the volumetric weight, in kilograms.</summary>
-    public decimal ChargeableKg => Math.Max(Weight.Kilograms, Dimensions.VolumetricKg);
+    public decimal ChargeableKg => ChargeableKgOf(Weight, Dimensions);
+
+    public static decimal ChargeableKgOf(Weight weight, Dimensions dimensions) =>
+        Math.Max(
+            Guard.Required(weight, nameof(weight)).Kilograms,
+            Guard.Required(dimensions, nameof(dimensions)).VolumetricKg);
 }

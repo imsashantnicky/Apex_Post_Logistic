@@ -9,11 +9,12 @@ namespace ApexPost.Application.Services;
 
 /// <summary>
 /// Voids and refunds. Only an active Branch Manager of the same branch may reverse a transaction, and a
-/// reason is required. Retail goods of a paid transaction go back into stock in the same method.
+/// reason is required. The status change and the returned stock are committed together.
 /// </summary>
 public sealed class ReversalService(
     TransactionAccess access,
-    StockLedger ledger,
+    IStockRepository stockItems,
+    IUnitOfWork unitOfWork,
     StockGate gate,
     CounterEvents events,
     AttributeModelValidator validator,
@@ -54,14 +55,15 @@ public sealed class ReversalService(
                 var (transaction, manager) = await access.ForReversalAsync(id, cancellationToken)
                     .ConfigureAwait(false);
                 var stock = transaction.Status == TransactionStatus.Paid
-                    ? await ledger.LoadAsync(
+                    ? await stockItems.GetManyAsync(
                         transaction.Branch,
                         transaction.Lines.OfType<RetailLineItem>().Select(line => line.Sku),
                         cancellationToken).ConfigureAwait(false)
                     : [];
                 reverse(transaction, manager, command.Reason, stock, clock.UtcNow);
-                await access.SaveAsync(transaction, cancellationToken).ConfigureAwait(false);
-                await ledger.SaveAsync(stock, cancellationToken).ConfigureAwait(false);
+                access.Update(transaction);
+                stockItems.Update(stock);
+                await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 events.Publish(transaction.TakeEvents());
             },
             cancellationToken);

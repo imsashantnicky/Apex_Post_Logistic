@@ -2,11 +2,9 @@ using ApexPost.Application.Abstractions;
 using ApexPost.Application.DTOs;
 using ApexPost.Application.Exceptions;
 using ApexPost.Application.Extensions;
-using ApexPost.Application.Specifications;
 using ApexPost.Domain.Branches;
 using ApexPost.Domain.Common;
 using ApexPost.Domain.Personnel;
-using ApexPost.Domain.Transactions;
 
 namespace ApexPost.Application.Services;
 
@@ -15,21 +13,23 @@ namespace ApexPost.Application.Services;
 /// </summary>
 public sealed class BranchService(
     ICurrentUser user,
-    IRepository<Branch, BranchCode> branches,
-    IRepository<CounterTransaction, Guid> transactions)
+    IBranchRepository branches,
+    IBranchQueries queries,
+    ICounterTransactionRepository transactions,
+    IUnitOfWork unitOfWork)
 {
-    public async Task<IReadOnlyList<BranchSummary>> ListAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<BranchSummary>> ListAsync(CancellationToken cancellationToken)
     {
         user.RequireRole(StaffRole.Administrator, StaffRole.Auditor);
-        var all = await branches.ListAsync(cancellationToken).ConfigureAwait(false);
-        return [.. all.OrderBy(branch => branch.Code.Value, StringComparer.Ordinal).Select(BranchSummary.From)];
+        return queries.ListAsync(cancellationToken);
     }
 
     /// <summary>One branch the user may see, for example the counters of the user's own branch.</summary>
     public async Task<BranchSummary> GetAsync(BranchCode code, CancellationToken cancellationToken)
     {
         user.RequireBranch(code);
-        return BranchSummary.From(await LoadAsync(code, cancellationToken).ConfigureAwait(false));
+        return await queries.FindAsync(code, cancellationToken).ConfigureAwait(false)
+            ?? throw new NotFoundException($"Branch {code} does not exist.");
     }
 
     public Task CloseAsync(BranchCode code, int expectedVersion, CancellationToken cancellationToken) =>
@@ -41,7 +41,7 @@ public sealed class BranchService(
     public Task AddCounterAsync(BranchCode code, int expectedVersion, CancellationToken cancellationToken) =>
         ChangeAsync(code, expectedVersion, branch => branch.AddCounter(Guid.CreateVersion7()), cancellationToken);
 
-    /// <summary>Past transactions keep the counter's id; an open basket must first be paid or voided.</summary>
+    /// <summary>An open basket must first be paid or voided; the database keeps a counter that has history.</summary>
     public async Task RemoveCounterAsync(
         BranchCode code,
         Guid counterId,
@@ -49,8 +49,7 @@ public sealed class BranchService(
         CancellationToken cancellationToken)
     {
         user.RequireRole(StaffRole.Administrator);
-        var open = ReportSpecifications.OpenAtCounter(counterId);
-        if ((await transactions.ListAsync(open, cancellationToken).ConfigureAwait(false)).Count > 0)
+        if (await transactions.HasOpenBasketAsync(counterId, cancellationToken).ConfigureAwait(false))
         {
             throw new DomainException("This counter has an open basket. Finish or void it first.");
         }
@@ -66,12 +65,10 @@ public sealed class BranchService(
         CancellationToken cancellationToken)
     {
         user.RequireRole(StaffRole.Administrator);
-        var branch = await LoadAsync(code, cancellationToken).ConfigureAwait(false);
-        change(branch);
-        await branches.UpdateAsync(branch, expectedVersion, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<Branch> LoadAsync(BranchCode code, CancellationToken cancellationToken) =>
-        await branches.GetAsync(code, cancellationToken).ConfigureAwait(false)
+        var branch = await branches.GetAsync(code, cancellationToken).ConfigureAwait(false)
             ?? throw new NotFoundException($"Branch {code} does not exist.");
+        change(branch);
+        branches.Update(branch, expectedVersion);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
 }

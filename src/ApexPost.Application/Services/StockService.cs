@@ -14,7 +14,8 @@ namespace ApexPost.Application.Services;
 public sealed class StockService(
     ICurrentUser user,
     IProductCatalog products,
-    StockLedger ledger,
+    IStockRepository stockItems,
+    IUnitOfWork unitOfWork,
     StockGate gate,
     CounterEvents events,
     CheckoutRules rules,
@@ -36,28 +37,34 @@ public sealed class StockService(
 
         var item = await gate.RunAsync(
             user.Branch,
-            () => ApplyAsync(sku, command.Change, cancellationToken),
+            () => ApplyAsync(sku, command, cancellationToken),
             cancellationToken).ConfigureAwait(false);
         if (command.Change < 0 && rules.IsLowStock(item))
         {
             events.Publish([new StockLow(item.Branch, item.Sku, item.Quantity, clock.UtcNow)]);
         }
 
-        return new StockAdjustment(item.Branch, item.Sku, command.Change, item.Quantity, command.Reason.Trim());
+        return ToAdjustment(item, command);
     }
 
-    private async Task<StockItem> ApplyAsync(Sku sku, int change, CancellationToken cancellationToken)
-    {
-        var existing = await ledger.LoadAsync(user.Branch, [sku], cancellationToken).ConfigureAwait(false);
-        if (existing is not [var item])
-        {
-            var created = change > 0
-                ? new StockItem(user.Branch, sku, change)
-                : throw new InsufficientStockException(sku, -change, 0);
-            await ledger.AddAsync(created, cancellationToken).ConfigureAwait(false);
-            return created;
-        }
+    private static StockAdjustment ToAdjustment(StockItem item, StockAdjustmentCommand command) =>
+        new(item.Branch, item.Sku, command.Change, item.Quantity, command.Reason.Trim());
 
+    /// <summary>The new quantity and its permanent record are committed together.</summary>
+    private async Task<StockItem> ApplyAsync(
+        Sku sku,
+        StockAdjustmentCommand command,
+        CancellationToken cancellationToken)
+    {
+        var existing = await stockItems.GetManyAsync(user.Branch, [sku], cancellationToken).ConfigureAwait(false);
+        var item = existing is [var found] ? Change(found, command.Change) : Create(sku, command.Change);
+        stockItems.AddAdjustment(ToAdjustment(item, command), user.StaffId, clock.UtcNow);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return item;
+    }
+
+    private StockItem Change(StockItem item, int change)
+    {
         if (change > 0)
         {
             item.Add(change);
@@ -67,7 +74,16 @@ public sealed class StockService(
             item.Remove(-change);
         }
 
-        await ledger.SaveAsync([item], cancellationToken).ConfigureAwait(false);
+        stockItems.Update([item]);
         return item;
+    }
+
+    private StockItem Create(Sku sku, int change)
+    {
+        var created = change > 0
+            ? new StockItem(user.Branch, sku, change)
+            : throw new InsufficientStockException(sku, -change, 0);
+        stockItems.Add(created);
+        return created;
     }
 }
