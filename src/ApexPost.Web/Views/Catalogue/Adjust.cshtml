@@ -14,11 +14,12 @@
         <input type="hidden" name="Sku" value="@Model.Sku" />
         <div class="field">
             <label for="Change">Change</label>
-            <input id="Change" name="Change" type="number" step="1" required />
+            <input apex-form="Adjust" id="Change" name="Change" type="number" step="1" required />
         </div>
         <div class="field">
             <label for="Reason">Reason</label>
-            <textarea id="Reason" name="Reason" rows="3" maxlength="@TextLimits.Reason" required></textarea>
+            <textarea apex-form="Adjust"
+                      id="Reason" name="Reason" rows="3" maxlength="@TextLimits.Reason" required></textarea>
         </div>
         <div class="actions">
             <button type="submit" class="button">Save adjustment</button>

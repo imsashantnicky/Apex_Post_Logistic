@@ -21,7 +21,8 @@
             <form asp-action="SetPassword" asp-route-id="@member.Id" method="post" class="form">
                 <div class="field">
                     <label for="NewPassword">New password</label>
-                    <input id="NewPassword" name="Password" type="password" autocomplete="new-password"
+                    <input apex-form="SetPassword"
+                           id="NewPassword" name="Password" type="password" autocomplete="new-password"
                            minlength="@Model.MinimumPasswordLength" maxlength="@PasswordCommand.MaximumLength"
                            required />
                     <span class="hint">At least @Model.MinimumPasswordLength characters.</span>
@@ -42,14 +43,15 @@
         else if (!Model.IsOwnAccount)
         {
             <section class="card">
-                <details>
+                <details open="@(TempData.FieldError("Deactivate", "Reason") is not null)">
                     <summary class="button button-outline">Deactivate</summary>
                     <form asp-action="Deactivate" asp-route-id="@member.Id" method="post" class="form"
                           data-confirm="Deactivate @member.Name? They are signed out at once.">
                         <input type="hidden" name="version" value="@member.Version" />
                         <div class="field">
                             <label for="reason">Reason</label>
-                            <textarea id="reason" name="reason" rows="3" maxlength="@TextLimits.Reason"
+                            <textarea apex-form="Deactivate"
+                                      id="reason" name="Reason" rows="3" maxlength="@TextLimits.Reason"
                                       required></textarea>
                         </div>
                         <button type="submit" class="button button-outline">Confirm</button>

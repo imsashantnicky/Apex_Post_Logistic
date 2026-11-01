@@ -1,67 +1,78 @@
 @using ApexPost.Domain.Shipping
 @model CounterPage
+@{
+    var types = EnumText.Options<ShipmentType>(TempData.FieldValue("AddShipping", "Type"));
+    var levels = EnumText.Options<ServiceLevel>(TempData.FieldValue("AddShipping", "Level"));
+    var chosenZone = TempData.FieldValue("AddShipping", "ZoneCode");
+}
 <section class="card">
     <h2>Add shipping</h2>
     <form asp-action="AddShipping" asp-route-id="@Model.Transaction.Id" method="post" class="form">
         <div class="field-row">
             <div class="field">
                 <label for="Type">Type</label>
-                <select id="Type" name="Type" asp-items="EnumText.Options<ShipmentType>()"></select>
+                <select apex-form="AddShipping" id="Type" name="Type" asp-items="@types"></select>
             </div>
             <div class="field">
                 <label for="Level">Service level</label>
-                <select id="Level" name="Level" asp-items="EnumText.Options<ServiceLevel>()"></select>
+                <select apex-form="AddShipping" id="Level" name="Level" asp-items="@levels"></select>
             </div>
         </div>
         <div class="field">
             <label for="WeightKg">Weight (kg)</label>
-            <input id="WeightKg" name="WeightKg" type="number" min="0.001" step="0.001" required />
+            <input apex-form="AddShipping"
+                   id="WeightKg" name="WeightKg" type="number" min="0.001" step="0.001" required />
         </div>
         <fieldset class="field-row">
             <legend>Dimensions (cm)</legend>
             <div class="field">
                 <label for="LengthCm">Length</label>
-                <input id="LengthCm" name="LengthCm" type="number" min="0.1" step="0.1" required />
+                <input apex-form="AddShipping"
+                       id="LengthCm" name="LengthCm" type="number" min="0.1" step="0.1" required />
             </div>
             <div class="field">
                 <label for="WidthCm">Width</label>
-                <input id="WidthCm" name="WidthCm" type="number" min="0.1" step="0.1" required />
+                <input apex-form="AddShipping"
+                       id="WidthCm" name="WidthCm" type="number" min="0.1" step="0.1" required />
             </div>
             <div class="field">
                 <label for="HeightCm">Height</label>
-                <input id="HeightCm" name="HeightCm" type="number" min="0.1" step="0.1" required />
+                <input apex-form="AddShipping"
+                       id="HeightCm" name="HeightCm" type="number" min="0.1" step="0.1" required />
             </div>
         </fieldset>
         <div class="field">
             <label for="ZoneCode">Zone</label>
-            <select id="ZoneCode" name="ZoneCode" required>
+            <select apex-form="AddShipping" id="ZoneCode" name="ZoneCode" required>
                 @foreach (var zone in Model.Zones)
                 {
-                    <option value="@zone.Code">@zone.Code @zone.Name</option>
+                    <option value="@zone.Code" selected="@(zone.Code == chosenZone)">@zone.Code @zone.Name</option>
                 }
             </select>
         </div>
         <div class="field">
             <label for="RecipientName">Recipient</label>
-            <input id="RecipientName" name="RecipientName" maxlength="@TextLimits.Name" required />
+            <input apex-form="AddShipping"
+                   id="RecipientName" name="RecipientName" maxlength="@TextLimits.Name" required />
         </div>
         <div class="field">
             <label for="Street">Street</label>
-            <input id="Street" name="Street" maxlength="@TextLimits.AddressLine" required />
+            <input apex-form="AddShipping" id="Street" name="Street" maxlength="@TextLimits.AddressLine" required />
         </div>
         <div class="field-row">
             <div class="field">
                 <label for="City">City</label>
-                <input id="City" name="City" maxlength="@TextLimits.Name" required />
+                <input apex-form="AddShipping" id="City" name="City" maxlength="@TextLimits.Name" required />
             </div>
             <div class="field">
                 <label for="PostalCode">Postal code</label>
-                <input id="PostalCode" name="PostalCode" maxlength="@TextLimits.PostalCode" required />
+                <input apex-form="AddShipping"
+                       id="PostalCode" name="PostalCode" maxlength="@TextLimits.PostalCode" required />
             </div>
         </div>
         <div class="field">
             <label for="Country">Country</label>
-            <input id="Country" name="Country" maxlength="@TextLimits.Name" required />
+            <input apex-form="AddShipping" id="Country" name="Country" maxlength="@TextLimits.Name" required />
         </div>
         <button type="submit" class="button">Add shipment</button>
     </form>

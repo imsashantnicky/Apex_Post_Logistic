@@ -12,9 +12,12 @@ public static partial class EnumText
         where TEnum : struct, Enum =>
         WordBoundary().Replace(value.ToString(), Space);
 
-    public static IReadOnlyList<SelectListItem> Options<TEnum>()
+    public static IReadOnlyList<SelectListItem> Options<TEnum>(string? selected = null)
         where TEnum : struct, Enum =>
-        [.. Enum.GetValues<TEnum>().Select(value => new SelectListItem(Label(value), value.ToString()))];
+        [
+            .. Enum.GetValues<TEnum>().Select(value =>
+                new SelectListItem(Label(value), value.ToString(), value.ToString() == selected)),
+        ];
 
     [GeneratedRegex("(?<=[a-z])(?=[A-Z])", RegexOptions.CultureInvariant)]
     private static partial Regex WordBoundary();
