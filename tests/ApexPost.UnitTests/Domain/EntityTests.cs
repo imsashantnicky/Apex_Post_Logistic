@@ -66,6 +66,29 @@ public sealed class EntityTests
     }
 
     [Fact]
+    public void Removing_a_counter_keeps_the_others_and_frees_its_number()
+    {
+        var branch = CreateBranch();
+        var first = branch.Counters[0];
+        var second = branch.AddCounter(Guid.NewGuid());
+
+        branch.RemoveCounter(second.Id);
+
+        Assert.Equal(first, Assert.Single(branch.Counters));
+        Assert.Equal(2, branch.AddCounter(Guid.NewGuid()).Number);
+    }
+
+    [Fact]
+    public void Last_counter_and_unknown_counters_cannot_be_removed()
+    {
+        var branch = CreateBranch();
+
+        Assert.Throws<DomainException>(() => branch.RemoveCounter(branch.Counters[0].Id));
+        Assert.Throws<DomainException>(() => branch.RemoveCounter(Guid.NewGuid()));
+        Assert.Single(branch.Counters);
+    }
+
+    [Fact]
     public void Staff_email_is_trimmed_and_validated_on_every_change()
     {
         var staff = CreateStaff();
