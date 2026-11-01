@@ -11,6 +11,7 @@ using ApexPost.Domain.Transactions;
 using ApexPost.Infrastructure.Auditing;
 using ApexPost.Infrastructure.Caching;
 using ApexPost.Infrastructure.Notifications;
+using ApexPost.Infrastructure.Persistence;
 using ApexPost.Infrastructure.Persistence.Json;
 using ApexPost.Infrastructure.Persistence.Json.Mapping;
 using ApexPost.Infrastructure.Persistence.Json.Records;
@@ -18,6 +19,7 @@ using ApexPost.Infrastructure.Security;
 using ApexPost.Infrastructure.Seeding;
 using ApexPost.Infrastructure.Shipping;
 using ApexPost.Infrastructure.Verification;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -30,6 +32,8 @@ namespace ApexPost.Infrastructure;
 /// </summary>
 public static class DependencyInjection
 {
+    private const string SqlConnectionName = "ApexPostDb";
+
     public static IServiceCollection AddJsonPersistence(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
@@ -55,6 +59,25 @@ public static class DependencyInjection
         services.AddSingleton<IZoneCatalog>(provider => provider.GetRequiredService<CachedCatalog>());
         services.AddScoped<ITransactionQueries, RepositoryTransactionQueries>();
         services.AddScoped<IReportQueries, RepositoryReportQueries>();
+        return services;
+    }
+
+    /// <summary>
+    /// SQL Server storage. The connection string comes from user-secrets or the environment, never from source control.
+    /// SQL text is logged only where the Logging section allows it (Information in Development, Warning otherwise).
+    /// </summary>
+    public static IServiceCollection AddSqlPersistence(this IServiceCollection services, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var connectionString = configuration.GetConnectionString(SqlConnectionName)
+            ?? throw new InvalidOperationException(
+                $"Connection string '{SqlConnectionName}' is missing. Run setup-secrets.bat.");
+
+        services.AddDbContext<ApexPostDbContext>(
+            options => options
+                .UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure())
+                .EnableSensitiveDataLogging(false),
+            ServiceLifetime.Scoped);
         return services;
     }
 
