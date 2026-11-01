@@ -16,6 +16,7 @@ using ApexPost.Infrastructure.Persistence.Interceptors;
 using ApexPost.Infrastructure.Persistence.Json;
 using ApexPost.Infrastructure.Persistence.Json.Mapping;
 using ApexPost.Infrastructure.Persistence.Json.Records;
+using ApexPost.Infrastructure.Persistence.Seeding;
 using ApexPost.Infrastructure.Security;
 using ApexPost.Infrastructure.Seeding;
 using ApexPost.Infrastructure.Shipping;
@@ -33,7 +34,7 @@ namespace ApexPost.Infrastructure;
 /// </summary>
 public static class DependencyInjection
 {
-    private const string SqlConnectionName = "ApexPostDb";
+    public const string SqlConnectionName = "ApexPostDb";
 
     public static IServiceCollection AddJsonPersistence(this IServiceCollection services, IConfiguration configuration)
     {
@@ -65,19 +66,20 @@ public static class DependencyInjection
 
     /// <summary>
     /// SQL Server storage. The connection string comes from user-secrets or the environment, never from source control.
-    /// SQL text is logged only where the Logging section allows it (Information in Development, Warning otherwise).
+    /// It is read when a context is built, so nothing connects until SQL Server is used. SQL text is logged only where
+    /// the Logging section allows it (Information in Development, Warning otherwise).
     /// </summary>
     public static IServiceCollection AddSqlPersistence(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
-        var connectionString = configuration.GetConnectionString(SqlConnectionName)
-            ?? throw new InvalidOperationException(
-                $"Connection string '{SqlConnectionName}' is missing. Run setup-secrets.bat.");
 
         services.AddScoped<AuditColumnsInterceptor>();
+        services.AddScoped<DevelopmentSeeder>();
         services.AddDbContext<ApexPostDbContext>(
             (provider, options) => options
-                .UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure())
+                .UseSqlServer(
+                    configuration.GetConnectionString(SqlConnectionName),
+                    sql => sql.EnableRetryOnFailure())
                 .AddInterceptors(provider.GetRequiredService<AuditColumnsInterceptor>())
                 .EnableSensitiveDataLogging(false),
             ServiceLifetime.Scoped);
@@ -101,6 +103,7 @@ public static class DependencyInjection
         services.AddSingleton<IIdentityVerificationService, SimulatedIdentityVerificationService>();
         services.AddSingleton<INotificationSink, InMemoryNotificationSink>();
         services.AddSingleton<SeedTargets>();
+        services.AddSingleton<SeedRules>();
         services.AddSingleton<DemoDataSeeder>();
         return services;
     }
