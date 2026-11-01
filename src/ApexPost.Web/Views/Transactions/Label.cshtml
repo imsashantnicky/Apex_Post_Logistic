@@ -2,13 +2,17 @@
 @{
     ViewData["Title"] = "Shipping label";
 }
+<div class="label-screen">
+    <partial name="_PageHeader"
+             model='new PageHeader("Shipping label", Help: "Check the label, then print it for the parcel.")' />
+</div>
 <div class="label-actions">
     <a class="button button-outline" asp-action="Details" asp-route-id="@ViewData["id"]">Back to the transaction</a>
     <button type="button" class="button" data-print>Print</button>
 </div>
 
 <article class="card shipping-label">
-    <h1>ApexPost</h1>
+    <p class="label-brand">ApexPost</p>
     <p class="label-reference">@Model.Reference</p>
     <div class="split">
         <div>

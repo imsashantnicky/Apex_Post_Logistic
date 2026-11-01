@@ -4,11 +4,15 @@
     var transaction = Model.Transaction;
     var opened = $"{transaction.Id} · {transaction.Branch} · opened {transaction.OpenedAt:yyyy-MM-dd HH:mm}";
 }
-<partial name="_PageHeader" model='new PageHeader("Transaction", opened, null, transaction.Status.ToString())' />
+<partial name="_PageHeader" model='new PageHeader("Transaction", opened, Model.Help, transaction.Status.ToString())' />
 
 <partial name="_Basket" model="Model" />
 
-@if (Model.CanWork)
+@if (Model.BranchClosed)
+{
+    <p class="alert alert-warn">This branch is closed. The basket takes no more work; a manager can void it.</p>
+}
+else if (Model.CanWork)
 {
     <div class="three-up">
         <partial name="_AddRetailForm" model="Model" />
@@ -27,7 +31,7 @@
 }
 @if (transaction.ReversalReason is not null)
 {
-    <p class="fact">Reason: @transaction.ReversalReason</p>
+    <p class="fact">Reversal reason: @transaction.ReversalReason</p>
 }
 
 @if (Model.CanVoid || Model.CanRefund)
