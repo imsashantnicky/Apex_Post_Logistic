@@ -28,7 +28,8 @@ internal sealed class CounterTransactionConfiguration : IEntityTypeConfiguration
         builder.Property(transaction => transaction.ClerkId);
         builder.Property(transaction => transaction.OpenedAt).HasConversion<UtcDateTimeConverter>()
             .HasColumnType(ColumnRules.UtcTime);
-        builder.Property(transaction => transaction.Status).AsEnumText().HasDefaultValue(TransactionStatus.Open);
+        builder.Property(transaction => transaction.Status).AsEnumText().HasDefaultValue(TransactionStatus.Open)
+            .HasSentinel(TransactionStatus.Open);
         builder.Property<byte[]>("RowVersion").IsRowVersion().IsRequired();
 
         builder.HasOne<Branch>().WithMany().HasForeignKey(transaction => transaction.Branch)

@@ -10,6 +10,9 @@ namespace ApexPost.Infrastructure.Persistence.Configurations;
 
 internal sealed class StaffConfiguration : IEntityTypeConfiguration<Staff>
 {
+    public const string PasswordHash = "PasswordHash";
+    private const int PasswordHashLength = 200;
+
     public void Configure(EntityTypeBuilder<Staff> builder)
     {
         builder.ToTable("Staff", table => table.HasCheckConstraint("CK_Staff_Role", ColumnRules.In<StaffRole>("Role")));
@@ -27,6 +30,7 @@ internal sealed class StaffConfiguration : IEntityTypeConfiguration<Staff>
         builder.Property(staff => staff.HomeBranch).HasConversion<BranchCodeConverter>().HasMaxLength(5)
             .IsUnicode(false).UsePropertyAccessMode(PropertyAccessMode.Property);
         builder.Property(staff => staff.IsActive).HasDefaultValue(true);
+        builder.Property<string?>(PasswordHash).HasMaxLength(PasswordHashLength).IsUnicode(false);
 
         builder.HasIndex(staff => staff.Email).IsUnique().HasDatabaseName("UX_Staff_Email");
         builder.HasOne<Branch>().WithMany().HasForeignKey(staff => staff.HomeBranch).OnDelete(DeleteBehavior.Restrict);
