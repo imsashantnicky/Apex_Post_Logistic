@@ -24,6 +24,10 @@ internal static class Guard
     public static decimal Positive(decimal value, string name) =>
         value > 0m ? value : throw new DomainException($"{name} must be greater than zero.");
 
+    public static T Required<T>(T? value, string name)
+        where T : class =>
+        value ?? throw new DomainException($"{name} is required.");
+
     public static Guid NotEmpty(Guid value, string name) =>
         value != Guid.Empty ? value : throw new DomainException($"{name} is required.");
 

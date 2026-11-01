@@ -8,4 +8,5 @@ public static class TextLimits
     public const int PostalCode = 12;
     public const int Email = 254;
     public const int Reason = 500;
+    public const int ZoneCode = 10;
 }
