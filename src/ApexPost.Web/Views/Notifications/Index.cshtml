@@ -1,0 +1,43 @@
+@model ReportPage<IReadOnlyList<Notification>>
+@{
+    ViewData["Title"] = "Notifications";
+    var header = new PageHeader(
+        "Notifications",
+        Model.Toolbar.Subtitle,
+        "Simulated alerts for low stock, high-value money orders, voids and refunds, newest first.");
+}
+<partial name="_PageHeader" model="header" />
+<partial name="_ReportFilter" model="Model.Toolbar" />
+
+<section class="card">
+    @if (Model.Report.Count == 0)
+    {
+        <partial name="_EmptyState" model='"No notifications since the application started."' />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Time (UTC)</th>
+                        <th scope="col">Branch</th>
+                        <th scope="col">Kind</th>
+                        <th scope="col">Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Report)
+                    {
+                        <tr>
+                            <td>@item.At.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@item.Branch</td>
+                            <td>@EnumText.Label(item.Kind)</td>
+                            <td class="values">@item.Message</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

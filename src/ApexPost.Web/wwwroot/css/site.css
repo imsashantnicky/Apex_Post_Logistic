@@ -268,7 +268,9 @@ h2 {
 }
 
 /* Tables */
+/* Positioned, so that a screen-reader-only header scrolls with the table instead of widening the page. */
 .table-wrap {
+    position: relative;
     overflow-x: auto;
 }
 
@@ -324,6 +326,38 @@ td {
     border-top: 0;
 }
 
+tfoot td {
+    border-top: 2px solid var(--line);
+    font-weight: 700;
+}
+
+.more {
+    margin: 0.5rem 0 0;
+    font-size: 0.9rem;
+}
+
+/* Report list */
+.report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 0 1rem;
+}
+
+.report-grid p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.report-grid a {
+    font-weight: 600;
+}
+
+/* Inline forms in tables and action rows */
+.inline-form {
+    margin: 0;
+}
+
 /* Totals of the basket */
 .totals {
     display: grid;
@@ -366,12 +400,15 @@ td {
 }
 
 .pill-paid,
-.pill-passed {
+.pill-passed,
+.pill-active {
     background: #dcf3e6;
     color: #14663c;
 }
 
-.pill-voided {
+.pill-voided,
+.pill-inactive,
+.pill-closed {
     background: #e7ebf0;
     color: #4d5a6b;
 }
@@ -442,6 +479,16 @@ textarea {
 
 .toolbar .field {
     flex: 0 1 220px;
+}
+
+/* A date input is taller than a select; one height keeps the labels of a toolbar in line. */
+.toolbar input,
+.toolbar select {
+    height: 2.6rem;
+}
+
+.form > .button {
+    align-self: flex-start;
 }
 
 /* Buttons */

@@ -1,0 +1,107 @@
+@model ReportPage<MoneyOrderReport>
+@{
+    ViewData["Title"] = "Money orders and identity checks";
+    var toolbar = Model.Toolbar;
+    var branches = Model.Report.Branches;
+    var result = Model.Report.Transactions;
+    var header = new PageHeader(
+        "Money orders and identity checks",
+        toolbar.Subtitle,
+        "Issued money orders are those still paid. Document numbers are always masked.");
+}
+<partial name="_PageHeader" model="header" />
+<partial name="_ReportFilter" model="toolbar" />
+
+@if (branches.Count == 0)
+{
+    <section class="card">
+        <partial name="_EmptyState" model='"No money orders or identity checks in this period."' />
+    </section>
+}
+else
+{
+    <section class="card">
+        <h2>Per branch</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Branch</th>
+                        <th scope="col" class="num">Issued</th>
+                        <th scope="col" class="num">Amount</th>
+                        <th scope="col" class="num">Fees</th>
+                        <th scope="col" class="num">Checks passed</th>
+                        <th scope="col" class="num">Failed</th>
+                        <th scope="col" class="num">Pending</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in branches)
+                    {
+                        <tr>
+                            <td>@row.Branch</td>
+                            <td class="num">@row.MoneyOrders</td>
+                            <td class="num"><partial name="_Money" model="row.Amount" /></td>
+                            <td class="num"><partial name="_Money" model="row.Fees" /></td>
+                            <td class="num">@row.ChecksPassed</td>
+                            <td class="num">@row.ChecksFailed</td>
+                            <td class="num">@row.ChecksPending</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Transactions</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Time (UTC)</th>
+                        <th scope="col">Branch</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" class="num">Orders</th>
+                        <th scope="col" class="num">Amount</th>
+                        <th scope="col" class="num">Fees</th>
+                        <th scope="col">Identity check</th>
+                        <th scope="col"><span class="sr-only">Open</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in result.Items)
+                    {
+                        <tr>
+                            <td>@row.At.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@row.Branch</td>
+                            <td><partial name="_StatusPill" model="row.Status.ToString()" /></td>
+                            <td class="num">@row.MoneyOrders</td>
+                            <td class="num"><partial name="_Money" model="row.Amount" /></td>
+                            <td class="num"><partial name="_Money" model="row.Fees" /></td>
+                            <td>@(row.Verification ?? "–")</td>
+                            <td>
+                                <a asp-controller="Transactions" asp-action="Details" asp-route-id="@row.TransactionId">
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <nav class="pager" aria-label="Pages">
+            @if (result.HasPrevious)
+            {
+                <a asp-action="MoneyOrders" asp-route-page="@(result.Page - 1)" asp-route-from="@toolbar.FromText"
+                   asp-route-to="@toolbar.ToText" asp-route-branch="@toolbar.Branches.Selected">Previous</a>
+            }
+            <span class="muted">Page @result.Page of @result.TotalPages</span>
+            @if (result.HasNext)
+            {
+                <a asp-action="MoneyOrders" asp-route-page="@(result.Page + 1)" asp-route-from="@toolbar.FromText"
+                   asp-route-to="@toolbar.ToText" asp-route-branch="@toolbar.Branches.Selected">Next</a>
+            }
+        </nav>
+    </section>
+}

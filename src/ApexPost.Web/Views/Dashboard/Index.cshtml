@@ -5,18 +5,12 @@
     var currency = dashboard.Total.Currency;
     var header = new PageHeader(
         "Dashboard",
-        $"{Model.Scope} · {dashboard.Day:yyyy-MM-dd}",
+        $"{Model.Toolbar.Scope} · {dashboard.Day:yyyy-MM-dd}",
         "Today at a glance: sales, low stock and alerts.");
 }
 <partial name="_PageHeader" model="header" />
 
-@if (Model.Filter.Choices.Count > 0)
-{
-    <form method="get" class="toolbar">
-        <partial name="_BranchFilter" model="Model.Filter" />
-        <button type="submit" class="button button-outline">Show</button>
-    </form>
-}
+<partial name="_ReportFilter" model="Model.Toolbar" />
 
 <section class="kpi-grid" aria-label="Today's figures">
     <partial name="_KpiCard" model='new KpiCard("Transactions today", dashboard.Transactions.ToString())' />
@@ -32,6 +26,10 @@
     }
     <a class="button button-outline" asp-controller="Transactions" asp-action="Index">Transactions</a>
     <a class="button button-outline" asp-controller="Catalogue" asp-action="Index">Catalogue</a>
+    @if (Model.CanViewReports)
+    {
+        <a class="button button-outline" asp-controller="Reports" asp-action="Index">Reports</a>
+    }
 </div>
 
 <div class="split">
@@ -87,6 +85,7 @@
                     </li>
                 }
             </ul>
+            <p class="more"><a asp-controller="Notifications" asp-action="Index">All notifications</a></p>
         }
     </section>
 </div>

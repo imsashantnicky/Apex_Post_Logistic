@@ -2,13 +2,21 @@ using ApexPost.Application.Abstractions;
 using ApexPost.Application.DTOs;
 using ApexPost.Application.Exceptions;
 using ApexPost.Application.Extensions;
+using ApexPost.Application.Specifications;
 using ApexPost.Domain.Branches;
+using ApexPost.Domain.Common;
 using ApexPost.Domain.Personnel;
+using ApexPost.Domain.Transactions;
 
 namespace ApexPost.Application.Services;
 
-/// <summary>Branch administration: open, close and add counters. Every change names the version it saw.</summary>
-public sealed class BranchService(ICurrentUser user, IRepository<Branch, BranchCode> branches)
+/// <summary>
+/// Branch administration: open, close, add and remove counters. Every change names the version it saw.
+/// </summary>
+public sealed class BranchService(
+    ICurrentUser user,
+    IRepository<Branch, BranchCode> branches,
+    IRepository<CounterTransaction, Guid> transactions)
 {
     public async Task<IReadOnlyList<BranchSummary>> ListAsync(CancellationToken cancellationToken)
     {
@@ -32,6 +40,24 @@ public sealed class BranchService(ICurrentUser user, IRepository<Branch, BranchC
 
     public Task AddCounterAsync(BranchCode code, int expectedVersion, CancellationToken cancellationToken) =>
         ChangeAsync(code, expectedVersion, branch => branch.AddCounter(Guid.CreateVersion7()), cancellationToken);
+
+    /// <summary>Past transactions keep the counter's id; an open basket must first be paid or voided.</summary>
+    public async Task RemoveCounterAsync(
+        BranchCode code,
+        Guid counterId,
+        int expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        user.RequireRole(StaffRole.Administrator);
+        var open = ReportSpecifications.OpenAtCounter(counterId);
+        if ((await transactions.ListAsync(open, cancellationToken).ConfigureAwait(false)).Count > 0)
+        {
+            throw new DomainException("This counter has an open basket. Finish or void it first.");
+        }
+
+        await ChangeAsync(code, expectedVersion, branch => branch.RemoveCounter(counterId), cancellationToken)
+            .ConfigureAwait(false);
+    }
 
     private async Task ChangeAsync(
         BranchCode code,

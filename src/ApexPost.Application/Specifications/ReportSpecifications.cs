@@ -21,6 +21,10 @@ public static class ReportSpecifications
     public static PredicateSpecification<CounterTransaction> WithStatus(TransactionStatus status) =>
         new(transaction => transaction.Status == status);
 
+    public static PredicateSpecification<CounterTransaction> OpenAtCounter(Guid counterId) =>
+        WithStatus(TransactionStatus.Open).And(new PredicateSpecification<CounterTransaction>(
+            transaction => transaction.CounterId == counterId));
+
     public static PredicateSpecification<CounterTransaction> Matching(TransactionFilter filter) =>
         InBranch(filter.Branch).And(new PredicateSpecification<CounterTransaction>(transaction =>
         {

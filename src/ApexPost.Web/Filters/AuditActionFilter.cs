@@ -45,7 +45,7 @@ public sealed class AuditActionFilter(IAuditStore store, IClock clock) : IAsyncA
             var duration = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             // The action has already happened: a client hanging up now must not lose its audit entry.
             await store.AppendAsync(
-                Entry(context, marker.EventName, arguments, status, duration),
+                Entry(context, marker.EventName, [.. arguments, .. RedirectValues(executed)], status, duration),
                 CancellationToken.None);
         }
     }
@@ -92,6 +92,12 @@ public sealed class AuditActionFilter(IAuditStore store, IClock clock) : IAsyncA
                 .Where(pair => pair.Value is string or Guid or Enum or int or decimal or bool)
                 .Select(pair => KeyValuePair.Create(pair.Key, Text(pair.Value))),
         ];
+
+    /// <summary>A new record's id exists only after the action, in the redirect to that record.</summary>
+    private static IEnumerable<KeyValuePair<string, string>> RedirectValues(ActionExecutedContext executed) =>
+        executed.Result is RedirectToActionResult { RouteValues: { } values }
+            ? values.Select(pair => KeyValuePair.Create(pair.Key, Text(pair.Value)))
+            : [];
 
     private static string Text(object? value) => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
 

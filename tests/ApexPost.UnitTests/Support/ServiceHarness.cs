@@ -150,7 +150,7 @@ internal sealed class ServiceHarness : IDisposable
 
     public CatalogueService Catalogue() => new(User, Catalog, Stock, Rules);
 
-    public BranchService BranchAdmin() => new(User, Branches);
+    public BranchService BranchAdmin() => new(User, Branches, Transactions);
 
     public async Task<int> StockOfAsync(string sku, string branch = TestData.HomeBranch) =>
         (await Stock.GetAsync(new StockKey(new BranchCode(branch), new Sku(sku)), CancellationToken.None))
@@ -175,5 +175,5 @@ internal sealed class ServiceHarness : IDisposable
         Stock.Seed(TestData.CreateStock(sku, InitialStock));
     }
 
-    private TransactionAccess Access() => new(User, StaffMembers, Transactions);
+    private TransactionAccess Access() => new(User, StaffMembers, Branches, Transactions);
 }

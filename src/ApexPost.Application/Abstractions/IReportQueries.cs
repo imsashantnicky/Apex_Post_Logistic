@@ -18,7 +18,7 @@ public interface IReportQueries
         ReportFilter filter,
         CancellationToken cancellationToken);
 
-    Task<PagedResult<MoneyOrderRow>> MoneyOrdersAsync(
+    Task<MoneyOrderReport> MoneyOrdersAsync(
         ReportFilter filter,
         PageRequest page,
         CancellationToken cancellationToken);

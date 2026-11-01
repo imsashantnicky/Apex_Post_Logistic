@@ -1,0 +1,60 @@
+@model ReportPage<IReadOnlyList<DailySalesRow>>
+@{
+    ViewData["Title"] = "Daily sales";
+    var rows = Model.Report;
+    var header = new PageHeader(
+        "Daily sales",
+        Model.Toolbar.Subtitle,
+        "Paid sales by payment day (UTC). Voided and refunded sales are not counted.");
+}
+<partial name="_PageHeader" model="header" />
+<partial name="_ReportFilter" model="Model.Toolbar" />
+
+<section class="card">
+    @if (rows.Count == 0)
+    {
+        <partial name="_EmptyState" model='"No paid sales in this period."' />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Day</th>
+                        <th scope="col">Branch</th>
+                        <th scope="col" class="num">Transactions</th>
+                        <th scope="col" class="num">Retail</th>
+                        <th scope="col" class="num">Services</th>
+                        <th scope="col" class="num">Tax</th>
+                        <th scope="col" class="num">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in rows)
+                    {
+                        <tr>
+                            <td>@row.Day.ToString(ReportToolbar.DateFormat)</td>
+                            <td>@row.Branch</td>
+                            <td class="num">@row.Transactions</td>
+                            <td class="num"><partial name="_Money" model="row.Retail" /></td>
+                            <td class="num"><partial name="_Money" model="row.Services" /></td>
+                            <td class="num"><partial name="_Money" model="row.Tax" /></td>
+                            <td class="num"><partial name="_Money" model="row.Total" /></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="2">Total</td>
+                        <td class="num">@rows.Sum(row => row.Transactions)</td>
+                        <td class="num"><partial name="_Money" model="rows.Select(row => row.Retail).Total()" /></td>
+                        <td class="num"><partial name="_Money" model="rows.Select(row => row.Services).Total()" /></td>
+                        <td class="num"><partial name="_Money" model="rows.Select(row => row.Tax).Total()" /></td>
+                        <td class="num"><partial name="_Money" model="rows.Select(row => row.Total).Total()" /></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</section>
