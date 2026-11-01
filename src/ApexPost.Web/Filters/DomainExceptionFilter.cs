@@ -11,11 +11,13 @@ namespace ApexPost.Web.Filters;
 /// Turns the exceptions of the services into action results. A failed form POST follows Post/Redirect/Get: the
 /// message goes into a flash and the browser returns to the form. It is a filter because only the controller knows
 /// that form. It is an action filter rather than an exception filter, because those do not get the controller.
-/// Anything not handled here goes on to the exception handler.
+/// Anything not handled here, such as a caller that asked for JSON, goes on to the exception handler.
 /// </summary>
 public sealed class DomainExceptionFilter : IAsyncActionFilter
 {
     private const string ConflictMessage = "This record was changed by someone else. Check it and try again.";
+    private const string DuplicateMessage = "A record with these details already exists.";
+    private const string InUseMessage = "This record has history and cannot be removed.";
 
     private static readonly Dictionary<string, string[]> NoFieldErrors = [];
 
@@ -41,7 +43,9 @@ public sealed class DomainExceptionFilter : IAsyncActionFilter
                 return new NotFoundResult();
         }
 
-        if (!HttpMethods.IsPost(http.Request.Method) || FormMessage(exception) is not { } message)
+        if (!HttpMethods.IsPost(http.Request.Method)
+            || ProblemResponses.WantsJson(http)
+            || FormMessage(exception) is not { } message)
         {
             return null;
         }
@@ -62,6 +66,8 @@ public sealed class DomainExceptionFilter : IAsyncActionFilter
             string.Join(' ', invalid.Errors.Values.SelectMany(messages => messages)),
         ValidationFailedException or DomainException => exception.Message,
         ConcurrencyException => ConflictMessage,
+        DuplicateKeyException => DuplicateMessage,
+        RecordInUseException => InUseMessage,
         _ => null,
     };
 }

@@ -14,6 +14,7 @@ public static class AuditEvents
     public const string Void = nameof(Void);
     public const string Refund = nameof(Refund);
     public const string StockAdjustment = nameof(StockAdjustment);
+    public const string PriceRevision = nameof(PriceRevision);
     public const string StaffCreated = nameof(StaffCreated);
     public const string StaffUpdated = nameof(StaffUpdated);
     public const string StaffDeactivated = nameof(StaffDeactivated);

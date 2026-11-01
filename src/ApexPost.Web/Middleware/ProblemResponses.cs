@@ -22,6 +22,7 @@ public static class ProblemResponses
 
     private const string ContentType = "application/problem+json";
     private const string HtmlMediaType = "text/html";
+    private const string JsonMediaType = "application/json";
     private const string ProblemItem = "ApexPost.Problem";
 
     public static ProblemDetails Create(HttpContext context, int status, string? detail = null)
@@ -51,7 +52,7 @@ public static class ProblemResponses
         NotFoundException => StatusCodes.Status404NotFound,
         ForbiddenException => StatusCodes.Status403Forbidden,
         ValidationFailedException or DomainException => StatusCodes.Status400BadRequest,
-        ConcurrencyException => StatusCodes.Status409Conflict,
+        ConcurrencyException or DuplicateKeyException or RecordInUseException => StatusCodes.Status409Conflict,
         ExternalServiceTimeoutException => StatusCodes.Status504GatewayTimeout,
         ExternalServiceException => StatusCodes.Status502BadGateway,
         BadHttpRequestException badRequest => badRequest.StatusCode,
@@ -65,6 +66,14 @@ public static class ProblemResponses
         return !ApexRoutes.IsIntegration(context)
             && context.Request.Headers[HeaderNames.Accept].ToString()
                 .Contains(HtmlMediaType, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>True for a caller that asks for JSON, such as a script posting to a form endpoint.</summary>
+    public static bool WantsJson(HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return context.Request.Headers[HeaderNames.Accept].ToString()
+            .Contains(JsonMediaType, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
