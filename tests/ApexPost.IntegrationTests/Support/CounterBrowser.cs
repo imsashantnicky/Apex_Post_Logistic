@@ -9,6 +9,10 @@ internal sealed partial class CounterBrowser : IDisposable
 {
     private const string LoginPath = "/Account/Login";
     private const string TokenField = "__RequestVerificationToken";
+    private const string HtmlMediaType = "text/html";
+    private const int FirstAddress = 0x0A000000;
+
+    private static int _lastAddress;
 
     private readonly HttpClient _http;
 
@@ -19,7 +23,11 @@ internal sealed partial class CounterBrowser : IDisposable
             AllowAutoRedirect = false,
             BaseAddress = new Uri("https://localhost"),
         });
+        _http.DefaultRequestHeaders.Add(RemoteAddressStartupFilter.Header, NextAddress());
     }
+
+    /// <summary>Asks for pages as a real browser does, so that errors arrive as HTML.</summary>
+    public void AcceptHtml() => _http.DefaultRequestHeaders.Accept.ParseAdd(HtmlMediaType);
 
     public static async Task<CounterBrowser> SignInAsync(ApexFactory factory, string email)
     {
@@ -62,6 +70,11 @@ internal sealed partial class CounterBrowser : IDisposable
     }
 
     public void Dispose() => _http.Dispose();
+
+    /// <summary>Each browser has its own address, so that the sign-in limit counts per browser.</summary>
+    private static string NextAddress() =>
+        new IPAddress((uint)IPAddress.HostToNetworkOrder(FirstAddress + Interlocked.Increment(ref _lastAddress)))
+            .ToString();
 
     [GeneratedRegex("name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"")]
     private static partial Regex Token();
