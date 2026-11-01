@@ -12,6 +12,7 @@ using ApexPost.Infrastructure.Auditing;
 using ApexPost.Infrastructure.Caching;
 using ApexPost.Infrastructure.Notifications;
 using ApexPost.Infrastructure.Persistence;
+using ApexPost.Infrastructure.Persistence.Interceptors;
 using ApexPost.Infrastructure.Persistence.Json;
 using ApexPost.Infrastructure.Persistence.Json.Mapping;
 using ApexPost.Infrastructure.Persistence.Json.Records;
@@ -73,9 +74,11 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException(
                 $"Connection string '{SqlConnectionName}' is missing. Run setup-secrets.bat.");
 
+        services.AddScoped<AuditColumnsInterceptor>();
         services.AddDbContext<ApexPostDbContext>(
-            options => options
+            (provider, options) => options
                 .UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure())
+                .AddInterceptors(provider.GetRequiredService<AuditColumnsInterceptor>())
                 .EnableSensitiveDataLogging(false),
             ServiceLifetime.Scoped);
         return services;
