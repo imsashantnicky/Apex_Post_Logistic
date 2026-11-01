@@ -1,0 +1,28 @@
+@model BranchSummary
+@{
+    ViewData["Title"] = "New transaction";
+    var header = new PageHeader(
+        "New transaction",
+        $"{Model.Name} ({Model.Code})",
+        "Choose your counter to open an empty basket.");
+}
+<partial name="_PageHeader" model="header" />
+
+<section class="card narrow">
+    @if (!Model.IsActive)
+    {
+        <p class="alert alert-bad">This branch is closed and cannot accept transactions.</p>
+    }
+    <form asp-action="Create" method="post" class="form">
+        <div class="field">
+            <label for="counterId">Counter</label>
+            <select id="counterId" name="counterId" required>
+                @foreach (var counter in Model.Counters)
+                {
+                    <option value="@counter.Id">Counter @counter.Number</option>
+                }
+            </select>
+        </div>
+        <button type="submit" class="button">Open transaction</button>
+    </form>
+</section>

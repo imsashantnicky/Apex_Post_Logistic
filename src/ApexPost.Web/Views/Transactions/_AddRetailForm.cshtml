@@ -1,0 +1,20 @@
+@model CounterPage
+<section class="card">
+    <h2>Add retail item</h2>
+    <form asp-action="AddRetail" asp-route-id="@Model.Transaction.Id" method="post" class="form">
+        <div class="field">
+            <label for="Sku">Product</label>
+            <select id="Sku" name="Sku" required>
+                @foreach (var item in Model.Products)
+                {
+                    <option value="@item.Sku">@item.Sku @item.Name (@item.UnitPrice, @item.InStock in stock)</option>
+                }
+            </select>
+        </div>
+        <div class="field">
+            <label for="Quantity">Quantity</label>
+            <input id="Quantity" name="Quantity" type="number" min="1" step="1" value="1" required />
+        </div>
+        <button type="submit" class="button">Add item</button>
+    </form>
+</section>

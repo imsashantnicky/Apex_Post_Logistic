@@ -1,0 +1,20 @@
+@model CounterPage
+@{
+    var transaction = Model.Transaction;
+}
+<section class="card">
+    <h2>Take payment</h2>
+    <dl class="totals">
+        <dt>Card</dt>
+        <dd><partial name="_Money" model="transaction.Total" /></dd>
+        <dt>Cash (nearest 0.05)</dt>
+        <dd><partial name="_Money" model="transaction.Total.RoundedForCash" /></dd>
+    </dl>
+    <form asp-action="Pay" asp-route-id="@transaction.Id" method="post" class="form">
+        <div class="field">
+            <label for="method">Payment method</label>
+            <select id="method" name="method" asp-items="EnumText.Options<PaymentMethod>()"></select>
+        </div>
+        <button type="submit" class="button">Take payment</button>
+    </form>
+</section>
