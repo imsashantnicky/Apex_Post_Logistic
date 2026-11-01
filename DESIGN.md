@@ -40,13 +40,13 @@ flowchart TB
     end
 
     subgraph infrastructure["ApexPost.Infrastructure"]
-        json["JSON repositories and audit store"]
+        sql["EF Core repositories, query services, unit of work and audit store"]
         security["PBKDF2 hasher and credential store"]
         simulated["Simulated courier, verification and notifications"]
         cache["Catalog cache"]
     end
 
-    files[("JSON files in the data folder")]
+    database[("SQL Server")]
 
     browser --> pipeline
     partner --> pipeline
@@ -54,11 +54,11 @@ flowchart TB
     mvc --> services
     services --> ports
     services --> model
-    json -. implements .-> ports
+    sql -. implements .-> ports
     security -. implements .-> ports
     simulated -. implements .-> ports
     cache -. implements .-> ports
-    json --> files
+    sql --> database
     root --> infrastructure
 ```
 
@@ -316,7 +316,8 @@ and a stale update throws `ConcurrencyException`. A malformed file or a duplicat
 being overwritten.
 
 **Consequences:** Domain and Application know nothing about files. Every read parses a whole file, and work across two
-files is not atomic. See [Path to a database](#12-path-to-a-database).
+files is not atomic. Week 3 replaced this storage in the running application: see
+[Path to a database](#12-path-to-a-database).
 
 ### ADR-5: Deliberate middleware order
 
@@ -355,7 +356,8 @@ append and read. It keeps route values and simple arguments, never a bound form 
 value.
 
 **Consequences:** Controllers stay thin, and the audit shows what the user asked for and how it ended. Calls refused by
-middleware are not audited. See [section 10](#10-security-and-audit).
+middleware are not audited. See [section 10](#10-security-and-audit). Where the entry is stored, and when, is in
+[ADR-016](#adr-016-audit-store-versus-unit-of-work).
 
 ### ADR-8: Bounded concurrency with SemaphoreSlim
 
@@ -368,7 +370,7 @@ the last item twice. Blocking calls are forbidden.
 per branch in `StockGate`. Waiting for a courier slot counts toward the timeout.
 
 **Consequences:** Waiting requests hold no thread, and branches never wait for each other. `StockGate` only protects a
-single application instance, so a second server would need the database's locks.
+single application instance. Between servers the row versions of [ADR-015](#adr-015-concurrency-strategy) decide.
 
 ### ADR-9: Cancellation, timeout and failure are separate outcomes
 
@@ -382,6 +384,82 @@ single application instance, so a second server would need the database's locks.
 
 **Consequences:** Logs show real failures only, and partners get an accurate status. Each external service has to apply
 the same pattern.
+
+### ADR-013: Repository and unit of work boundaries
+
+**Context:** A use case such as a sale changes several tables and must commit once. The dashboard runs queries in
+parallel, which one `DbContext` cannot do. Screens must not pay for change tracking.
+
+**Options:** One context for everything; generic repositories returning `IQueryable`; separate write repositories and
+read query services on one database.
+
+**Decision:** Writes use the repositories (`IBranchRepository`, `IStaffRepository`, `IProductRepository`,
+`IStockRepository`, `ICounterTransactionRepository`, `IIdentityVerificationRepository`), which share the scoped context
+and only stage changes. `IUnitOfWork` is the one place that saves, and each use case saves once. Reads use the query
+services in `Repositories/Queries`: `AsNoTracking`, projections into DTOs, and a short-lived context from
+`IDbContextFactory` per call. One database serves both, so there is no separate read store.
+
+Direct projections are allowed everywhere except where a domain rule must run on the data. The counter screen and the
+shipping label therefore read a no-tracking copy of the aggregate (`ITransactionQueries.FindAsync`), because tax preview
+and cash rounding are domain rules. The transaction list reads the lines of one page in a single query for the same
+reason. `AsSplitQuery` is used where the lines of a transaction are loaded: they come from three tables, and a join
+would repeat the header and payment columns on every line.
+
+There is no `IMoneyOrderRepository`. A money order is a line of the aggregate and is stored with it, so such a port
+would have no caller.
+
+**Consequences:** One save is one database transaction, so a sale cannot half-happen. Requests that read and write open
+more than one connection, which the pool absorbs. The number of commands per request stays fixed, whatever the rows:
+the counts of a real run are in [docs/perf/ef-command-counts.txt](docs/perf/ef-command-counts.txt), and
+`CommandCountTests` keeps them there.
+
+### ADR-015: Concurrency strategy
+
+**Context:** Two clerks must not sell the last unit, on one server or on several. The form screens have a Week 2 rule
+that a stale form is refused.
+
+**Options:** Pessimistic locks held during a request; a process-wide lock alone; optimistic checks in the database.
+
+**Decision:** Three layers. `StockGate` serialises stock work per branch on one server, so that a race there ends in a
+clear "not enough stock" message. The `RowVersion` of `BranchStock` and `CounterTransactions` decides between servers:
+an UPDATE that finds no row with the version it read raises `DbUpdateConcurrencyException`, and `UnitOfWork` turns it
+into `ConcurrencyConflictException`. `CHECK ([Quantity] >= 0)` is the last line of defence. Adding a line or a check
+inserts another table's row, so `CounterTransactionRepository.Update` touches the header to put that change through its
+row version too; otherwise a line could slip into a basket that was paid meanwhile.
+
+Branches and staff are edited on forms that stay open for minutes, so they carry an integer `Version` concurrency token
+instead (`AddBranchAndStaffVersion` migration): the form posts the version it saw, and the UPDATE matches it.
+
+**Consequences:** No request holds a lock while it waits for a person or a page. The loser of a race gets 409: a form
+returns with a message and the audit entry records 409, and a JSON caller gets Problem Details. Two clerks selling
+different quantities of the same product on different servers can also conflict, although stock would suffice; they
+simply pay again.
+
+`DuplicateKeyException` covers two administrators saving one email at once, past the friendly check in `StaffService`.
+`RecordInUseException` covers a delete refused by a `Restrict` foreign key. Both answer 409.
+
+### ADR-016: Audit store versus unit of work
+
+**Context:** The audit log must record what happened, including refused actions, and must not change what happened.
+
+**Options:** Stage the entry in the business transaction; a second transaction after the commit; an outbox table.
+
+**Decision:** The transaction boundary is the service method. The business commit happens inside the action, in
+`IUnitOfWork`. `AuditActionFilter` runs around the action, so it writes after that commit, through `SqlAuditStore`, on
+its own short-lived context and in its own transaction. `SqlAuditStore` catches a failed write and logs it as an error
+with the event name and correlation ID.
+
+| Outcome | Business data | Audit entry |
+| --- | --- | --- |
+| Action succeeds | Committed | Written afterwards with the real status |
+| Action fails or is refused | Rolled back | Still written, with the status 400, 403 or 409 |
+| Audit write fails | Stays committed; the user sees success | Lost from the table, kept in the error log |
+
+**Consequences:** A broken audit table can neither fail a sale nor undo one, and a rolled-back sale keeps its audit
+entry, which a shared transaction would lose. The price is a small window: if the audit write fails, or the process
+dies between the two commits, the action has no row in `AuditEntries`. The error log covers the first case. An outbox
+would close the window; this design accepts it for now. The filter passes `CancellationToken.None`, so a client hanging
+up after the commit cannot cancel the entry.
 
 ## 7. SOLID mapping
 
@@ -399,9 +477,9 @@ the same pattern.
 
 | Tool | Where | Why |
 | --- | --- | --- |
-| async/await with `CancellationToken` | From every controller action down to `JsonFileStore` | No thread waits on file access, and a client that hangs up stops the work |
+| async/await with `CancellationToken` | From every controller action down to EF Core | No thread waits on the database, and a client that hangs up stops the work |
 | `Task.WhenAll` | `ReportService.DashboardAsync` | Sales, stock and alerts do not depend on each other |
-| `SemaphoreSlim` | `SimulatedCourierService`, `JsonFileStore`, `StockGate`, `TimedCache` | Bounded concurrency without holding a thread |
+| `SemaphoreSlim` | `SimulatedCourierService`, `StockGate`, `TimedCache` | Bounded concurrency without holding a thread |
 | `ValueTask` | `IProductCatalog`, `IZoneCatalog`, `TimedCache` | A cache hit completes synchronously, so no `Task` has to be allocated |
 
 Password hashing is CPU work, not I/O, so it runs synchronously. Its cost is why the rate limiter sits before
@@ -453,9 +531,9 @@ Extension members and the `field` keyword are new in C# 14. The others are the e
 | Delegates, `Func` and `Predicate` | `TaxRule.From`, `LowStockRule.AtOrBelow`, `PaymentRules` | Configurable rules passed into the domain as behaviour |
 | Events | `src/ApexPost.Application/Services/CounterEvents.cs` | Sending notifications without the checkout knowing who listens |
 | Custom attributes with cached reflection | `src/ApexPost.Application/Validation/AttributeModelValidator.cs` | Declarative validation, with reflection metadata cached in a `ConcurrentDictionary` |
-| async/await with `CancellationToken` | Every layer from controllers to `JsonFileStore` | Requests hold no thread while waiting, and can be cancelled |
+| async/await with `CancellationToken` | Every layer from controllers to EF Core | Requests hold no thread while waiting, and can be cancelled |
 | `Task.WhenAll` | `ReportService.DashboardAsync` | Loads independent dashboard sources in parallel |
-| `SemaphoreSlim` | `SimulatedCourierService`, `JsonFileStore`, `StockGate` | Bounded concurrency across `await` |
+| `SemaphoreSlim` | `SimulatedCourierService`, `StockGate` | Bounded concurrency across `await` |
 | `ValueTask` and a cache | `src/ApexPost.Infrastructure/Caching/TimedCache.cs` | No allocation on a cache hit |
 | Cancellation versus failure | `SimulatedCourierService` | Separates a caller hanging up, a timeout and a failure |
 
@@ -497,9 +575,10 @@ sale step, money orders, identity verification, payment, voids, refunds, stock a
 denied access, and reads and exports of the audit log itself.
 
 Each entry holds the time, event, StaffId, role, branch, controller, action, key route values, status, duration and
-correlation ID. Entries are appended to `audit.jsonl` in the data folder through `JsonLinesAuditStore`. Auditors and
-Administrators read them at `/Audit`. [AUDIT-SAMPLE.json](AUDIT-SAMPLE.json) holds the 24 unedited entries of a real run
-against synthetic demo data, converted from JSON Lines to a JSON array.
+correlation ID. Entries are added to the `AuditEntries` table through `SqlAuditStore`, after the business commit: see
+[ADR-016](#adr-016-audit-store-versus-unit-of-work). Auditors and Administrators read them at `/Audit`.
+[AUDIT-SAMPLE.json](AUDIT-SAMPLE.json) holds the 24 unedited entries of an earlier run against synthetic demo data, from
+when the log was still a JSON Lines file.
 
 ### How personal data is protected
 
@@ -517,42 +596,56 @@ against synthetic demo data, converted from JSON Lines to a JSON array.
 
 | Lifetime | What | Why |
 | --- | --- | --- |
-| Singleton | Repositories, `JsonFileStore`, audit and credential stores, `CachedCatalog`, courier, notification sink, `CounterEvents`, `StockGate` | They hold locks, caches or subscribers that all requests must share |
-| Singleton | `TaxCalculator`, `ShippingPricer`, `CheckoutRules`, `LoginService`, `AttributeModelValidator` | Stateless or caching only, and they depend only on singletons |
-| Singleton | `AuditActionFilter`, `PerformanceFilter`, `ValidationFilter`, `DomainExceptionFilter` | They depend only on singletons |
-| Scoped | `CheckoutService`, `ReversalService`, `StockService`, `StaffService`, `BranchService`, `CatalogueService`, `ReportService`, `AuditService` | They act for the signed-in user |
-| Scoped | `ICurrentUser`, `BranchAccessFilter`, `RevalidatingCookieEvents` | They depend on the current request |
+| Singleton | `CachedCatalog`, `SqlCatalogLoader`, courier, notification sink, `CounterEvents`, `StockGate` | They hold locks, caches or subscribers that all requests must share |
+| Singleton | `TaxCalculator`, `ShippingPricer`, `CheckoutRules`, `DummyPasswordHash`, `AttributeModelValidator` | Stateless or caching only, and they depend only on singletons |
+| Singleton | `PerformanceFilter`, `ValidationFilter`, `DomainExceptionFilter` | They depend only on singletons |
+| Scoped | `ApexPostDbContext`, `IDbContextFactory`, `IUnitOfWork`, the repositories, the query services, `SqlAuditStore`, `SqlCredentialStore`, `AuditColumnsInterceptor` | One context is one unit of work, and the interceptor reads the current user |
+| Scoped | `CheckoutService`, `ReversalService`, `StockService`, `PriceRevisionService`, `StaffService`, `BranchService`, `CatalogueService`, `LoginService`, `ReportService`, `AuditService` | They act for the signed-in user and use scoped repositories |
+| Scoped | `ICurrentUser`, `AuditActionFilter`, `BranchAccessFilter`, `RevalidatingCookieEvents` | They depend on the current request or on a scoped store |
 
 **Scoped services in middleware:** middleware is created once, so a scoped service in its constructor would be captured
 for the life of the application. None of the six custom middleware classes takes one: their constructors take only
 `RequestDelegate`, options and loggers, and `InvokeAsync` takes only `HttpContext`. If a middleware ever needs a scoped
 service, it must be an `InvokeAsync` parameter.
 
+The singleton catalogue cache cannot hold a scoped context, so `SqlCatalogLoader` opens a scope of its own for each load
+and returns untracked entities.
+
 ## 12. Path to a database
 
-Only Infrastructure changes when SQL Server and EF Core arrive.
+The application now runs on SQL Server and EF Core 10; Domain stayed free of both, as planned.
 
-- Domain and Application have no paths and no `System.Text.Json`, and the layering tests enforce that.
-- The persistence shape lives only in `Persistence/Json/Records` and `Persistence/Json/Mapping`.
-- Ids map to primary keys, and each record's `Version` becomes a concurrency token. Money stays a decimal and a currency,
-  and enums are stored as strings.
-- Lists and reports go through `ITransactionQueries` and `IReportQueries` with filters and paging, so
-  `RepositoryReportQueries` can become SQL queries.
-- `AddJsonPersistence` is the one registration point, and a future `AddSqlPersistence` replaces that line.
-- Seed data is plain C# objects, independent of storage.
+- `Program.cs` calls `AddSqlPersistence`, the one registration point of the storage.
+- The persistence shape lives in `Persistence/Configurations`, `Persistence/Records` and `Persistence/Mappers`.
+- Ids are primary keys. `BranchStock` and `CounterTransactions` have a `RowVersion`, and `Branches` and `Staff` an integer
+  `Version`, as concurrency tokens.
+- Lists and reports became SQL in `Repositories/Queries`: the database adds up the rows and only totals travel. A cast
+  through object reads a converted column, such as `Money`, as its stored decimal.
+- Seed data is still plain C# objects, independent of storage.
 
-Pay, void, refund and stock adjustment each happen in one service method, so a database transaction can wrap them later.
-The JSON version is **not atomic across files**: `CheckoutService.PayAsync` saves the transaction and then the stock,
-inside `StockGate`. A crash between those two saves leaves a paid transaction whose stock has not moved.
+Pay, void, refund and stock adjustment each stage their changes in one service method and save once, so one database
+transaction covers stock, status, payment and adjustment records. Work that cannot go through one save, such as the
+set-based price revision with `ExecuteUpdateAsync`, runs in `IUnitOfWork.ExecuteInTransactionAsync`: the EF Core execution
+strategy replays the whole unit after a transient failure, and an explicit transaction joins the update with whatever
+was staged. The revision is one statement today, so nothing else is staged yet.
+
+The Week 2 file storage (`AddJsonPersistence`, `Persistence/Json`) still compiles and keeps its tests, but the web host
+no longer registers it.
 
 ## 13. Known limitations
 
-- Work across two JSON files is not atomic, as described in [section 12](#12-path-to-a-database).
 - `StockGate` and the rate limiter work within one application instance only.
-- Reports read all transactions into memory on every request.
+- A failed audit write leaves no row in `AuditEntries`, only an error log entry: see
+  [ADR-016](#adr-016-audit-store-versus-unit-of-work).
+- A price revision clears the catalogue cache of the server that ran it. Other servers, and a load already running there,
+  show the old price for up to `Catalog:CacheSeconds`.
+- A counter with past transactions cannot be removed, because `Restrict` keeps the history: the Week 2 file storage
+  allowed it.
+- The demo accounts sign in with the hash written when the database was seeded, so changing `Seed:DemoPassword` later
+  needs a new seed.
 - Allowlists and the login limit see the direct connection, so a proxy needs extra setup.
 - Calls refused by middleware are logged but not audited, and a failed sign-in is audited without the typed email.
-- The audit log is append-only through its interface; anyone with access to the data folder can still edit the file.
+- The audit log is append-only through its interface; anyone with write access to the database can still edit the table.
 - Notifications are held in memory, and the newest 200 are lost on restart.
 - Setting a new password does not end open sessions.
 - The courier, identity verification and notifications are simulations.
