@@ -1,6 +1,7 @@
 using ApexPost.Application.DTOs;
 using ApexPost.Application.Services;
 using ApexPost.Application.Validation;
+using ApexPost.Web.Filters;
 using ApexPost.Web.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -31,6 +32,7 @@ public sealed class AccountController(LoginService login, AttributeModelValidato
     }
 
     [AllowAnonymous]
+    [Audit(AuditEvents.Login)]
     [EnableRateLimiting(ApexRateLimits.Login)]
     [HttpPost]
     public async Task<IActionResult> Login(LoginCommand command, string? returnUrl, CancellationToken cancellationToken)
@@ -41,18 +43,20 @@ public sealed class AccountController(LoginService login, AttributeModelValidato
             : null;
         if (staff is null)
         {
+            AuditOutcome.Set(HttpContext, StatusCodes.Status401Unauthorized);
             ModelState.Clear();
             ModelState.AddModelError(string.Empty, LoginFailed);
             ViewData[nameof(returnUrl)] = returnUrl;
             return View(new LoginCommand { Email = command.Email });
         }
 
-        await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            StaffPrincipal.Create(staff));
+        // The new user applies from the next request; setting it here lets the audit entry name who signed in.
+        HttpContext.User = StaffPrincipal.Create(staff);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, HttpContext.User);
         return Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl) : RedirectToDashboard();
     }
 
+    [Audit(AuditEvents.Logout)]
     [HttpPost]
     public async Task<IActionResult> Logout()
     {
