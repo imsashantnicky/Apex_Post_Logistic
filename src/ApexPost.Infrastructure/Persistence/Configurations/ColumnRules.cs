@@ -7,6 +7,7 @@ namespace ApexPost.Infrastructure.Persistence.Configurations;
 internal static class ColumnRules
 {
     public const int EnumLength = 20;
+    public const int FirstVersion = 1;
     public const string Money = "decimal(18,2)";
     public const string UtcTime = "datetime2";
     public const string CreatedAt = "CreatedAtUtc";

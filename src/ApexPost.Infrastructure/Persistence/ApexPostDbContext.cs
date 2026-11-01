@@ -1,4 +1,6 @@
+using ApexPost.Domain.Common;
 using ApexPost.Infrastructure.Persistence.Configurations;
+using ApexPost.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 
 namespace ApexPost.Infrastructure.Persistence;
@@ -6,6 +8,15 @@ namespace ApexPost.Infrastructure.Persistence;
 /// <summary>The EF Core model of the SQL Server database; each table is described by its own configuration.</summary>
 public sealed class ApexPostDbContext(DbContextOptions<ApexPostDbContext> options) : DbContext(options)
 {
+    /// <summary>Lets a set-based update write a computed amount back into a Money column.</summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        ArgumentNullException.ThrowIfNull(configurationBuilder);
+        configurationBuilder.DefaultTypeMapping<Money>(money => money
+            .HasConversion<MoneyConverter>()
+            .HasColumnType(ColumnRules.Money));
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
