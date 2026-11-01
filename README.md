@@ -42,6 +42,24 @@ dotnet run --project src/ApexPost.Web --launch-profile https
 
 Open <https://localhost:7242>. The sign-in cookie is `Secure`, so use the HTTPS address.
 
+Requests are still served from the JSON files. SQL Server is optional for now: without `ConnectionStrings:ApexPostDb`
+it is left alone. With it, create the tables first, because the application never runs migrations, and then start the
+application once in Development to fill them (skipped while `Branches` has rows). `setup-secrets.bat` stores only a
+placeholder, so replace it with a real connection string or remove it, or the application stops at startup.
+
+```bash
+dotnet user-secrets set "ConnectionStrings:ApexPostDb" "<your connection string>" --project src/ApexPost.Web
+dotnet tool restore
+dotnet ef database update --project src/ApexPost.Infrastructure
+```
+
+[sql/perf/volume-seed.sql](sql/perf/volume-seed.sql) then multiplies that data for performance tests, to about 200k
+transactions and 600k lines of fictional data. Run it once, on a development database only:
+
+```bash
+sqlcmd -S localhost -E -C -d ApexPostDb -b -i sql/perf/volume-seed.sql
+```
+
 To build and test:
 
 ```bash
@@ -137,6 +155,7 @@ Settings live in `src/ApexPost.Web/appsettings.json`. Secrets belong in user-sec
 
 | Key | Meaning |
 | --- | --- |
+| `ConnectionStrings:ApexPostDb` | SQL Server database, from user-secrets; optional while requests use JSON |
 | `Storage:DataFolder` | Folder of the JSON files, relative to the web project |
 | `Seed:Enabled`, `Seed:DemoPassword` | Demo data, in Development only; the password comes from user-secrets |
 | `Passwords:Iterations`, `Passwords:MinimumLength` | PBKDF2 cost and the shortest allowed password |
@@ -179,9 +198,9 @@ Release build on 2026-11-01: 0 warnings, 0 errors.
 
 | Project | Passed | Failed | Skipped |
 | --- | --- | --- | --- |
-| `ApexPost.UnitTests` (measurements excluded) | 471 | 0 | 0 |
+| `ApexPost.UnitTests` (measurements excluded) | 483 | 0 | 0 |
 | `ApexPost.IntegrationTests` | 269 | 0 | 0 |
-| **Total** | **740** | **0** | **0** |
+| **Total** | **752** | **0** | **0** |
 
 The 7 measurement tests are excluded from these counts and from CI. Their numbers are in
 [DESIGN.md](DESIGN.md#8-async-taskwhenall-semaphoreslim-valuetask-and-measured-numbers).
