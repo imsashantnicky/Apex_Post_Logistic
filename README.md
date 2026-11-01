@@ -48,12 +48,21 @@ dotnet user-secrets set "Integration:ApiKeys:AcmeCouriers" "<a long random key>"
 
 | Key | Meaning |
 | --- | --- |
+| `Performance:SlowActionMs` | Actions slower than this are logged as a warning |
 | `Maintenance:Enabled`, `Maintenance:RetryAfterSeconds` | Answers 503 except on `/health`; applies without a restart |
 | `Security:AdminAllowedIps`, `Security:IntegrationAllowedIps` | Addresses allowed on `[IpRestricted]` endpoints |
 | `Integration:AllowedOrigins` | Browser origins allowed by CORS on the partner endpoint |
 | `Integration:ApiKeys:<Partner>` | One API key per partner, from user-secrets or the environment |
 | `RateLimiting:LoginPermitsPerMinute` | Sign-in attempts per address per minute |
 | `RateLimiting:PartnerPermitsPerMinute` | Partner calls per partner per minute |
+
+## Audit log
+
+Sign-ins, sales, money orders, identity verification, voids, refunds, stock adjustments and denied access are written
+to the append-only `audit.jsonl` in the data folder. Each entry names the staff member, role, branch, action, key
+route values, outcome, duration and correlation ID. Auditors and administrators read it at `/Audit` and download it
+from `/Audit/Export`, from an address on `Security:AdminAllowedIps`. Passwords and document numbers are not recorded,
+and anything shaped like a document or card number is masked before it reaches the store.
 
 ## How the code is organised
 
@@ -72,4 +81,6 @@ dotnet user-secrets set "Integration:ApiKeys:AcmeCouriers" "<a long random key>"
   share one address; forwarded headers are not trusted because a client can forge them.
 - The partner tracking widget runs in end users' browsers, whose addresses are not on the integration allowlist, so
   a browser call only works from an allowed address. CORS does not replace the API key or the allowlist.
+- A partner call refused by the IP allowlist or the API key is logged but not audited: it stops in middleware, before
+  any action filter runs.
 - During maintenance the stylesheet is also blocked, so the 503 page shows unstyled.
