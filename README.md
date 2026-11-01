@@ -27,6 +27,34 @@ dotnet run --project src/ApexPost.Web --launch-profile https
 Open <https://localhost:7242> and sign in as `clerk1.br001@apexpost.test`, `manager.br001@apexpost.test`,
 `auditor1@apexpost.test` or `admin1@apexpost.test`. The sign-in cookie is `Secure`, so use the HTTPS address.
 
+## Courier partner endpoint
+
+`GET /integration/parcel-status/{trackingNumber}` needs a partner key in the `X-Api-Key` header and a caller address
+on `Security:IntegrationAllowedIps`. Keys are never stored in the repository; set one with user-secrets:
+
+```bash
+dotnet user-secrets set "Integration:ApiKeys:AcmeCouriers" "<a long random key>" --project src/ApexPost.Web
+```
+
+| Request | Expected status |
+| --- | --- |
+| `curl -k -H "X-Api-Key: <key>" https://localhost:7242/integration/parcel-status/APX123456` | 200 |
+| `curl -k https://localhost:7242/integration/parcel-status/APX123456` | 401 |
+| `curl -k -H "X-Api-Key: <key>" https://localhost:7242/integration/parcel-status/FAIL1` | 502 |
+| `curl -k -H "X-Api-Key: <key>" https://localhost:7242/integration/parcel-status/SLOW1` | 504 |
+| `curl -k https://localhost:7242/health` | 200 |
+
+## Configuration
+
+| Key | Meaning |
+| --- | --- |
+| `Maintenance:Enabled`, `Maintenance:RetryAfterSeconds` | Answers 503 except on `/health`; applies without a restart |
+| `Security:AdminAllowedIps`, `Security:IntegrationAllowedIps` | Addresses allowed on `[IpRestricted]` endpoints |
+| `Integration:AllowedOrigins` | Browser origins allowed by CORS on the partner endpoint |
+| `Integration:ApiKeys:<Partner>` | One API key per partner, from user-secrets or the environment |
+| `RateLimiting:LoginPermitsPerMinute` | Sign-in attempts per address per minute |
+| `RateLimiting:PartnerPermitsPerMinute` | Partner calls per partner per minute |
+
 ## How the code is organised
 
 - `src/ApexPost.Domain` — domain model; references no other project.
@@ -37,3 +65,11 @@ Open <https://localhost:7242> and sign in as `clerk1.br001@apexpost.test`, `mana
 - `tests/ApexPost.IntegrationTests` — xUnit tests against the Web project (`Architecture/` holds the controller
   layering test).
 - `.github/workflows/ci.yml` — restore, Release build and tests (measurement tests excluded) on every push and PR.
+
+## Known limitations
+
+- The allowlists see the address of the direct connection. Behind a proxy that is the proxy, so all callers would
+  share one address; forwarded headers are not trusted because a client can forge them.
+- The partner tracking widget runs in end users' browsers, whose addresses are not on the integration allowlist, so
+  a browser call only works from an allowed address. CORS does not replace the API key or the allowlist.
+- During maintenance the stylesheet is also blocked, so the 503 page shows unstyled.
