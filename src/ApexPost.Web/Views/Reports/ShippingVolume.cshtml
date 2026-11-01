@@ -1,0 +1,54 @@
+@model ReportPage<IReadOnlyList<ShippingVolumeRow>>
+@{
+    ViewData["Title"] = "Shipping volume";
+    var rows = Model.Report;
+    var header = new PageHeader(
+        "Shipping volume",
+        Model.Toolbar.Subtitle,
+        "Paid shipments by destination zone and service level.");
+}
+<partial name="_PageHeader" model="header" />
+<partial name="_ReportFilter" model="Model.Toolbar" />
+
+<section class="card">
+    @if (rows.Count == 0)
+    {
+        <partial name="_EmptyState" model='"No shipments in this period."' />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Zone</th>
+                        <th scope="col">Service level</th>
+                        <th scope="col" class="num">Shipments</th>
+                        <th scope="col" class="num">Chargeable kg</th>
+                        <th scope="col" class="num">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in rows)
+                    {
+                        <tr>
+                            <td>@row.ZoneCode</td>
+                            <td>@row.Level</td>
+                            <td class="num">@row.Shipments</td>
+                            <td class="num">@row.ChargeableKg.ToString("0.00")</td>
+                            <td class="num"><partial name="_Money" model="row.Revenue" /></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="2">Total</td>
+                        <td class="num">@rows.Sum(row => row.Shipments)</td>
+                        <td class="num">@rows.Sum(row => row.ChargeableKg).ToString("0.00")</td>
+                        <td class="num"><partial name="_Money" model="rows.Select(row => row.Revenue).Total()" /></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</section>
