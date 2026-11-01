@@ -12,8 +12,17 @@ public sealed record CounterPage(
     IReadOnlyList<ShippingZone> Zones,
     Money VerificationThreshold,
     bool CanWork,
-    bool IsManager)
+    bool IsManager,
+    bool BranchClosed = false)
 {
+    private const string EmptyBasket = "The basket is empty.";
+    private const string OpenHelp = "Build the basket, verify identity if needed, then take payment.";
+    private const string DoneHelp = "This transaction is finished; its basket can no longer change.";
+
+    public string EmptyBasketText => CanWork ? $"{EmptyBasket} Add an item or a service below." : EmptyBasket;
+
+    public string Help => Transaction.Status == TransactionStatus.Open ? OpenHelp : DoneHelp;
+
     public bool CanVoid => IsManager && Transaction.Status is TransactionStatus.Open or TransactionStatus.Paid;
 
     public bool CanRefund => IsManager && Transaction.Status == TransactionStatus.Paid;

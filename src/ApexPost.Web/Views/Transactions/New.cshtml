@@ -23,6 +23,6 @@
                 }
             </select>
         </div>
-        <button type="submit" class="button">Open transaction</button>
+        <button type="submit" class="button" disabled="@(!Model.IsActive)">Open transaction</button>
     </form>
 </section>

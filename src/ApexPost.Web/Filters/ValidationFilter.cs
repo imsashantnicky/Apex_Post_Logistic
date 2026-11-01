@@ -34,6 +34,11 @@ public sealed class ValidationFilter : IAsyncActionFilter
         var page = (ApexController)context.Controller;
         AuditOutcome.Set(context.HttpContext, StatusCodes.Status400BadRequest);
         page.FlashError(InvalidFormMessage);
+        page.RememberForm(context.ModelState
+            .Where(pair => pair.Value is { Errors.Count: > 0 })
+            .ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value!.Errors.Select(error => error.ErrorMessage).ToArray()));
         return page.AfterFormError();
     }
 

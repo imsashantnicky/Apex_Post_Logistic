@@ -17,6 +17,8 @@ public sealed class DomainExceptionFilter : IAsyncActionFilter
 {
     private const string ConflictMessage = "This record was changed by someone else. Check it and try again.";
 
+    private static readonly Dictionary<string, string[]> NoFieldErrors = [];
+
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         ArgumentNullException.ThrowIfNull(next);
@@ -46,6 +48,11 @@ public sealed class DomainExceptionFilter : IAsyncActionFilter
 
         AuditOutcome.Set(http, ProblemResponses.StatusFor(exception));
         page.FlashError(message);
+        if (exception is not ConcurrencyException && http.Request.HasFormContentType)
+        {
+            page.RememberForm((exception as ValidationFailedException)?.Errors ?? NoFieldErrors);
+        }
+
         return page.AfterFormError();
     }
 

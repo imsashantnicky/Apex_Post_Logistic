@@ -169,7 +169,7 @@ public sealed class CounterTransaction : Entity<Guid>
     {
         if (Status is not (TransactionStatus.Open or TransactionStatus.Paid))
         {
-            throw new DomainException($"A {Status} transaction cannot be voided.");
+            throw new DomainException($"This transaction is {Status} and cannot be voided.");
         }
 
         var reversal = Reverse(manager, reason, now);
@@ -188,7 +188,7 @@ public sealed class CounterTransaction : Entity<Guid>
     {
         if (Status != TransactionStatus.Paid)
         {
-            throw new DomainException($"A {Status} transaction cannot be refunded; only a paid one can.");
+            throw new DomainException($"This transaction is {Status}; only a paid one can be refunded.");
         }
 
         var reversal = Reverse(manager, reason, now);

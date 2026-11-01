@@ -16,7 +16,7 @@
     }
     else
     {
-        <div class="table-wrap">
+        <div class="table-wrap" tabindex="0" role="region" aria-label="Table">
             <table>
                 <thead>
                     <tr>
@@ -36,7 +36,7 @@
                     @foreach (var row in Model.Items.Select(AuditRow.From))
                     {
                         <tr>
-                            <td>@row.At.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td class="nowrap">@row.At.ToString("yyyy-MM-dd HH:mm:ss")</td>
                             <td>@row.Event</td>
                             <td class="values">@row.StaffId</td>
                             <td>@row.Role</td>
