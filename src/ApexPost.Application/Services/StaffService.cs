@@ -21,6 +21,8 @@ public sealed class StaffService(
     AttributeModelValidator validator,
     IOptions<PasswordSettings> passwordSettings)
 {
+    public int MinimumPasswordLength => passwordSettings.Value.MinimumLength;
+
     public async Task<IReadOnlyList<StaffSummary>> ListAsync(CancellationToken cancellationToken)
     {
         user.RequireRole(StaffRole.Administrator);
@@ -69,6 +71,7 @@ public sealed class StaffService(
         var member = await LoadAsync(id, cancellationToken).ConfigureAwait(false);
         var homeBranch = await ExistingBranchAsync(details.HomeBranch, cancellationToken).ConfigureAwait(false);
         await EnsureEmailFreeAsync(details.Email, id, cancellationToken).ConfigureAwait(false);
+        EnsureNotOwnRole(member, details.Role);
 
         member.Name = details.Name;
         member.Email = details.Email;
@@ -77,13 +80,19 @@ public sealed class StaffService(
         await staff.UpdateAsync(member, expectedVersion, cancellationToken).ConfigureAwait(false);
     }
 
-    public Task DeactivateAsync(Guid id, int expectedVersion, CancellationToken cancellationToken)
+    public Task DeactivateAsync(
+        Guid id,
+        int expectedVersion,
+        DeactivationCommand command,
+        CancellationToken cancellationToken)
     {
+        user.RequireRole(StaffRole.Administrator);
         if (id == user.StaffId)
         {
             throw new ForbiddenException("You cannot deactivate your own account.");
         }
 
+        validator.EnsureValid(command);
         return ChangeAsync(id, expectedVersion, member => member.Deactivate(), cancellationToken);
     }
 
@@ -111,15 +120,23 @@ public sealed class StaffService(
         await staff.UpdateAsync(member, expectedVersion, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>With this rule and no self-deactivation, the acting administrator always stays one.</summary>
+    private void EnsureNotOwnRole(Staff member, StaffRole role)
+    {
+        if (member.Id == user.StaffId && member.Role != role)
+        {
+            throw new ValidationFailedException(nameof(StaffCommand.Role), "You cannot change your own role.");
+        }
+    }
+
     private void EnsureStrong(PasswordCommand password)
     {
         validator.EnsureValid(password);
-        var minimum = passwordSettings.Value.MinimumLength;
-        if (password.Password.Length < minimum)
+        if (password.Password.Length < MinimumPasswordLength)
         {
             throw new ValidationFailedException(
                 nameof(password.Password),
-                $"Password must be at least {minimum} characters.");
+                $"Password must be at least {MinimumPasswordLength} characters.");
         }
     }
 
