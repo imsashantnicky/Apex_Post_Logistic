@@ -1,6 +1,7 @@
 using System.Globalization;
 using ApexPost.Domain.Catalogue;
 using ApexPost.Domain.Common;
+using ApexPost.Domain.Pricing;
 using ApexPost.Domain.Shipping;
 
 namespace ApexPost.Domain.Transactions;
@@ -32,4 +33,7 @@ public sealed record ShippingLineItem(Guid Id, Shipment Shipment, string ZoneCod
     public string TrackingNumber =>
         TrackingPrefix + Id.ToString(PlainGuidFormat, CultureInfo.InvariantCulture)[^TrackingDigits..]
             .ToUpperInvariant();
+
+    public static ShippingLineItem Create(Shipment shipment, ShippingZone zone, ServiceLevelMultipliers multipliers) =>
+        new(Guid.CreateVersion7(), shipment, zone.Code, ShippingPricing.Quote(shipment, zone, multipliers));
 }

@@ -1,5 +1,6 @@
 using ApexPost.Domain.Branches;
 using ApexPost.Domain.Common;
+using ApexPost.Domain.Events;
 using ApexPost.Domain.Inventory;
 using ApexPost.Domain.Personnel;
 using ApexPost.Domain.Verification;
@@ -14,6 +15,7 @@ public sealed class CounterTransaction : Entity<Guid>
 {
     private readonly List<ILineItem> _lines = [];
     private readonly List<IdentityVerification> _verifications = [];
+    private readonly List<IDomainEvent> _events = [];
 
     private CounterTransaction(Guid id, BranchCode branch, Guid counterId, Guid clerkId, DateTimeOffset openedAt)
         : base(Guard.NotEmpty(id, "Transaction id"))
@@ -110,6 +112,14 @@ public sealed class CounterTransaction : Entity<Guid>
         return transaction;
     }
 
+    /// <summary>Returns the events raised since the last call and clears them.</summary>
+    public IReadOnlyList<IDomainEvent> TakeEvents()
+    {
+        IDomainEvent[] events = [.. _events];
+        _events.Clear();
+        return events;
+    }
+
     public bool RequiresVerification(Money threshold) =>
         _lines.OfType<MoneyOrderLineItem>().Any(order => order.Amount > threshold);
 
@@ -152,9 +162,10 @@ public sealed class CounterTransaction : Entity<Guid>
         }
 
         var payment = new Payment(method, Sum(rules.TaxRule), now);
-        StockAllocation.Take(Branch, RetailLines, stock);
+        var changedStock = StockAllocation.Take(Branch, RetailLines, stock);
         Payment = payment;
         Status = TransactionStatus.Paid;
+        RaisePaidEvents(payment, changedStock, rules.IsLowStock);
     }
 
     /// <summary>Voids an open or paid transaction; voiding a paid one puts its retail items back in stock.</summary>
@@ -173,6 +184,7 @@ public sealed class CounterTransaction : Entity<Guid>
 
         Reversal = reversal;
         Status = TransactionStatus.Voided;
+        _events.Add(new TransactionVoided(Id, Branch, manager.Id, reversal.Reason, Total, now));
     }
 
     /// <summary>Refunds a paid transaction and puts its retail items back in stock.</summary>
@@ -187,6 +199,19 @@ public sealed class CounterTransaction : Entity<Guid>
         StockAllocation.Restock(Branch, RetailLines, stock);
         Reversal = reversal;
         Status = TransactionStatus.Refunded;
+        _events.Add(new TransactionRefunded(Id, Branch, manager.Id, reversal.Reason, Total, now));
+    }
+
+    private void RaisePaidEvents(Payment payment, List<StockItem> changedStock, Predicate<StockItem> isLowStock)
+    {
+        var now = payment.PaidAt;
+        _events.Add(new TransactionCompleted(Id, Branch, Total, payment.Method, now));
+        _events.AddRange(_lines
+            .OfType<MoneyOrderLineItem>()
+            .Select(order => new MoneyOrderIssued(Id, Branch, order.Id, order.Amount, now)));
+        _events.AddRange(changedStock
+            .Where(item => isLowStock(item))
+            .Select(item => new StockLow(item.Branch, item.Sku, item.Quantity, now)));
     }
 
     private Reversal Reverse(Staff manager, string reason, DateTimeOffset now)

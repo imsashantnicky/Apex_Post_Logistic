@@ -7,7 +7,11 @@ namespace ApexPost.Domain.Inventory;
 /// <summary>Moves the stock of a basket's retail lines. Every line is checked before any quantity changes.</summary>
 internal static class StockAllocation
 {
-    public static void Take(BranchCode branch, IEnumerable<RetailLineItem> lines, IReadOnlyCollection<StockItem> stock)
+    /// <summary>Removes the basket quantities and returns the stock items that changed.</summary>
+    public static List<StockItem> Take(
+        BranchCode branch,
+        IEnumerable<RetailLineItem> lines,
+        IReadOnlyCollection<StockItem> stock)
     {
         var demand = Demand(branch, lines, stock);
         foreach (var (key, quantity, item) in demand)
@@ -22,9 +26,14 @@ internal static class StockAllocation
         {
             item?.Remove(quantity);
         }
+
+        return [.. demand.Select(entry => entry.Item).OfType<StockItem>()];
     }
 
-    public static void Restock(BranchCode branch, IEnumerable<RetailLineItem> lines, IReadOnlyCollection<StockItem> stock)
+    public static void Restock(
+        BranchCode branch,
+        IEnumerable<RetailLineItem> lines,
+        IReadOnlyCollection<StockItem> stock)
     {
         var demand = Demand(branch, lines, stock);
         var missing = demand.Find(entry => entry.Item is null);

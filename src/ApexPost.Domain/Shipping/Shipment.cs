@@ -1,8 +1,12 @@
 using ApexPost.Domain.Common;
+using ApexPost.Domain.Rules;
 
 namespace ApexPost.Domain.Shipping;
 
-/// <summary>What the customer sends: letter or parcel, service level, measures and recipient.</summary>
+/// <summary>
+/// What the customer sends: letter or parcel, service level, measures and recipient.
+/// A shipment over the weight limit of its type and service level cannot be created.
+/// </summary>
 public sealed record Shipment(
     ShipmentType Type,
     ServiceLevel Level,
@@ -14,7 +18,7 @@ public sealed record Shipment(
 
     public ServiceLevel Level { get; } = Guard.Defined(Level, nameof(Level));
 
-    public Weight Weight { get; } = Guard.Required(Weight, nameof(Weight));
+    public Weight Weight { get; } = WeightLimitRule.Ensure(Type, Level, Guard.Required(Weight, nameof(Weight)));
 
     public Dimensions Dimensions { get; } = Guard.Required(Dimensions, nameof(Dimensions));
 

@@ -1,5 +1,6 @@
 using ApexPost.Domain.Catalogue;
 using ApexPost.Domain.Common;
+using ApexPost.Domain.Rules;
 
 namespace ApexPost.Domain.Transactions;
 
@@ -25,4 +26,7 @@ public sealed record MoneyOrderLineItem(Guid Id, Money Amount, Money Fee, string
     public Money Total => Amount + Fee;
 
     public TaxCategory TaxCategory => TaxCategory.Exempt;
+
+    public static MoneyOrderLineItem Issue(Money amount, string sender, string recipient) =>
+        new(Guid.CreateVersion7(), amount, MoneyOrderFeeRule.FeeFor(amount), sender, recipient);
 }
