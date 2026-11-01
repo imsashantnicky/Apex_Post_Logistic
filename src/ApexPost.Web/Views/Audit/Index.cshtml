@@ -1,0 +1,66 @@
+@model PagedResult<AuditEntry>
+@{
+    ViewData["Title"] = "Audit log";
+    var header = new PageHeader("Audit log", Help: "Who did what, where and when. Entries cannot be changed.");
+}
+<partial name="_PageHeader" model="header" />
+
+<div class="toolbar">
+    <a class="button button-outline" asp-action="Export">Export JSON</a>
+</div>
+
+<section class="card">
+    @if (Model.Items.Count == 0)
+    {
+        <partial name="_EmptyState" model='"The audit log is empty."' />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Time (UTC)</th>
+                        <th scope="col">Event</th>
+                        <th scope="col">Staff</th>
+                        <th scope="col">Role</th>
+                        <th scope="col">Branch</th>
+                        <th scope="col">Action</th>
+                        <th scope="col">Values</th>
+                        <th scope="col" class="num">Status</th>
+                        <th scope="col" class="num">ms</th>
+                        <th scope="col">Correlation ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Items.Select(AuditRow.From))
+                    {
+                        <tr>
+                            <td>@row.At.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td>@row.Event</td>
+                            <td class="values">@row.StaffId</td>
+                            <td>@row.Role</td>
+                            <td>@row.Branch</td>
+                            <td>@row.Controller/@row.Action</td>
+                            <td class="values">@row.Values</td>
+                            <td class="num">@row.StatusCode</td>
+                            <td class="num">@row.DurationMs</td>
+                            <td class="values">@row.CorrelationId</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <nav class="pager" aria-label="Pages">
+            @if (Model.HasPrevious)
+            {
+                <a asp-action="Index" asp-route-page="@(Model.Page - 1)">Previous</a>
+            }
+            <span class="muted">Page @Model.Page of @Model.TotalPages</span>
+            @if (Model.HasNext)
+            {
+                <a asp-action="Index" asp-route-page="@(Model.Page + 1)">Next</a>
+            }
+        </nav>
+    }
+</section>

@@ -26,6 +26,13 @@ internal sealed partial class CounterBrowser : IDisposable
         _http.DefaultRequestHeaders.Add(RemoteAddressStartupFilter.Header, NextAddress());
     }
 
+    /// <summary>Moves this browser to another address, for example onto an allowlist after signing in.</summary>
+    public void CallFrom(string address)
+    {
+        _http.DefaultRequestHeaders.Remove(RemoteAddressStartupFilter.Header);
+        _http.DefaultRequestHeaders.Add(RemoteAddressStartupFilter.Header, address);
+    }
+
     /// <summary>Asks for pages as a real browser does, so that errors arrive as HTML.</summary>
     public void AcceptHtml() => _http.DefaultRequestHeaders.Accept.ParseAdd(HtmlMediaType);
 

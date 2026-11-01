@@ -3,6 +3,7 @@
 @{
     var isSignedIn = User.Identity?.IsAuthenticated == true;
     var canTransact = isSignedIn && (await Authorization.AuthorizeAsync(User, ApexPolicies.CanTransact)).Succeeded;
+    var canReadAudit = isSignedIn && (await Authorization.AuthorizeAsync(User, ApexPolicies.AuditViewers)).Succeeded;
     var role = User.Role is { } staffRole ? EnumText.Label(staffRole) : null;
 }
 <!DOCTYPE html>
@@ -25,6 +26,10 @@
                 @if (canTransact)
                 {
                     <a asp-controller="Transactions" asp-action="New">New transaction</a>
+                }
+                @if (canReadAudit)
+                {
+                    <a asp-controller="Audit" asp-action="Index">Audit</a>
                 }
             </nav>
             <div class="who">
