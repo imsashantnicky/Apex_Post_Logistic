@@ -1,0 +1,62 @@
+@model CounterPage
+@{
+    var transaction = Model.Transaction;
+}
+<section class="card">
+    <h2>Basket</h2>
+    @if (transaction.Lines.Count == 0)
+    {
+        <partial name="_EmptyState" model='"The basket is empty. Add an item or a service below."' />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Description</th>
+                        <th scope="col" class="num">Qty</th>
+                        <th scope="col" class="num">Unit</th>
+                        <th scope="col" class="num">Line total</th>
+                        <th scope="col"><span class="sr-only">Label</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var line in transaction.Lines)
+                    {
+                        <tr>
+                            <td>@line.Description</td>
+                            <td class="num">@line.Quantity</td>
+                            <td class="num"><partial name="_Money" model="line.UnitPrice" /></td>
+                            <td class="num"><partial name="_Money" model="line.Total" /></td>
+                            <td>
+                                @if (line.Kind == LineKind.Shipping)
+                                {
+                                    <a asp-action="Label" asp-route-id="@transaction.Id"
+                                       asp-route-lineId="@line.Id">Label preview</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    <dl class="totals">
+        <dt>Retail</dt>
+        <dd><partial name="_Money" model="transaction.RetailTotal" /></dd>
+        <dt>Services</dt>
+        <dd><partial name="_Money" model="transaction.ServicesTotal" /></dd>
+        <dt>Subtotal</dt>
+        <dd><partial name="_Money" model="transaction.Subtotal" /></dd>
+        <dt>Tax@(transaction.Status == TransactionStatus.Open ? " (preview)" : null)</dt>
+        <dd><partial name="_Money" model="transaction.Tax" /></dd>
+        <dt class="total">Total</dt>
+        <dd class="total"><partial name="_Money" model="transaction.Total" /></dd>
+        @if (transaction.PaymentMethod is { } method)
+        {
+            <dt>Paid by @method</dt>
+            <dd><partial name="_Money" model="transaction.AmountDue" /></dd>
+        }
+    </dl>
+</section>
