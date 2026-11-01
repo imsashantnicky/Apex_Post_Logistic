@@ -6,6 +6,7 @@ using ApexPost.Domain.Branches;
 using ApexPost.Domain.Inventory;
 using ApexPost.Domain.Rules;
 using ApexPost.Domain.Transactions;
+using ApexPost.Domain.Verification;
 
 namespace ApexPost.Application.Reports;
 
@@ -86,23 +87,48 @@ public sealed class RepositoryReportQueries(
         ];
     }
 
-    public async Task<PagedResult<MoneyOrderRow>> MoneyOrdersAsync(
+    public async Task<MoneyOrderReport> MoneyOrdersAsync(
         ReportFilter filter,
         PageRequest page,
         CancellationToken cancellationToken)
     {
         var matching = await transactions.ListAsync(ReportSpecifications.Transactions(filter), cancellationToken)
             .ConfigureAwait(false);
+        CounterTransaction[] relevant =
+        [
+            .. matching.Where(transaction => transaction.Verifications.Count > 0
+                || transaction.Lines.Any(line => line is MoneyOrderLineItem)),
+        ];
         MoneyOrderRow[] rows =
         [
-            .. matching
-                .Where(transaction => transaction.Verifications.Count > 0
-                    || transaction.Lines.Any(line => line is MoneyOrderLineItem))
-                .OrderByDescending(transaction => transaction.OpenedAt)
-                .Select(ToMoneyOrderRow),
+            .. relevant.OrderByDescending(transaction => transaction.OpenedAt).Select(ToMoneyOrderRow),
         ];
-        return rows.ToPage(page);
+        return new MoneyOrderReport(BranchTotals(relevant), rows.ToPage(page));
     }
+
+    /// <summary>Only money orders still paid count as issued; every identity check counts, whatever followed.</summary>
+    private static List<MoneyOrderBranchRow> BranchTotals(IEnumerable<CounterTransaction> transactions) =>
+    [
+        .. transactions
+            .GroupBy(transaction => transaction.Branch)
+            .OrderBy(group => group.Key.Value, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var issued = group
+                    .Where(transaction => transaction.Status == TransactionStatus.Paid)
+                    .SelectMany(transaction => transaction.Lines.OfType<MoneyOrderLineItem>())
+                    .ToList();
+                var checks = group.SelectMany(transaction => transaction.Verifications).ToList();
+                return new MoneyOrderBranchRow(
+                    group.Key,
+                    issued.Count,
+                    issued.Select(order => order.Amount).Total(),
+                    issued.Select(order => order.Fee).Total(),
+                    checks.Count(check => check.Result == VerificationResult.Passed),
+                    checks.Count(check => check.Result == VerificationResult.Failed),
+                    checks.Count(check => check.Result == VerificationResult.Pending));
+            }),
+    ];
 
     private static MoneyOrderRow ToMoneyOrderRow(CounterTransaction transaction)
     {

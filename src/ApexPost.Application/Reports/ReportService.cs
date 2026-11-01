@@ -1,9 +1,9 @@
 using ApexPost.Application.Abstractions;
 using ApexPost.Application.DTOs;
+using ApexPost.Application.Exceptions;
 using ApexPost.Application.Extensions;
 using ApexPost.Application.Settings;
 using ApexPost.Domain.Branches;
-using ApexPost.Domain.Personnel;
 using Microsoft.Extensions.Options;
 
 namespace ApexPost.Application.Reports;
@@ -21,8 +21,16 @@ public sealed class ReportService(
 {
     public const int DashboardAlertCount = 5;
     public const int NotificationPageSize = 50;
+    public const int DefaultRangeDays = 14;
 
     private int LowStockThreshold => stockSettings.Value.LowStockThreshold;
+
+    /// <summary>The filter of a report page; without dates it covers the last two weeks up to today.</summary>
+    public ReportFilter FilterFor(BranchCode? branch, DateOnly? from, DateOnly? to)
+    {
+        var end = to ?? clock.Today;
+        return new ReportFilter(branch, from ?? end.AddDays(-DefaultRangeDays), end);
+    }
 
     public Task<IReadOnlyList<DailySalesRow>> DailySalesAsync(
         ReportFilter filter,
@@ -40,7 +48,7 @@ public sealed class ReportService(
         CancellationToken cancellationToken) =>
         queries.ShippingVolumeAsync(Scoped(filter), cancellationToken);
 
-    public Task<PagedResult<MoneyOrderRow>> MoneyOrdersAsync(
+    public Task<MoneyOrderReport> MoneyOrdersAsync(
         ReportFilter filter,
         PageRequest page,
         CancellationToken cancellationToken) =>
@@ -85,6 +93,11 @@ public sealed class ReportService(
         return filter with { Branch = user.ScopeTo(filter.Branch) };
     }
 
-    private void RequireReportViewer() =>
-        user.RequireRole(StaffRole.BranchManager, StaffRole.Auditor, StaffRole.Administrator);
+    private void RequireReportViewer()
+    {
+        if (!user.CanViewReports)
+        {
+            throw new ForbiddenException($"The {user.Role} role cannot read reports.");
+        }
+    }
 }
