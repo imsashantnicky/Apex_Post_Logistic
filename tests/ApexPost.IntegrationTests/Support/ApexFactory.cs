@@ -9,7 +9,8 @@ namespace ApexPost.IntegrationTests.Support;
 
 /// <summary>
 /// The real application with the demo data on a temp folder, fast password hashing, known partner keys, a short
-/// courier timeout, captured logs and a remote address chosen per client.
+/// courier timeout, captured logs and a remote address chosen per client. The connection string is blanked, because
+/// Development also loads the user-secrets and no test may write to a real database.
 /// </summary>
 public class ApexFactory : WebApplicationFactory<Program>
 {
@@ -39,6 +40,7 @@ public class ApexFactory : WebApplicationFactory<Program>
                 ["Storage:DataFolder"] = DataFolder,
                 ["Seed:Enabled"] = "true",
                 ["Seed:DemoPassword"] = DemoPassword,
+                ["ConnectionStrings:ApexPostDb"] = string.Empty,
                 ["Passwords:Iterations"] = "1000",
                 ["Courier:TimeoutMilliseconds"] = "300",
                 ["Integration:ApiKeys:Acme"] = PartnerKey,

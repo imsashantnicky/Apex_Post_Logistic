@@ -183,7 +183,7 @@ public sealed class DemoHistory(
     private MoneyOrderLineItem MoneyOrder(decimal amount, int index) =>
         MoneyOrderLineItem.Issue(new Money(amount), staff[index % staff.Count].Name, Recipient(index).Name);
 
-    private static Address Recipient(int index)
+    internal static Address Recipient(int index)
     {
         var row = Recipients[index % Recipients.Length];
         return new Address
@@ -196,7 +196,7 @@ public sealed class DemoHistory(
         };
     }
 
-    private static string DocumentNumber(int index) =>
+    internal static string DocumentNumber(int index) =>
         string.Create(CultureInfo.InvariantCulture, $"D{1_000_000 + (index * 7919)}");
 
     private static DateTimeOffset OpenedAt(int index, Branch branch, DateTimeOffset now)

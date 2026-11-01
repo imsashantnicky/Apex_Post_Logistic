@@ -13,8 +13,8 @@ public sealed record IdentityVerification(
     DateTimeOffset VerifiedAt)
 {
     public const int MinimumDocumentNumberLength = 6;
-    private const string MaskPrefix = "****";
-    private const int VisibleCharacters = 4;
+    public const string MaskPrefix = "****";
+    public const int VisibleCharacters = 4;
 
     public DocumentType DocumentType { get; } = Guard.Defined(DocumentType, nameof(DocumentType));
 

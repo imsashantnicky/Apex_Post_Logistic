@@ -29,6 +29,14 @@ public sealed class Branch : Entity<BranchCode>
         IsActive = isActive;
     }
 
+    // Only for persistence frameworks; they fill the properties from stored values.
+    private Branch()
+    {
+        Name = null!;
+        Region = null!;
+        _counters = [];
+    }
+
     public BranchCode Code => Id;
 
     public string Name { get; }

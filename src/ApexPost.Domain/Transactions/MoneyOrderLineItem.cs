@@ -5,27 +5,34 @@ using ApexPost.Domain.Rules;
 namespace ApexPost.Domain.Transactions;
 
 /// <summary>A money order: the customer pays amount plus fee. Money orders are tax exempt.</summary>
-public sealed record MoneyOrderLineItem(Guid Id, Money Amount, Money Fee, string Sender, string Recipient) : ILineItem
+public sealed record MoneyOrderLineItem : TransactionLine
 {
-    public Guid Id { get; } = Guard.NotEmpty(Id, "Line id");
+    public MoneyOrderLineItem(Guid id, Money amount, Money fee, string sender, string recipient)
+        : base(id)
+    {
+        Amount = Guard.Required(amount, nameof(Amount)).IsPositive
+            ? amount
+            : throw new DomainException("A money order amount must be greater than zero.");
+        Fee = Guard.Required(fee, nameof(Fee)).Currency == amount.Currency
+            ? fee
+            : throw new DomainException("The fee must use the money order currency.");
+        Sender = Guard.NotBlank(sender, nameof(Sender), TextLimits.Name);
+        Recipient = Guard.NotBlank(recipient, nameof(Recipient), TextLimits.Name);
+    }
 
-    public Money Amount { get; } = Guard.Required(Amount, nameof(Amount)).IsPositive
-        ? Amount
-        : throw new DomainException("A money order amount must be greater than zero.");
+    public Money Amount { get; }
 
-    public Money Fee { get; } = Guard.Required(Fee, nameof(Fee)).Currency == Amount.Currency
-        ? Fee
-        : throw new DomainException("The fee must use the money order currency.");
+    public Money Fee { get; }
 
-    public string Sender { get; } = Guard.NotBlank(Sender, nameof(Sender), TextLimits.Name);
+    public string Sender { get; }
 
-    public string Recipient { get; } = Guard.NotBlank(Recipient, nameof(Recipient), TextLimits.Name);
+    public string Recipient { get; }
 
-    public string Description => $"Money order to {Recipient}";
+    public override string Description => $"Money order to {Recipient}";
 
-    public Money Total => Amount + Fee;
+    public override Money Total => Amount + Fee;
 
-    public TaxCategory TaxCategory => TaxCategory.Exempt;
+    public override TaxCategory TaxCategory => TaxCategory.Exempt;
 
     public static MoneyOrderLineItem Issue(Money amount, string sender, string recipient) =>
         new(Guid.CreateVersion7(), amount, MoneyOrderFeeRule.FeeFor(amount), sender, recipient);
