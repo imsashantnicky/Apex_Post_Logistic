@@ -28,5 +28,5 @@ public static class WeightLimitRule
         Allows(type, level, weight)
             ? weight
             : throw new DomainException(
-                $"A {level} {type} can weigh at most {MaximumFor(type, level)}; this one weighs {weight}.");
+                $"The limit for {level} {type} is {MaximumFor(type, level)}; this one weighs {weight}.");
 }
