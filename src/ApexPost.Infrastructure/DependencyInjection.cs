@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.Configure<CatalogSettings>(configuration.GetSection(CatalogSettings.SectionName));
 
         services.AddSingleton<JsonFileStore>();
+        services.AddSingleton<IDataStoreHealth, DataFolderHealth>();
         services.AddRepository(DataFiles.Branches, new BranchMapper());
         services.AddRepository(DataFiles.Staff, new StaffMapper());
         services.AddRepository(DataFiles.Products, new ProductMapper());
