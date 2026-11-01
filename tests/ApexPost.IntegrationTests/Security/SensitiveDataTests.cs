@@ -36,7 +36,8 @@ public sealed class SensitiveDataTests(ApexFactory factory) : IClassFixture<Apex
             TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        await factory.Logs.WaitForAsync(entry => entry.Message.Contains(PartnerClient.Parcel, StringComparison.Ordinal));
+        await factory.Logs.WaitForAsync(
+            entry => entry.Message.Contains(PartnerClient.Parcel, StringComparison.Ordinal));
         AssertAbsentFromLogs(ApexFactory.PartnerKey);
         foreach (var file in Directory.GetFiles(factory.DataFolder))
         {

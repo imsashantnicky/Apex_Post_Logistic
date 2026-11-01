@@ -57,7 +57,7 @@ internal static class CodeUsage
         where method.ReturnType == typeof(void) && method.IsDefined(typeof(AsyncStateMachineAttribute), false)
         select $"{type.FullName}.{method.Name}";
 
-    /// <summary>An async Program gets a compiler-made entry stub that must wait for it; nothing else is exempt.</summary>
+    /// <summary>An async Program gets a compiler-made entry stub that must wait; nothing else is exempt.</summary>
     private static bool IsWrittenCode(MethodBase method) =>
         !(method == method.Module.Assembly.EntryPoint && method.Name.StartsWith('<'));
 
