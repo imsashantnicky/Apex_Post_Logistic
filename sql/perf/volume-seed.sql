@@ -1,6 +1,7 @@
 /*
     Multiplies the demo data for performance tests, on a development database only. All data is fictional.
-    Target: about 200k transactions, 600k lines (533k retail + 50k shipments + 20k money orders), 200k payments.
+    Target: about 200k transactions, 600k retail lines, 50k shipments, 20k money orders, 200k payments.
+    Lines of each type have their own table, so the retail lines alone are the 600k in TransactionLines.
 
     Run it once, after the application has seeded the database:
         sqlcmd -S localhost -E -C -d ApexPostDb -b -i sql/perf/volume-seed.sql
@@ -116,11 +117,11 @@ SELECT Id, BranchCode, CounterId, ClerkId, OpenedAt, Status,
        @Marker
 FROM #Tx;
 
--- Retail: two items in one basket of three, three items in the others.
+-- Retail: two, three or four items in turn, three on average.
 INSERT dbo.TransactionLines (Id, TransactionId, Sku, Name, UnitPrice, Quantity, TaxCategory, CreatedBy)
 SELECT NEWID(), tx.Id, product.Sku, product.Name, product.UnitPrice, 1 + (tx.n + slot.k) % 3, product.TaxCategory, @Marker
 FROM #Tx AS tx
-JOIN (VALUES (1), (2), (3)) AS slot (k) ON slot.k <= CASE WHEN tx.n % 3 = 0 THEN 2 ELSE 3 END
+JOIN (VALUES (1), (2), (3), (4)) AS slot (k) ON slot.k <= 2 + tx.n % 3
 JOIN #Product AS product ON product.rn = (tx.n * 7 + slot.k * 11) % @ProductCount + 1;
 
 -- Shipments: every fourth transaction. One in three is a letter; parcels stay under the 10 kg limit of Registered.
