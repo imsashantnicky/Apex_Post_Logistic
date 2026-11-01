@@ -1,5 +1,6 @@
 using ApexPost.Application.Abstractions;
 using ApexPost.Domain.Personnel;
+using ApexPost.Web.Filters;
 using ApexPost.Web.Security;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -15,7 +16,20 @@ public static class WebRegistration
 
     public static IServiceCollection AddApexWeb(this IServiceCollection services)
     {
-        services.AddControllersWithViews(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
+        services.AddControllersWithViews(options =>
+        {
+            options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+            options.Filters.AddService<AuditActionFilter>(FilterOrder.Audit);
+            options.Filters.AddService<PerformanceFilter>(FilterOrder.Performance);
+            options.Filters.AddService<ValidationFilter>(FilterOrder.Validation);
+            options.Filters.AddService<BranchAccessFilter>(FilterOrder.BranchAccess);
+            options.Filters.AddService<DomainExceptionFilter>(FilterOrder.DomainException);
+        });
+        services.AddSingleton<AuditActionFilter>();
+        services.AddSingleton<PerformanceFilter>();
+        services.AddSingleton<ValidationFilter>();
+        services.AddSingleton<DomainExceptionFilter>();
+        services.AddScoped<BranchAccessFilter>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, ClaimsCurrentUser>();
         services.AddScoped<RevalidatingCookieEvents>();

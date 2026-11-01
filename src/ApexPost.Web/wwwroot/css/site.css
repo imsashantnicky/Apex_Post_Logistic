@@ -197,6 +197,11 @@ h2 {
     overflow-wrap: anywhere;
 }
 
+.values {
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
 .stack {
     max-height: 16rem;
     overflow: auto;

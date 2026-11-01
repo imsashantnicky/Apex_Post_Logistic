@@ -4,6 +4,7 @@ using ApexPost.Application.Extensions;
 using ApexPost.Application.Services;
 using ApexPost.Domain.Catalogue;
 using ApexPost.Domain.Personnel;
+using ApexPost.Web.Filters;
 using ApexPost.Web.Security;
 using ApexPost.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -52,6 +53,7 @@ public sealed class CatalogueController(
     }
 
     [Authorize(Policy = ApexPolicies.BranchManagerOnly)]
+    [Audit(AuditEvents.StockAdjustment)]
     [HttpPost]
     public async Task<IActionResult> Adjust(StockAdjustmentCommand command, CancellationToken cancellationToken)
     {
@@ -60,6 +62,6 @@ public sealed class CatalogueController(
         return RedirectToAction(nameof(Index));
     }
 
-    protected override IActionResult AfterFormError() =>
+    protected internal override IActionResult AfterFormError() =>
         RedirectToAction(nameof(Adjust), new { sku = Request.Form[SkuField].ToString() });
 }

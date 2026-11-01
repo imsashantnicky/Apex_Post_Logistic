@@ -5,6 +5,7 @@ using ApexPost.Application.Services;
 using ApexPost.Domain.Personnel;
 using ApexPost.Domain.Shipping;
 using ApexPost.Domain.Transactions;
+using ApexPost.Web.Filters;
 using ApexPost.Web.Security;
 using ApexPost.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -55,6 +56,7 @@ public sealed class TransactionsController(
         View(await branches.GetAsync(user.Branch, cancellationToken));
 
     [Authorize(Policy = ApexPolicies.CanTransact)]
+    [Audit(AuditEvents.TransactionOpened)]
     [HttpPost]
     public async Task<IActionResult> Create(Guid counterId, CancellationToken cancellationToken)
     {
@@ -89,6 +91,7 @@ public sealed class TransactionsController(
     }
 
     [Authorize(Policy = ApexPolicies.CanTransact)]
+    [Audit(AuditEvents.RetailItemAdded)]
     [HttpPost]
     public async Task<IActionResult> AddRetail(
         Guid id,
@@ -100,6 +103,7 @@ public sealed class TransactionsController(
     }
 
     [Authorize(Policy = ApexPolicies.CanTransact)]
+    [Audit(AuditEvents.ShipmentAdded)]
     [HttpPost]
     public async Task<IActionResult> AddShipping(
         Guid id,
@@ -111,6 +115,7 @@ public sealed class TransactionsController(
     }
 
     [Authorize(Policy = ApexPolicies.CanTransact)]
+    [Audit(AuditEvents.MoneyOrderAdded)]
     [HttpPost]
     public async Task<IActionResult> AddMoneyOrder(
         Guid id,
@@ -122,6 +127,7 @@ public sealed class TransactionsController(
     }
 
     [Authorize(Policy = ApexPolicies.CanTransact)]
+    [Audit(AuditEvents.IdentityVerification)]
     [HttpPost]
     public async Task<IActionResult> VerifyIdentity(
         Guid id,
@@ -133,6 +139,7 @@ public sealed class TransactionsController(
     }
 
     [Authorize(Policy = ApexPolicies.CanTransact)]
+    [Audit(AuditEvents.Payment)]
     [HttpPost]
     public async Task<IActionResult> Pay(Guid id, PaymentMethod method, CancellationToken cancellationToken)
     {
@@ -141,6 +148,7 @@ public sealed class TransactionsController(
     }
 
     [Authorize(Policy = ApexPolicies.BranchManagerOnly)]
+    [Audit(AuditEvents.Void)]
     [HttpPost]
     public async Task<IActionResult> Void(Guid id, ReversalCommand command, CancellationToken cancellationToken)
     {
@@ -149,6 +157,7 @@ public sealed class TransactionsController(
     }
 
     [Authorize(Policy = ApexPolicies.BranchManagerOnly)]
+    [Audit(AuditEvents.Refund)]
     [HttpPost]
     public async Task<IActionResult> Refund(Guid id, ReversalCommand command, CancellationToken cancellationToken)
     {
@@ -156,7 +165,7 @@ public sealed class TransactionsController(
         return BackToCounter(id, "Transaction refunded.");
     }
 
-    protected override IActionResult AfterFormError() =>
+    protected internal override IActionResult AfterFormError() =>
         Guid.TryParse(RouteData.Values[IdRouteValue]?.ToString(), out var id)
             ? RedirectToAction(nameof(Details), new { id })
             : RedirectToAction(nameof(New));
