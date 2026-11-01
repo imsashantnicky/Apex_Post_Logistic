@@ -1,0 +1,10 @@
+<div aria-live="polite">
+    @if (TempData[FlashKeys.Success] is string success)
+    {
+        <div class="alert alert-ok" role="status">@success</div>
+    }
+    @if (TempData[FlashKeys.Error] is string error)
+    {
+        <div class="alert alert-bad" role="alert">@error</div>
+    }
+</div>

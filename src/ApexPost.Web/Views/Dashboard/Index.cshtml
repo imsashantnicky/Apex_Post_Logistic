@@ -1,0 +1,92 @@
+@model DashboardPage
+@{
+    ViewData["Title"] = "Dashboard";
+    var dashboard = Model.Dashboard;
+    var currency = dashboard.Total.Currency;
+    var header = new PageHeader(
+        "Dashboard",
+        $"{Model.Scope} · {dashboard.Day:yyyy-MM-dd}",
+        "Today at a glance: sales, low stock and alerts.");
+}
+<partial name="_PageHeader" model="header" />
+
+@if (Model.Filter.Choices.Count > 0)
+{
+    <form method="get" class="toolbar">
+        <partial name="_BranchFilter" model="Model.Filter" />
+        <button type="submit" class="button button-outline">Show</button>
+    </form>
+}
+
+<section class="kpi-grid" aria-label="Today's figures">
+    <partial name="_KpiCard" model='new KpiCard("Transactions today", dashboard.Transactions.ToString())' />
+    <partial name="_KpiCard" model='new KpiCard("Retail", dashboard.Retail.Amount.ToString("0.00"), currency)' />
+    <partial name="_KpiCard" model='new KpiCard("Services", dashboard.Services.Amount.ToString("0.00"), currency)' />
+    <partial name="_KpiCard" model='new KpiCard("Total", dashboard.Total.Amount.ToString("0.00"), currency)' />
+</section>
+
+<div class="actions">
+    @if (Model.CanTransact)
+    {
+        <a class="button" asp-controller="Transactions" asp-action="New">New transaction</a>
+    }
+    <a class="button button-outline" asp-controller="Transactions" asp-action="Index">Transactions</a>
+    <a class="button button-outline" asp-controller="Catalogue" asp-action="Index">Catalogue</a>
+</div>
+
+<div class="split">
+    <section class="card">
+        <h2>Low stock</h2>
+        @if (dashboard.LowStock.Rows.Count == 0)
+        {
+            <partial name="_EmptyState" model='"No item is at or below the threshold."' />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            @if (dashboard.Branch is null) { <th scope="col">Branch</th> }
+                            <th scope="col">SKU</th>
+                            <th scope="col">Product</th>
+                            <th scope="col" class="num">In stock</th>
+                            <th scope="col" class="num">Threshold</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in dashboard.LowStock.Rows)
+                        {
+                            <tr>
+                                @if (dashboard.Branch is null) { <td>@row.Branch</td> }
+                                <td>@row.Sku</td>
+                                <td>@row.Product</td>
+                                <td class="num">@row.Quantity</td>
+                                <td class="num">@dashboard.LowStock.Threshold</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+    <section class="card">
+        <h2>Alerts</h2>
+        @if (dashboard.Alerts.Count == 0)
+        {
+            <partial name="_EmptyState" model='"No alerts since the application started."' />
+        }
+        else
+        {
+            <ul class="alert-list">
+                @foreach (var alert in dashboard.Alerts)
+                {
+                    <li>
+                        <strong>@EnumText.Label(alert.Kind)</strong> @alert.Message
+                        <span class="muted">@alert.At.ToString("yyyy-MM-dd HH:mm")</span>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>

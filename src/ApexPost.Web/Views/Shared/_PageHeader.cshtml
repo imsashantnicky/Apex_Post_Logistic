@@ -1,0 +1,10 @@
+@model PageHeader
+@inject ApexPost.Application.Abstractions.IClock Clock
+<div class="page-header">
+    <h1>@Model.Title @if (Model.Status is not null) { <partial name="_StatusPill" model="Model.Status" /> }</h1>
+    <p class="muted">@(Model.Subtitle ?? $"{User.BranchCode} · {Clock.Today:yyyy-MM-dd}")</p>
+    @if (Model.Help is not null)
+    {
+        <p class="help">@Model.Help</p>
+    }
+</div>

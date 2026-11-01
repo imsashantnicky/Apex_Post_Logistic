@@ -1,0 +1,76 @@
+@using ApexPost.Domain.Catalogue
+@model CataloguePage
+@{
+    ViewData["Title"] = "Catalogue";
+    var header = new PageHeader(
+        "Catalogue",
+        $"{Model.Filter.Selected} stock",
+        "Search the products and see what the branch holds.");
+}
+<partial name="_PageHeader" model="header" />
+
+<form method="get" class="toolbar">
+    <partial name="_BranchFilter" model="Model.Filter" />
+    <div class="field">
+        <label for="search">Search</label>
+        <input id="search" name="search" type="search" value="@Model.Search" placeholder="SKU or name" />
+    </div>
+    <div class="field">
+        <label for="category">Category</label>
+        <select id="category" name="category">
+            <option value="">All categories</option>
+            @foreach (var option in EnumText.Options<ProductCategory>())
+            {
+                <option value="@option.Value" selected="@(option.Value == Model.Category?.ToString())">
+                    @option.Text
+                </option>
+            }
+        </select>
+    </div>
+    <button type="submit" class="button button-outline">Filter</button>
+</form>
+
+<section class="card">
+    @if (Model.Items.Count == 0)
+    {
+        <partial name="_EmptyState" model='"No product matches this search."' />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">SKU</th>
+                        <th scope="col">Product</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Tax</th>
+                        <th scope="col" class="num">Unit price</th>
+                        <th scope="col" class="num">In stock</th>
+                        @if (Model.CanAdjust) { <th scope="col"><span class="sr-only">Actions</span></th> }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>@item.Sku</td>
+                            <td>@item.Name</td>
+                            <td>@EnumText.Label(item.Category)</td>
+                            <td>@item.TaxCategory</td>
+                            <td class="num"><partial name="_Money" model="item.UnitPrice" /></td>
+                            <td class="num">
+                                @item.InStock
+                                @if (item.IsLow) { <span class="pill pill-low">Low</span> }
+                            </td>
+                            @if (Model.CanAdjust)
+                            {
+                                <td><a asp-action="Adjust" asp-route-sku="@item.Sku.Value">Adjust</a></td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
