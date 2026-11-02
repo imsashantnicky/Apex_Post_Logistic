@@ -440,7 +440,7 @@ Three of these came from a workload; `IX_CounterTransactions_BranchCode_OpenedAt
   which checks the same permissions.
 - **Disk performance.** All runs were served from memory.
 - **Load.** No test ran many users at once, so lock contention under real traffic is unknown.
-- **CI.** The pipeline uses a SQL Server 2022 image. These measurements come from SQL Server 2025 and were not repeated
-  there; the tests were not run on 2022.
+- **SQL Server 2022.** The CI pipeline uses that image and the tests pass on it, but these measurements come from SQL Server
+  2025 and were not repeated there.
 - **Week 3 lab brief and rubric.** Neither file was available, so this work follows the project rules and the task
   description.
