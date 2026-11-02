@@ -1,10 +1,8 @@
 using ApexPost.Application.Abstractions;
-using ApexPost.Application.DTOs;
 using ApexPost.Domain.Branches;
 using ApexPost.Domain.Catalogue;
 using ApexPost.Domain.Inventory;
 using ApexPost.Infrastructure.Persistence;
-using ApexPost.Infrastructure.Persistence.Mappers;
 using Microsoft.EntityFrameworkCore;
 
 namespace ApexPost.Infrastructure.Repositories;
@@ -29,8 +27,6 @@ public sealed class StockRepository(ApexPostDbContext database) : IStockReposito
             .ConfigureAwait(false);
     }
 
-    public void Add(StockItem item) => database.Add(item);
-
     /// <summary>Forces the row into the UPDATE, so the RowVersion is checked even for an equal quantity.</summary>
     public void Update(IEnumerable<StockItem> items)
     {
@@ -40,7 +36,4 @@ public sealed class StockRepository(ApexPostDbContext database) : IStockReposito
             database.Entry(item).Property(Quantity).IsModified = true;
         }
     }
-
-    public void AddAdjustment(StockAdjustment adjustment, Guid staffId, DateTimeOffset at) =>
-        database.Add(StockAdjustmentMapper.ToRecord(adjustment, staffId, at));
 }

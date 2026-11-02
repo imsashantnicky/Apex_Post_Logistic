@@ -1,18 +1,20 @@
 -- EF Core command log of one run of the real application, read back by correlation ID.
 -- Environment Development, Microsoft.EntityFrameworkCore.Database.Command at Information, SQL Server 2025,
 -- a fresh database seeded by DevelopmentSeeder (252 transactions). Measured 2026-11-02.
+-- The Dashboard, DailySales and Catalogue/Adjust rows were measured again after usp_DailyBranchSales, usp_LowStockReport
+-- and usp_AdjustStock replaced their queries; CommandCountTests holds these numbers.
 -- Counts cover the whole request: the user revalidation, the page header and any audit insert.
 
 Request                                              Executed DbCommand
 ---------------------------------------------------- ------------------
-GET /Dashboard (Branch Manager)                      6
-GET /Dashboard (Auditor, all branches)               6
+GET /Dashboard (Branch Manager)                      4
+GET /Dashboard (Auditor, all branches)               4
 GET /Catalogue                                       2
 GET /Catalogue?search=pkg                            2
 GET /Transactions (Branch Manager)                   5
 GET /Transactions (Auditor, all branches)            6
-GET /Reports/DailySales (one branch)                 5
-GET /Reports/DailySales (all branches)               5
+GET /Reports/DailySales (one branch)                 3
+GET /Reports/DailySales (all branches)               3
 GET /Reports/LowStock                                3
 GET /Reports/ShippingVolume                          3
 GET /Reports/MoneyOrders (one branch)                7

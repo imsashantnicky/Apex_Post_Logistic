@@ -1,5 +1,4 @@
 using ApexPost.Application.Abstractions;
-using ApexPost.Application.DTOs;
 using ApexPost.Domain.Branches;
 using ApexPost.Domain.Catalogue;
 using ApexPost.Domain.Inventory;
@@ -36,10 +35,5 @@ internal sealed class InterruptedStock(IStockRepository inner, Func<Task> afterR
         return items;
     }
 
-    public void Add(StockItem item) => inner.Add(item);
-
     public void Update(IEnumerable<StockItem> items) => inner.Update(items);
-
-    public void AddAdjustment(StockAdjustment adjustment, Guid staffId, DateTimeOffset at) =>
-        inner.AddAdjustment(adjustment, staffId, at);
 }

@@ -11,15 +11,16 @@ namespace ApexPost.IntegrationTests.Sql;
 public sealed class CommandCountTests(CommandLogFactory factory) : IClassFixture<CommandLogFactory>
 {
     [Theory]
-    [InlineData(DemoAccounts.Manager, "/Dashboard", 6)]
+    [InlineData(DemoAccounts.Manager, "/Dashboard", 4)]
     [InlineData(DemoAccounts.Manager, "/Catalogue", 2)]
     [InlineData(DemoAccounts.Manager, "/Transactions", 5)]
-    [InlineData(DemoAccounts.Manager, "/Reports/DailySales", 5)]
+    [InlineData(DemoAccounts.Manager, "/Reports/DailySales", 3)]
     [InlineData(DemoAccounts.Manager, "/Reports/LowStock", 3)]
     [InlineData(DemoAccounts.Manager, "/Reports/ShippingVolume", 3)]
     [InlineData(DemoAccounts.Manager, "/Reports/MoneyOrders", 7)]
-    [InlineData(DemoAccounts.Auditor, "/Reports/DailySales?branch=BR001", 6)]
-    [InlineData(DemoAccounts.Auditor, "/Dashboard", 6)]
+    [InlineData(DemoAccounts.Auditor, "/Reports/DailySales?branch=BR001", 4)]
+    [InlineData(DemoAccounts.Auditor, "/Reports/DailySales", 3)]
+    [InlineData(DemoAccounts.Auditor, "/Dashboard", 4)]
     public async Task Page_runs_a_fixed_number_of_commands(string email, string path, int commands)
     {
         using var browser = await CounterBrowser.SignInAsync(factory, email);
@@ -28,6 +29,20 @@ public sealed class CommandCountTests(CommandLogFactory factory) : IClassFixture
 
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         Assert.Equal(commands, factory.CommandsOf(page));
+    }
+
+    [Fact]
+    public async Task A_stock_adjustment_is_one_procedure_call()
+    {
+        using var manager = await CounterBrowser.SignInAsync(factory, DemoAccounts.Manager);
+        const string sku = "OFF-0005";
+
+        using var adjusted = await manager.PostAsync(
+            $"/Catalogue/Adjust?sku={sku}",
+            "/Catalogue/Adjust",
+            new Dictionary<string, string> { ["Sku"] = sku, ["Change"] = "1", ["Reason"] = "Delivery counted." });
+
+        Assert.Equal(4, factory.CommandsOf(adjusted));
     }
 
     [Fact]

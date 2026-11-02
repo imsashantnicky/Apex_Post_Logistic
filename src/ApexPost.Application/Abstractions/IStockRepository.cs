@@ -1,4 +1,3 @@
-using ApexPost.Application.DTOs;
 using ApexPost.Domain.Branches;
 using ApexPost.Domain.Catalogue;
 using ApexPost.Domain.Inventory;
@@ -14,11 +13,6 @@ public interface IStockRepository
         IEnumerable<Sku> skus,
         CancellationToken cancellationToken);
 
-    void Add(StockItem item);
-
     /// <summary>Stages changes that fail with a conflict if someone else changed an item since it was read.</summary>
     void Update(IEnumerable<StockItem> items);
-
-    /// <summary>Stages the permanent record of a manual correction.</summary>
-    void AddAdjustment(StockAdjustment adjustment, Guid staffId, DateTimeOffset at);
 }
