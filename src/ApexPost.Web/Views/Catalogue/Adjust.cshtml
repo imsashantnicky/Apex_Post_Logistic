@@ -7,9 +7,11 @@
 }
 <partial name="_PageHeader" model="header" />
 
-<section class="card narrow">
-    <h2>@Model.Sku @Model.Name</h2>
-    <p class="muted">In stock now: @Model.InStock</p>
+<section class="card card-accent narrow">
+    <div class="card-head">
+        <h2><partial name="_Icon" model='"box"' />@Model.Sku @Model.Name</h2>
+        <span class="tag">In stock now: @Model.InStock</span>
+    </div>
     <form asp-action="Adjust" method="post" class="form">
         <input type="hidden" name="Sku" value="@Model.Sku" />
         <div class="field">
@@ -23,7 +25,7 @@
         </div>
         <div class="actions">
             <button type="submit" class="button">Save adjustment</button>
-            <a class="button button-outline" asp-action="Index">Cancel</a>
+            <a class="button button-secondary" asp-action="Index">Cancel</a>
         </div>
     </form>
 </section>

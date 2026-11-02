@@ -6,7 +6,7 @@
 <partial name="_PageHeader" model="header" />
 
 <div class="actions">
-    <a class="button" asp-action="Create">Add staff</a>
+    <a class="button" asp-action="Create"><partial name="_Icon" model='"plus"' />Add staff</a>
 </div>
 
 <section class="card">
@@ -32,12 +32,16 @@
                     @foreach (var member in Model)
                     {
                         <tr>
-                            <td>@member.Name</td>
+                            <td class="cell-strong">@member.Name</td>
                             <td>@member.Email</td>
-                            <td>@EnumText.Label(member.Role)</td>
-                            <td>@member.HomeBranch</td>
+                            <td><span class="tag">@EnumText.Label(member.Role)</span></td>
+                            <td class="code">@member.HomeBranch</td>
                             <td><partial name="_StatusPill" model='member.IsActive ? "Active" : "Inactive"' /></td>
-                            <td><a asp-action="Edit" asp-route-id="@member.Id">Open</a></td>
+                            <td class="num">
+                                <a class="row-link" asp-action="Edit" asp-route-id="@member.Id">
+                                    Open<partial name="_Icon" model='"arrow"' />
+                                </a>
+                            </td>
                         </tr>
                     }
                 </tbody>
