@@ -51,6 +51,12 @@ internal static class CodeUsage
         where Blocks(type, call)
         select $"{type.FullName} -> {call.DeclaringType?.Name}.{call.Name}";
 
+    /// <summary>Every method the given types call, as "Owner.Method".</summary>
+    public static IEnumerable<string> CallsIn(IEnumerable<Type> types) =>
+        from type in types
+        from call in Methods(type).SelectMany(MembersInBody).OfType<MethodBase>()
+        select $"{call.DeclaringType?.Name}.{call.Name}";
+
     public static IEnumerable<string> AsyncVoidMethodsIn(IEnumerable<Type> types) =>
         from type in types
         from method in type.GetMethods(Declared)
