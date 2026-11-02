@@ -491,14 +491,23 @@ specific gain, since it is logic in a second language that the compiler does not
 
 **Options:** LINQ for everything; procedures for all reads; procedures only where each one earns it.
 
-**Decision:** Three procedures, each for its own reason. The rest stays in LINQ, including shipping volume and the money
-order report, which have no such gain. EF Core calls them through `SqlQuery` and `ExecuteSqlAsync` with interpolated
-values, which become parameters; no SQL is ever concatenated. The scripts live in `sql/procedures` and are embedded, so
-the `AddStoredProcedures` migration deploys those same files.
+**Decision:** Three procedures, each for its own reason, plus one thin wrapper that gives the brief's signature. The rest
+stays in LINQ, including shipping volume and the money order report, which have no such gain. EF Core calls them through
+`SqlQuery` and `ExecuteSqlAsync` with interpolated values, which become parameters; no SQL is ever concatenated. The
+scripts live in `sql/procedures` and are embedded, so the migrations deploy those same files.
+
+The signatures follow the brief: `usp_DailyBranchSales @BranchCode, @Date` and
+`usp_AdjustStock @BranchCode, @Sku, @Delta, @Reason, @ChangedBy`. The reports need a period, not one day, so the
+measured body keeps working under the name `usp_DailyBranchSalesRange @From, @To, @BranchCode`. `usp_DailyBranchSales`
+calls it with `@From = @To = @Date`, so one body computes every sales figure, and the day reaches the range procedure as
+a parameter that the optimizer can sniff. `usp_AdjustStock` got the brief's parameter names directly, because the
+application is its only caller; `@AdjustedAt` stays as an optional parameter so tests can fix the time. Migration
+`MatchBriefProcedureSignatures` made the change, and [procedure-checks.txt](docs/perf/procedure-checks.txt) shows the
+same rows as before it.
 
 | Procedure | Why it beats LINQ for this purpose | Evidence |
 | --- | --- | --- |
-| `usp_DailyBranchSales` | It stores the period in a temporary table first. The second statement then works from real rows and statistics, which one LINQ query cannot express. It replaced three queries and adding up in memory with one round trip | W1a: 177,612 to 20,984 reads on the same indexes; 5 to 3 commands per request |
+| `usp_DailyBranchSalesRange`, and `usp_DailyBranchSales` over it | It stores the period in a temporary table first. The second statement then works from real rows and statistics, which one LINQ query cannot express. It replaced three queries and adding up in memory with one round trip | W1a: 177,612 to 20,984 reads on the same indexes; 5 to 3 commands per request |
 | `usp_LowStockReport` | Two statements give each caller its own plan. A LINQ query with an optional filter would be one shape per call or a catch-all. The plan stays stable and is reused on every dashboard load | 773 µs per call, against 991 µs catch-all |
 | `usp_AdjustStock` | The new quantity is computed in one `UPDATE` under the row's lock, with the history row in the same transaction. No read-then-write window exists, so 12 parallel adjustments lost no update | `Parallel_adjustments_lose_no_update_and_each_keeps_its_own_history`; `A_failure_after_the_update_rolls_the_quantity_back` |
 
@@ -515,7 +524,8 @@ compiler cannot see: `StoredProcedureTests` runs each procedure against a real s
 compares daily sales with an independent calculation. A column change must now be checked against these files. A
 procedure call also bypasses `AuditColumnsInterceptor`, so `usp_AdjustStock` sets its own audit columns. The execution
 strategy could retry a call whose commit succeeded but whose reply was lost; this rare case would adjust twice and is
-accepted, since the history row would show it.
+accepted, since the history row would show it. Because the migrations embed the current scripts, a procedure migration
+rolls forward only: its `Down` removes what it added but cannot restore an earlier text.
 
 ### ADR-013: Repository and unit of work boundaries
 
@@ -597,6 +607,12 @@ row version too; otherwise a line could slip into a basket that was paid meanwhi
 
 Branches and staff are edited on forms that stay open for minutes, so they carry an integer `Version` concurrency token
 instead (`AddBranchAndStaffVersion` migration): the form posts the version it saw, and the UPDATE matches it.
+
+Deadlocks are avoided by a fixed lock order, not left to chance. Every commit takes stock rows in key order before the
+header, and a sale writes `CounterTransactions`, `TransactionLines`, `BranchStock`, `Payments` in that order. Stock
+changes in a procedure are one `UPDATE` with no read before it, transactions never wait for a person, and
+`EnableRetryOnFailure` retries a deadlock victim (error 1205). `WriteOrderTests` and `DeadlockTests` prove each part:
+[PERFORMANCE.md, Deadlock avoidance](PERFORMANCE.md#deadlock-avoidance).
 
 **Consequences:** No request holds a lock while it waits for a person or a page. The loser of a race gets 409: a form
 returns with a message and the audit entry records 409, and a JSON caller gets Problem Details. Two clerks selling
@@ -1068,6 +1084,6 @@ Each repeats data for a reason, and is not an oversight.
 | 11 | Stored procedures versus LINQ | [ADR-012](#adr-012-stored-procedures-versus-linq) |
 | 12 | Repository and unit of work boundaries, and where direct projections are allowed | [ADR-013](#adr-013-repository-and-unit-of-work-boundaries) |
 | 13 | Domain model versus persistence model | [ADR-014](#adr-014-domain-model-versus-persistence-model) |
-| 14 | Concurrency strategy | [ADR-015](#adr-015-concurrency-strategy) |
+| 14 | Concurrency strategy and deadlock avoidance | [ADR-015](#adr-015-concurrency-strategy), [PERFORMANCE.md](PERFORMANCE.md#deadlock-avoidance) |
 | 15 | Audit store versus unit of work | [ADR-016](#adr-016-audit-store-versus-unit-of-work) |
 | 16 | ER diagram, normalization and deliberate exceptions | [Section 14](#14-database-schema-and-normalization) |
