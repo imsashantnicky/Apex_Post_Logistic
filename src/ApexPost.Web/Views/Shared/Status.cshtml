@@ -2,8 +2,8 @@
 @{
     ViewData["Title"] = Model.Title;
 }
-<div class="centre-card card">
-    <h1 class="brand-title">@Model.Status – @Model.Title</h1>
+<div class="centre-card card status-card">
+    <h1>@Model.Status – @Model.Title</h1>
     <p>@Model.Detail</p>
     <p class="trace">Trace ID: @Model.TraceId</p>
     <p class="trace">Correlation ID: @Model.CorrelationId</p>

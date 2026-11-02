@@ -30,9 +30,9 @@
                     @foreach (var item in Model.Report)
                     {
                         <tr>
-                            <td>@item.At.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="nowrap">@item.At.ToString("yyyy-MM-dd HH:mm")</td>
                             <td>@item.Branch</td>
-                            <td>@EnumText.Label(item.Kind)</td>
+                            <td><span class="tag">@EnumText.Label(item.Kind)</span></td>
                             <td class="values">@item.Message</td>
                         </tr>
                     }

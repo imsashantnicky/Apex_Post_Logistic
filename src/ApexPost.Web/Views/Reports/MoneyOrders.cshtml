@@ -73,15 +73,16 @@ else
                     @foreach (var row in result.Items)
                     {
                         <tr>
-                            <td>@row.At.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="nowrap">@row.At.ToString("yyyy-MM-dd HH:mm")</td>
                             <td>@row.Branch</td>
                             <td><partial name="_StatusPill" model="row.Status.ToString()" /></td>
                             <td class="num">@row.MoneyOrders</td>
                             <td class="num"><partial name="_Money" model="row.Amount" /></td>
                             <td class="num"><partial name="_Money" model="row.Fees" /></td>
-                            <td>@(row.Verification ?? "–")</td>
-                            <td>
-                                <a asp-controller="Transactions" asp-action="Details" asp-route-id="@row.TransactionId">
+                            <td class="nowrap">@(row.Verification ?? "–")</td>
+                            <td class="num">
+                                <a class="row-link" asp-controller="Transactions" asp-action="Details"
+                                   asp-route-id="@row.TransactionId">
                                     Open
                                 </a>
                             </td>
