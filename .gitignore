@@ -34,3 +34,7 @@ VIVA.md
 *.key
 .env
 .env.*
+
+# Week 4 courier: local Couchbase Lite databases
+**/CouchbaseData/
+*.cblite2/

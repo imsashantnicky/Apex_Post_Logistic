@@ -5,6 +5,11 @@
     <Project Path="src/ApexPost.Infrastructure/ApexPost.Infrastructure.csproj" />
     <Project Path="src/ApexPost.Web/ApexPost.Web.csproj" />
   </Folder>
+  <Folder Name="/src/Courier/">
+    <Project Path="src/Courier/ApexPost.Courier.Domain/ApexPost.Courier.Domain.csproj" />
+    <Project Path="src/Courier/ApexPost.Courier.Harness/ApexPost.Courier.Harness.csproj" />
+    <Project Path="src/Courier/ApexPost.Courier.Offline/ApexPost.Courier.Offline.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ApexPost.IntegrationTests/ApexPost.IntegrationTests.csproj" />
     <Project Path="tests/ApexPost.UnitTests/ApexPost.UnitTests.csproj" />
