@@ -87,6 +87,7 @@ namespace ApexPost.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("BranchCode")
+                        .IsRequired()
                         .HasColumnType("varchar(5)");
 
                     b.Property<DateTime>("CreatedAtUtc")
@@ -112,8 +113,7 @@ namespace ApexPost.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("BranchCode", "Number")
                         .IsUnique()
-                        .HasDatabaseName("UX_Counters_Branch_Number")
-                        .HasFilter("[BranchCode] IS NOT NULL");
+                        .HasDatabaseName("UX_Counters_Branch_Number");
 
                     b.ToTable("Counters", null, t =>
                         {
@@ -900,7 +900,8 @@ namespace ApexPost.Infrastructure.Persistence.Migrations
                     b.HasOne("ApexPost.Domain.Branches.Branch", null)
                         .WithMany("Counters")
                         .HasForeignKey("BranchCode")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ApexPost.Domain.Catalogue.Product", b =>
