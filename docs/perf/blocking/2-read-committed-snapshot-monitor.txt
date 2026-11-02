@@ -1,0 +1,11 @@
+Waiting|BlockedBy|WaitType|WaitMs|Resource
+-------|---------|--------|------|--------
+106|51|LCK_M_U|2014|keylock hobtid=72057594047889408 dbid=8 id=lock27886614980 mode=X associatedObjectId=72057594047889408
+Session|Resource|Mode|Status
+-------|--------|----|------
+51|KEY|X|GRANT
+51|OBJECT|IX|GRANT
+51|PAGE|IX|GRANT
+106|KEY|U|WAIT
+106|OBJECT|IX|GRANT
+106|PAGE|IU|GRANT
