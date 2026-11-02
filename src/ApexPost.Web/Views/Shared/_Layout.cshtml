@@ -9,59 +9,131 @@
         && (await Authorization.AuthorizeAsync(User, ApexPolicies.AdministratorOnly)).Succeeded;
     var canReadAudit = isSignedIn && (await Authorization.AuthorizeAsync(User, ApexPolicies.AuditViewers)).Succeeded;
     var role = User.Role is { } staffRole ? EnumText.Label(staffRole) : null;
+    var name = User.Identity?.Name ?? string.Empty;
+    var initials = string.Concat(
+        name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(word => word[0]));
+    var controller = ViewContext.RouteData.Values["controller"] as string;
+    var isNewTransaction = controller == "Transactions" && ViewContext.RouteData.Values["action"] as string == "New";
+    NavLink Link(string linkController, string label, string icon) =>
+        new(linkController, "Index", label, icon, controller == linkController && !isNewTransaction);
+    var newTransactionLink = new NavLink("Transactions", "New", "New transaction", "plus", isNewTransaction);
+    var navSection = controller switch
+    {
+        "Dashboard" or "Transactions" or "Catalogue" => "Counter",
+        "Reports" or "Notifications" => "Insights",
+        "Staff" or "Branches" or "Audit" => "Administration",
+        _ => null,
+    };
 }
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#252525" />
     <title>@ViewData["Title"] · ApexPost Counter</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
     <a class="skip-link" href="#main">Skip to content</a>
-    <header class="topbar">
-        <a class="brand" asp-controller="Dashboard" asp-action="Index">ApexPost Counter</a>
+    <div class="@(isSignedIn ? "app" : "public")">
         @if (isSignedIn)
         {
-            <nav class="nav" aria-label="Main">
-                <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
-                <a asp-controller="Catalogue" asp-action="Index">Catalogue</a>
-                <a asp-controller="Transactions" asp-action="Index">Transactions</a>
-                @if (canTransact)
-                {
-                    <a asp-controller="Transactions" asp-action="New">New transaction</a>
-                }
-                <a asp-controller="Notifications" asp-action="Index">Notifications</a>
-                @if (canViewReports)
-                {
-                    <a asp-controller="Reports" asp-action="Index">Reports</a>
-                }
-                @if (canAdminister)
-                {
-                    <a asp-controller="Staff" asp-action="Index">Staff</a>
-                    <a asp-controller="Branches" asp-action="Index">Branches</a>
-                }
-                @if (canReadAudit)
-                {
-                    <a asp-controller="Audit" asp-action="Index">Audit</a>
-                }
-            </nav>
-            <div class="who">
-                <span>@User.Identity?.Name · @role · @User.BranchCode</span>
-                <form asp-controller="Account" asp-action="Logout" method="post">
-                    <button type="submit" class="link-button">Sign out</button>
-                </form>
-            </div>
+            <aside class="sidebar" id="sidebar" aria-label="Sidebar">
+                <partial name="_Brand" />
+                <nav class="side-nav" aria-label="Main">
+                    <div class="nav-group">
+                        <p class="nav-heading">Counter</p>
+                        <ul class="nav-list">
+                            <partial name="_NavLink" model='Link("Dashboard", "Dashboard", "home")' />
+                            @if (canTransact)
+                            {
+                                <partial name="_NavLink" model="newTransactionLink" />
+                            }
+                            <partial name="_NavLink" model='Link("Transactions", "Transactions", "receipt")' />
+                            <partial name="_NavLink" model='Link("Catalogue", "Catalogue", "box")' />
+                        </ul>
+                    </div>
+                    <div class="nav-group">
+                        <p class="nav-heading">Insights</p>
+                        <ul class="nav-list">
+                            @if (canViewReports)
+                            {
+                                <partial name="_NavLink" model='Link("Reports", "Reports", "chart")' />
+                            }
+                            <partial name="_NavLink" model='Link("Notifications", "Notifications", "bell")' />
+                        </ul>
+                    </div>
+                    @if (canAdminister || canReadAudit)
+                    {
+                        <div class="nav-group">
+                            <p class="nav-heading">Administration</p>
+                            <ul class="nav-list">
+                                @if (canAdminister)
+                                {
+                                    <partial name="_NavLink" model='Link("Staff", "Staff", "users")' />
+                                    <partial name="_NavLink" model='Link("Branches", "Branches", "building")' />
+                                }
+                                @if (canReadAudit)
+                                {
+                                    <partial name="_NavLink" model='Link("Audit", "Audit log", "shield")' />
+                                }
+                            </ul>
+                        </div>
+                    }
+                </nav>
+                <p class="sidebar-foot">@role · @User.BranchCode</p>
+            </aside>
+            <div class="scrim" data-menu-close></div>
         }
-    </header>
-    <main id="main" class="content" tabindex="-1">
-        <partial name="_Flash" />
-        @RenderBody()
-    </main>
-    <footer class="footer">
-        ApexPost Counter Platform · Week 2 · Correlation ID @Context.TraceIdentifier
-    </footer>
+        else
+        {
+            <header class="public-bar">
+                <partial name="_Brand" />
+            </header>
+        }
+        <div class="workspace">
+            @if (isSignedIn)
+            {
+                <header class="topbar">
+                    <button type="button" class="button button-ghost button-small menu-toggle" data-menu-toggle
+                            aria-controls="sidebar" aria-expanded="false">
+                        <partial name="_Icon" model='"menu"' />
+                        <span class="sr-only">Menu</span>
+                    </button>
+                    <nav class="breadcrumb" aria-label="Breadcrumb">
+                        <ol>
+                            @if (navSection is not null)
+                            {
+                                <li>@navSection</li>
+                            }
+                            <li aria-current="page">@ViewData["Title"]</li>
+                        </ol>
+                    </nav>
+                    <div class="account">
+                        <span class="avatar" aria-hidden="true">@initials</span>
+                        <span class="account-who">
+                            <span class="account-name">@name</span>
+                            <span class="account-meta">@role · @User.BranchCode</span>
+                        </span>
+                        <form asp-controller="Account" asp-action="Logout" method="post">
+                            <button type="submit" class="button button-secondary button-small">
+                                <partial name="_Icon" model='"logout"' />
+                                <span>Sign out</span>
+                            </button>
+                        </form>
+                    </div>
+                </header>
+            }
+            <main id="main" class="content" tabindex="-1">
+                <partial name="_Flash" />
+                @RenderBody()
+            </main>
+            <footer class="footer">
+                ApexPost Counter Platform · Week 3 · Correlation ID @Context.TraceIdentifier
+            </footer>
+        </div>
+    </div>
     <script src="~/js/site.js" asp-append-version="true"></script>
 </body>
 </html>
