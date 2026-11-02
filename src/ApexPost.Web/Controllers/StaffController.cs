@@ -53,7 +53,7 @@ public sealed class StaffController(StaffService staff, BranchService branches, 
     [Audit(AuditEvents.StaffUpdated)]
     [HttpPost]
     public async Task<IActionResult> Edit(
-        Guid id,
+        [FromRoute] Guid id,
         int version,
         StaffCommand details,
         CancellationToken cancellationToken)
@@ -65,7 +65,10 @@ public sealed class StaffController(StaffService staff, BranchService branches, 
 
     [Audit(AuditEvents.PasswordChanged)]
     [HttpPost]
-    public async Task<IActionResult> SetPassword(Guid id, PasswordCommand secret, CancellationToken cancellationToken)
+    public async Task<IActionResult> SetPassword(
+        [FromRoute] Guid id,
+        PasswordCommand secret,
+        CancellationToken cancellationToken)
     {
         await staff.SetPasswordAsync(id, secret, cancellationToken);
         return BackToMember(id, "Password changed.");
@@ -74,7 +77,7 @@ public sealed class StaffController(StaffService staff, BranchService branches, 
     [Audit(AuditEvents.StaffDeactivated)]
     [HttpPost]
     public async Task<IActionResult> Deactivate(
-        Guid id,
+        [FromRoute] Guid id,
         int version,
         string? reason,
         CancellationToken cancellationToken)
@@ -86,7 +89,7 @@ public sealed class StaffController(StaffService staff, BranchService branches, 
 
     [Audit(AuditEvents.StaffActivated)]
     [HttpPost]
-    public async Task<IActionResult> Activate(Guid id, int version, CancellationToken cancellationToken)
+    public async Task<IActionResult> Activate([FromRoute] Guid id, int version, CancellationToken cancellationToken)
     {
         await staff.ActivateAsync(id, version, cancellationToken);
         return BackToMember(id, "Staff member activated.");

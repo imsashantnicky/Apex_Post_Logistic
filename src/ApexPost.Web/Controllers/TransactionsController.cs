@@ -97,7 +97,7 @@ public sealed class TransactionsController(
     [Audit(AuditEvents.RetailItemAdded)]
     [HttpPost]
     public async Task<IActionResult> AddRetail(
-        Guid id,
+        [FromRoute] Guid id,
         AddRetailItemCommand command,
         CancellationToken cancellationToken)
     {
@@ -109,7 +109,7 @@ public sealed class TransactionsController(
     [Audit(AuditEvents.ShipmentAdded)]
     [HttpPost]
     public async Task<IActionResult> AddShipping(
-        Guid id,
+        [FromRoute] Guid id,
         AddShippingCommand command,
         CancellationToken cancellationToken)
     {
@@ -121,7 +121,7 @@ public sealed class TransactionsController(
     [Audit(AuditEvents.MoneyOrderAdded)]
     [HttpPost]
     public async Task<IActionResult> AddMoneyOrder(
-        Guid id,
+        [FromRoute] Guid id,
         AddMoneyOrderCommand command,
         CancellationToken cancellationToken)
     {
@@ -133,7 +133,7 @@ public sealed class TransactionsController(
     [Audit(AuditEvents.IdentityVerification)]
     [HttpPost]
     public async Task<IActionResult> VerifyIdentity(
-        Guid id,
+        [FromRoute] Guid id,
         VerifyIdentityCommand command,
         CancellationToken cancellationToken)
     {
@@ -144,7 +144,7 @@ public sealed class TransactionsController(
     [Authorize(Policy = ApexPolicies.CanTransact)]
     [Audit(AuditEvents.Payment)]
     [HttpPost]
-    public async Task<IActionResult> Pay(Guid id, PaymentMethod method, CancellationToken cancellationToken)
+    public async Task<IActionResult> Pay([FromRoute] Guid id, PaymentMethod method, CancellationToken cancellationToken)
     {
         await checkout.PayAsync(id, method, cancellationToken);
         return BackToCounter(id, "Payment taken.");
@@ -153,7 +153,10 @@ public sealed class TransactionsController(
     [Authorize(Policy = ApexPolicies.BranchManagerOnly)]
     [Audit(AuditEvents.Void)]
     [HttpPost]
-    public async Task<IActionResult> Void(Guid id, ReversalCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> Void(
+        [FromRoute] Guid id,
+        ReversalCommand command,
+        CancellationToken cancellationToken)
     {
         await reversals.VoidAsync(id, command, cancellationToken);
         return BackToCounter(id, "Transaction voided.");
@@ -162,7 +165,10 @@ public sealed class TransactionsController(
     [Authorize(Policy = ApexPolicies.BranchManagerOnly)]
     [Audit(AuditEvents.Refund)]
     [HttpPost]
-    public async Task<IActionResult> Refund(Guid id, ReversalCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> Refund(
+        [FromRoute] Guid id,
+        ReversalCommand command,
+        CancellationToken cancellationToken)
     {
         await reversals.RefundAsync(id, command, cancellationToken);
         return BackToCounter(id, "Transaction refunded.");
