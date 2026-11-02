@@ -57,6 +57,8 @@ internal sealed class ServiceHarness : IDisposable
 
     public StockSettings StockSettings { get; } = new();
 
+    public UnitOfWorkSpy UnitOfWork { get; } = new();
+
     public FakeCurrentUser User { get; } = new();
 
     public FixedClock Clock { get; } = new();
@@ -118,7 +120,7 @@ internal sealed class ServiceHarness : IDisposable
     /// <summary>Like a request, every service gets a unit of work of its own.</summary>
     public CheckoutService Checkout()
     {
-        var unitOfWork = new FakeUnitOfWork();
+        var unitOfWork = new FakeUnitOfWork(UnitOfWork);
         var branches = new InMemoryBranches(Branches, unitOfWork);
         return new(
             Access(unitOfWork),
@@ -140,17 +142,19 @@ internal sealed class ServiceHarness : IDisposable
 
     public ReversalService Reversal()
     {
-        var unitOfWork = new FakeUnitOfWork();
+        var unitOfWork = new FakeUnitOfWork(UnitOfWork);
         var stock = new InMemoryStock(Stock, unitOfWork);
         return new(Access(unitOfWork), stock, unitOfWork, Gate, Events, Validator, Clock);
     }
 
-    public StockService StockAdjustments() => StockAdjustments(new FakeUnitOfWork());
+    public StockService StockAdjustments() => StockAdjustments(new FakeUnitOfWork(UnitOfWork));
 
     public StockService StockAdjustments(InMemoryStock stock, FakeUnitOfWork unitOfWork) =>
         new(User, Catalog, stock, Gate, Events, Rules, Validator, Clock);
 
     public InMemoryStock StockRecords(FakeUnitOfWork unitOfWork) => new(Stock, unitOfWork);
+
+    public PriceRevisionService Prices() => Prices(new FakeUnitOfWork(UnitOfWork));
 
     public PriceRevisionService Prices(FakeUnitOfWork unitOfWork) =>
         new(User, Catalog, Catalog, unitOfWork, Validator, Clock);
@@ -165,7 +169,7 @@ internal sealed class ServiceHarness : IDisposable
 
     public StaffService StaffAdmin()
     {
-        var unitOfWork = new FakeUnitOfWork();
+        var unitOfWork = new FakeUnitOfWork(UnitOfWork);
         var staff = new InMemoryStaff(StaffMembers, unitOfWork);
         return new(
             User,
@@ -180,13 +184,17 @@ internal sealed class ServiceHarness : IDisposable
     }
 
     public LoginService Login() =>
-        new(new InMemoryStaff(StaffMembers, new FakeUnitOfWork()), Credentials, Hasher, new DummyPasswordHash(Hasher));
+        new(
+            new InMemoryStaff(StaffMembers, new FakeUnitOfWork(UnitOfWork)),
+            Credentials,
+            Hasher,
+            new DummyPasswordHash(Hasher));
 
     public CatalogueService Catalogue() => new(User, new InMemoryCatalogueQueries(Catalog, Stock), Rules);
 
     public BranchService BranchAdmin()
     {
-        var unitOfWork = new FakeUnitOfWork();
+        var unitOfWork = new FakeUnitOfWork(UnitOfWork);
         var branches = new InMemoryBranches(Branches, unitOfWork);
         return new(User, branches, branches, new InMemoryTransactions(Transactions, unitOfWork), unitOfWork);
     }
