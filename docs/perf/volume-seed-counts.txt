@@ -1,76 +1,39 @@
--- sqlcmd output: a copy of the demo data on a throwaway database after sql/perf/volume-seed.sql (1 run, 23 s).
--- Nine integrity checks: 0 violations. 5000 transactions loaded through EF Core: 0 tax mismatches.
-
-DatabaseName MeasuredAtUtc
------------- -------------
-ApexPostDb_SeedCheck 2026-11-01 17:47:27.6731896
-TableName RowTotal
---------- --------
-ShippingZones 10
-ShippingRates 10
-Branches 6
-Counters 13
-Roles 4
-Staff 26
-ProductCategories 3
-Products 32
-BranchStock 192
-CounterTransactions 200252
-TransactionLines 600221
-Shipments 50103
-MoneyOrders 20099
-Payments 200250
-IdentityVerifications 4048
-Role StaffTotal
----- ----------
-Administrator 2
-Auditor 2
-BranchManager 6
-CounterClerk 16
-Status Transactions
------- ------------
-Paid 180205
-Refunded 10024
-Voided 10023
-HistorySpanDays FirstOpenedAt LastOpenedAt
---------------- ------------- ------------
-365 2025-11-01 09:03:00.0000000 2026-11-01 08:08:20.5101988
-Code IsActive SalesToday
----- -------- ----------
-BR001 1 3
-BR002 1 3
-BR003 1 3
-BR004 1 3
-BR005 1 0
-BR006 0 0
-Result Checks MinLength MaxLength
------- ------ --------- ---------
-Failed 8 4 4
-Passed 4040 4 4
-BranchProductPairsWithoutStock
-------------------------------
-0
-
-CheckName Violations
---------- ----------
-Transactions without payment 0
-Transactions without retail lines 0
-Money orders over 300 without passed check 0
-Fee differs from max(2, 2 percent) 0
-Letters over 2 kg 0
-Parcels over the level limit 0
-Clerk not at home branch 0
-Volume rows dated today or later 0
-Duplicate SKU in one basket 0
-LineCount Baskets
---------- -------
-2 66666
-3 66667
-4 66667
-BranchCode Transactions
----------- ------------
-BR001 40053
-BR002 40050
-BR003 40054
-BR004 40050
-BR005 40045
+﻿-- sqlcmd output of sql/perf/seed-checks.sql on ApexPostDb_Perf, 2026-11-02 04:49 UTC, after sql/perf/volume-seed.sql (24 s).
+-- The demo data, the volume data and the one sale left by sql/transactions/sale-transaction.sql.
+TableName|RowTotal
+---------|--------
+Payments|200251
+CounterTransactions|200253
+TransactionLines|600222
+Shipments|50103
+MoneyOrders|20099
+IdentityVerifications|4048
+BranchStock|192
+BranchCode|Transactions|Voided|Refunded|ActiveDays
+----------|------------|------|--------|----------
+BR001|66892|3360|3368|366
+BR002|53195|2609|2646|365
+BR003|40086|1944|2039|365
+BR004|26673|1331|1363|365
+BR005|13407|655|643|365
+BranchCode|MoneyOrders|Reversed|ActiveDays
+----------|-----------|--------|----------
+BR001|6575|632|365
+BR002|5327|536|365
+BR003|4072|413|365
+BR004|2703|272|365
+BR005|1422|149|355
+FewestBranchesOnADay|MostBranchesOnADay|QuietestDay|BusiestDay
+--------------------|------------------|-----------|----------
+5|5|487|603
+CheckName|Violations
+---------|----------
+Transactions without payment|0
+Transactions without retail lines|0
+Money orders over 300 without passed check|0
+Fee differs from max(2, 2 percent)|0
+Letters over 2 kg|0
+Parcels over the level limit|0
+Clerk not at home branch|0
+Counter of another branch|0
+Volume rows dated today or later|0

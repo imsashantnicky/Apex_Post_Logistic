@@ -1,0 +1,57 @@
+-- sqlcmd output on ApexPostDb_Perf, 2026-11-02 04:48 UTC, after sql/security/least-privilege-role.sql and create-app-login.sql.
+-- The server accepts Windows logins only (IsIntegratedSecurityOnly = 1), so the login could be created but not used to connect.
+-- The checks below run under EXECUTE AS USER = 'apexpost_app_login'.
+WindowsLoginsOnly
+-----------------
+1
+State|Permission|Object
+-----|----------|------
+DENY|DELETE|AuditEntries
+DENY|UPDATE|AuditEntries
+GRANT|INSERT|AuditEntries
+GRANT|SELECT|AuditEntries
+GRANT|SELECT|Branches
+GRANT|UPDATE|Branches
+GRANT|SELECT|BranchStock
+GRANT|UPDATE|BranchStock
+GRANT|DELETE|Counters
+GRANT|INSERT|Counters
+GRANT|SELECT|Counters
+GRANT|INSERT|CounterTransactions
+GRANT|SELECT|CounterTransactions
+GRANT|UPDATE|CounterTransactions
+GRANT|INSERT|IdentityVerifications
+GRANT|SELECT|IdentityVerifications
+GRANT|INSERT|MoneyOrders
+GRANT|SELECT|MoneyOrders
+GRANT|INSERT|Payments
+GRANT|SELECT|Payments
+GRANT|SELECT|ProductCategories
+GRANT|SELECT|Products
+GRANT|UPDATE|Products
+GRANT|SELECT|Roles
+GRANT|INSERT|Shipments
+GRANT|SELECT|Shipments
+GRANT|SELECT|ShippingRates
+GRANT|SELECT|ShippingZones
+GRANT|INSERT|Staff
+GRANT|SELECT|Staff
+GRANT|UPDATE|Staff
+DENY|DELETE|StockAdjustments
+DENY|INSERT|StockAdjustments
+DENY|UPDATE|StockAdjustments
+GRANT|SELECT|StockAdjustments
+GRANT|INSERT|TransactionLines
+GRANT|SELECT|TransactionLines
+GRANT|EXECUTE|usp_AdjustStock
+GRANT|EXECUTE|usp_DailyBranchSales
+GRANT|EXECUTE|usp_LowStockReport
+CurrentUser
+-----------
+apexpost_app_login
+NewQuantityViaProcedure
+-----------------------
+3
+DELETE AuditEntries: 229 The DELETE permission was denied on the object 'AuditEntries', database 'ApexPostDb_Perf', schema 'dbo'.
+INSERT StockAdjustments: 229 The INSERT permission was denied on the object 'StockAdjustments', database 'ApexPostDb_Perf', schema 'dbo'.
+SELECT migration history: 229 The SELECT permission was denied on the object '__EFMigrationsHistory', database 'ApexPostDb_Perf', schema 'dbo'.

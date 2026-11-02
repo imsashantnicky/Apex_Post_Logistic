@@ -1,0 +1,3 @@
+Session A is 51 at 04:39:18.120
+Session A holds the row lock; the change is not committed
+Session A rolled back at 04:39:26.137

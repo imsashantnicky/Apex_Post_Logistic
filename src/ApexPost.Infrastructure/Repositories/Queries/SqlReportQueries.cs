@@ -1,11 +1,11 @@
 using ApexPost.Application.Abstractions;
 using ApexPost.Application.DTOs;
+using ApexPost.Application.Exceptions;
 using ApexPost.Application.Extensions;
 using ApexPost.Application.Reports;
 using ApexPost.Domain.Branches;
 using ApexPost.Domain.Catalogue;
 using ApexPost.Domain.Common;
-using ApexPost.Domain.Inventory;
 using ApexPost.Domain.Shipping;
 using ApexPost.Domain.Transactions;
 using ApexPost.Domain.Verification;
@@ -13,6 +13,7 @@ using ApexPost.Infrastructure.Persistence;
 using ApexPost.Infrastructure.Persistence.Configurations;
 using ApexPost.Infrastructure.Persistence.Mappers;
 using ApexPost.Infrastructure.Persistence.Records;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace ApexPost.Infrastructure.Repositories.Queries;
@@ -25,54 +26,34 @@ namespace ApexPost.Infrastructure.Repositories.Queries;
 public sealed class SqlReportQueries(IDbContextFactory<ApexPostDbContext> contexts) : IReportQueries
 {
     private const string TransactionKey = "TransactionId";
+    private const int DailySalesUnknownBranch = 51003;
+    private const int LowStockUnknownBranch = 51012;
 
+    /// <summary>One procedure call instead of three queries: ADR-012 explains the trade.</summary>
     public async Task<IReadOnlyList<DailySalesRow>> DailySalesAsync(
         ReportFilter filter,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(filter);
+        var branch = ProcedureParameters.OptionalBranch(filter.Branch);
         var database = await contexts.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         await using (database.ConfigureAwait(false))
         {
-            var paid = Paid(database, filter);
-            var days = await paid
-                .GroupBy(transaction => new
-                {
-                    Day = ((DateTime)(object)transaction.Payment!.PaidAt).Date,
-                    transaction.Branch,
-                })
-                .Select(group => new
-                {
-                    group.Key.Day,
-                    group.Key.Branch,
-                    Count = group.Count(),
-                    Tax = group.Sum(transaction => (decimal)(object)transaction.Payment!.Tax),
-                })
-                .OrderBy(day => day.Day)
-                .ThenBy(day => day.Branch)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-            var retail = await PerDayAsync(RetailAmounts(database), paid, cancellationToken).ConfigureAwait(false);
-            var services = await PerDayAsync(ServiceAmounts(database), paid, cancellationToken).ConfigureAwait(false);
-
-            return
-            [
-                .. days.Select(day =>
-                {
-                    var key = (day.Day, day.Branch);
-                    var sales = new Money(retail.GetValueOrDefault(key));
-                    var other = new Money(services.GetValueOrDefault(key));
-                    var tax = new Money(day.Tax);
-                    return new DailySalesRow(
-                        DateOnly.FromDateTime(day.Day),
-                        day.Branch,
-                        day.Count,
-                        sales,
-                        other,
-                        tax,
-                        sales + other + tax);
-                }),
-            ];
+            try
+            {
+                var rows = await database.Database
+                    .SqlQuery<DailySalesProcedureRow>(
+                        $"""
+                        EXEC dbo.usp_DailyBranchSales @From = {filter.From}, @To = {filter.To}, @BranchCode = {branch}
+                        """)
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                return [.. rows.Select(ToDailySales)];
+            }
+            catch (SqlException exception) when (exception.Number == DailySalesUnknownBranch)
+            {
+                throw new NotFoundException(exception.Message);
+            }
         }
     }
 
@@ -81,27 +62,30 @@ public sealed class SqlReportQueries(IDbContextFactory<ApexPostDbContext> contex
         int threshold,
         CancellationToken cancellationToken)
     {
+        var code = ProcedureParameters.OptionalBranch(branch);
         var database = await contexts.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         await using (database.ConfigureAwait(false))
         {
-            var low = database.Set<StockItem>().AsNoTracking().Where(item => item.Quantity <= threshold);
-            if (branch is not null)
+            try
             {
-                low = low.Where(item => item.Branch == branch);
+                var rows = await database.Database
+                    .SqlQuery<LowStockProcedureRow>(
+                        $"EXEC dbo.usp_LowStockReport @Threshold = {threshold}, @BranchCode = {code}")
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                return
+                [
+                    .. rows.Select(row => new LowStockRow(
+                        new BranchCode(row.BranchCode),
+                        new Sku(row.Sku),
+                        row.Product,
+                        row.Quantity)),
+                ];
             }
-
-            return await low
-                .Join(
-                    database.Set<Product>(),
-                    item => item.Sku,
-                    product => product.Id,
-                    (item, product) => new { item.Branch, item.Sku, product.Name, item.Quantity })
-                .OrderBy(row => row.Quantity)
-                .ThenBy(row => row.Branch)
-                .ThenBy(row => row.Sku)
-                .Select(row => new LowStockRow(row.Branch, row.Sku, row.Name, row.Quantity))
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            catch (SqlException exception) when (exception.Number == LowStockUnknownBranch)
+            {
+                throw new NotFoundException(exception.Message);
+            }
         }
     }
 
@@ -117,35 +101,12 @@ public sealed class SqlReportQueries(IDbContextFactory<ApexPostDbContext> contex
         var database = await contexts.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         await using (database.ConfigureAwait(false))
         {
-            var groups = await database.Set<ShippingLineItem>()
-                .AsNoTracking()
-                .Join(
-                    Paid(database, filter),
-                    line => EF.Property<Guid>(line, TransactionKey),
-                    transaction => transaction.Id,
-                    (line, _) => line)
-                .GroupBy(line => new
-                {
-                    line.ZoneCode,
-                    line.Shipment.Level,
-                    line.Shipment.Weight,
-                    line.Shipment.Dimensions.LengthCm,
-                    line.Shipment.Dimensions.WidthCm,
-                    line.Shipment.Dimensions.HeightCm,
-                })
-                .Select(group => new
-                {
-                    group.Key,
-                    Count = group.Count(),
-                    Revenue = group.Sum(line => (decimal)(object)line.Price),
-                })
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            var groups = await ShippingGroups(database, filter).ToListAsync(cancellationToken).ConfigureAwait(false);
 
             return
             [
                 .. groups
-                    .GroupBy(row => (row.Key.ZoneCode, row.Key.Level))
+                    .GroupBy(row => (row.ZoneCode, row.Level))
                     .OrderBy(group => group.Key.ZoneCode, StringComparer.Ordinal)
                     .ThenBy(group => group.Key.Level)
                     .Select(group => new ShippingVolumeRow(
@@ -153,8 +114,8 @@ public sealed class SqlReportQueries(IDbContextFactory<ApexPostDbContext> contex
                         group.Key.Level,
                         group.Sum(row => row.Count),
                         group.Sum(row => row.Count * Shipment.ChargeableKgOf(
-                            row.Key.Weight,
-                            new Dimensions(row.Key.LengthCm, row.Key.WidthCm, row.Key.HeightCm))),
+                            row.Weight,
+                            new Dimensions(row.LengthCm, row.WidthCm, row.HeightCm))),
                         new Money(group.Sum(row => row.Revenue)))),
             ];
         }
@@ -181,7 +142,7 @@ public sealed class SqlReportQueries(IDbContextFactory<ApexPostDbContext> contex
     /// <summary>Only money orders still paid count as issued; every identity check counts, whatever followed.</summary>
     private static async Task<List<MoneyOrderBranchRow>> BranchTotalsAsync(
         ApexPostDbContext database,
-        IQueryable<CounterTransaction> relevant,
+        IQueryable<PeriodTransaction> relevant,
         CancellationToken cancellationToken)
     {
         var branches = await relevant
@@ -242,7 +203,7 @@ public sealed class SqlReportQueries(IDbContextFactory<ApexPostDbContext> contex
     /// <summary>One query for the page: the figures of each row are subqueries, not a query per row.</summary>
     private static async Task<List<MoneyOrderRow>> MoneyOrderRowsAsync(
         ApexPostDbContext database,
-        IQueryable<CounterTransaction> relevant,
+        IQueryable<PeriodTransaction> relevant,
         PageRequest page,
         CancellationToken cancellationToken)
     {
@@ -289,6 +250,50 @@ public sealed class SqlReportQueries(IDbContextFactory<ApexPostDbContext> contex
         ];
     }
 
+    internal static IQueryable<ShippingGroup> ShippingGroups(ApexPostDbContext database, ReportFilter filter) =>
+        database.Set<ShippingLineItem>()
+            .AsNoTracking()
+            .Join(
+                Paid(database, filter),
+                line => EF.Property<Guid>(line, TransactionKey),
+                transaction => transaction.Id,
+                (line, _) => line)
+            .GroupBy(line => new
+            {
+                line.ZoneCode,
+                line.Shipment.Level,
+                line.Shipment.Weight,
+                line.Shipment.Dimensions.LengthCm,
+                line.Shipment.Dimensions.WidthCm,
+                line.Shipment.Dimensions.HeightCm,
+            })
+            .Select(group => new ShippingGroup
+            {
+                ZoneCode = group.Key.ZoneCode,
+                Level = group.Key.Level,
+                Weight = group.Key.Weight,
+                LengthCm = group.Key.LengthCm,
+                WidthCm = group.Key.WidthCm,
+                HeightCm = group.Key.HeightCm,
+                Count = group.Count(),
+                Revenue = group.Sum(line => (decimal)(object)line.Price),
+            });
+
+    private static DailySalesRow ToDailySales(DailySalesProcedureRow row)
+    {
+        var retail = new Money(row.Retail);
+        var services = new Money(row.Services);
+        var tax = new Money(row.Tax);
+        return new DailySalesRow(
+            row.SalesDay,
+            new BranchCode(row.BranchCode),
+            row.Transactions,
+            retail,
+            services,
+            tax,
+            retail + services + tax);
+    }
+
     private static IQueryable<CounterTransaction> Paid(ApexPostDbContext database, ReportFilter filter)
     {
         var start = ReportDays.Start(filter.From);
@@ -301,68 +306,74 @@ public sealed class SqlReportQueries(IDbContextFactory<ApexPostDbContext> contex
         return filter.Branch is { } branch ? paid.Where(transaction => transaction.Branch == branch) : paid;
     }
 
-    /// <summary>Transactions of the period with a money order or an identity check.</summary>
-    private static IQueryable<CounterTransaction> Relevant(ApexPostDbContext database, ReportFilter filter)
+    /// <summary>
+    /// Transactions of the period with a money order or an identity check. A paid transaction counts by its payment
+    /// date, any other by its opening date. Those are two ranges on two indexed columns, so each is a query of its own:
+    /// one CASE over both columns would hide them from the index (PERFORMANCE.md, non-SARGable predicate).
+    /// </summary>
+    internal static IQueryable<PeriodTransaction> Relevant(ApexPostDbContext database, ReportFilter filter)
     {
         var start = ReportDays.Start(filter.From);
         var end = ReportDays.EndOf(filter.To);
         var orders = database.Set<MoneyOrderLineItem>();
         var checks = database.Set<IdentityVerificationRecord>();
-        var relevant = database.Set<CounterTransaction>()
-            .AsNoTracking()
-            .Where(transaction =>
-                (transaction.Payment != null ? transaction.Payment.PaidAt : transaction.OpenedAt) >= start
-                && (transaction.Payment != null ? transaction.Payment.PaidAt : transaction.OpenedAt) < end)
+        var transactions = database.Set<CounterTransaction>().AsNoTracking();
+        if (filter.Branch is { } branch)
+        {
+            transactions = transactions.Where(transaction => transaction.Branch == branch);
+        }
+
+        return Heads(transactions.Where(transaction =>
+                transaction.Payment != null
+                && transaction.Payment.PaidAt >= start
+                && transaction.Payment.PaidAt < end))
+            .Concat(Heads(transactions.Where(transaction =>
+                transaction.Payment == null
+                && transaction.OpenedAt >= start
+                && transaction.OpenedAt < end)))
             .Where(transaction =>
                 orders.Any(order => EF.Property<Guid>(order, TransactionKey) == transaction.Id)
                 || checks.Any(check => check.TransactionId == transaction.Id));
-        return filter.Branch is { } branch ? relevant.Where(transaction => transaction.Branch == branch) : relevant;
     }
 
-    private static IQueryable<LineAmount> RetailAmounts(ApexPostDbContext database) =>
-        database.Set<RetailLineItem>().AsNoTracking().Select(line => new LineAmount
+    private static IQueryable<PeriodTransaction> Heads(IQueryable<CounterTransaction> transactions) =>
+        transactions.Select(transaction => new PeriodTransaction
         {
-            TransactionId = EF.Property<Guid>(line, TransactionKey),
-            Amount = (decimal)(object)line.UnitPrice * line.Quantity,
+            Id = transaction.Id,
+            Branch = transaction.Branch,
+            OpenedAt = transaction.OpenedAt,
+            Status = transaction.Status,
         });
 
-    private static IQueryable<LineAmount> ServiceAmounts(ApexPostDbContext database) =>
-        database.Set<ShippingLineItem>()
-            .AsNoTracking()
-            .Select(line => new LineAmount
-            {
-                TransactionId = EF.Property<Guid>(line, TransactionKey),
-                Amount = (decimal)(object)line.Price,
-            })
-            .Concat(database.Set<MoneyOrderLineItem>().AsNoTracking().Select(order => new LineAmount
-            {
-                TransactionId = EF.Property<Guid>(order, TransactionKey),
-                Amount = (decimal)(object)order.Amount + (decimal)(object)order.Fee,
-            }));
-
-    private static Task<Dictionary<(DateTime Day, BranchCode Branch), decimal>> PerDayAsync(
-        IQueryable<LineAmount> amounts,
-        IQueryable<CounterTransaction> paid,
-        CancellationToken cancellationToken) =>
-        amounts
-            .Join(
-                paid,
-                line => line.TransactionId,
-                transaction => transaction.Id,
-                (line, transaction) => new
-                {
-                    Day = ((DateTime)(object)transaction.Payment!.PaidAt).Date,
-                    transaction.Branch,
-                    line.Amount,
-                })
-            .GroupBy(row => new { row.Day, row.Branch })
-            .Select(group => new { group.Key.Day, group.Key.Branch, Amount = group.Sum(row => row.Amount) })
-            .ToDictionaryAsync(row => (row.Day, row.Branch), row => row.Amount, cancellationToken);
-
-    private sealed class LineAmount
+    /// <summary>The columns of a transaction that the money order report reads.</summary>
+    internal sealed class PeriodTransaction
     {
-        public Guid TransactionId { get; init; }
+        public Guid Id { get; init; }
 
-        public decimal Amount { get; init; }
+        public BranchCode Branch { get; init; } = null!;
+
+        public DateTimeOffset OpenedAt { get; init; }
+
+        public TransactionStatus Status { get; init; }
+    }
+
+    /// <summary>The shipments of one set of measures in one zone and level.</summary>
+    internal sealed class ShippingGroup
+    {
+        public string ZoneCode { get; init; } = string.Empty;
+
+        public ServiceLevel Level { get; init; }
+
+        public Weight Weight { get; init; } = null!;
+
+        public decimal LengthCm { get; init; }
+
+        public decimal WidthCm { get; init; }
+
+        public decimal HeightCm { get; init; }
+
+        public int Count { get; init; }
+
+        public decimal Revenue { get; init; }
     }
 }

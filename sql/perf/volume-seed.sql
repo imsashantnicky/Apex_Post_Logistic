@@ -7,7 +7,10 @@
         sqlcmd -S localhost -E -C -d ApexPostDb -b -i sql/perf/volume-seed.sql
 
     Set-based: every value is derived from the row number n, so there are no loops and the mix repeats (ids and the
-    end date do not). Rows follow the domain rules (weight limits, fee, tax, verification above 300), so EF Core can
+    end date do not). Branch, day and status come from separate bytes of a hash of n: taken from n directly they would
+    share factors with the other n % k rules (one branch per day, all money orders in one branch, none ever voided).
+    Branches differ in size like a real network: the first has five shares of the sales, the last has one.
+    Rows follow the domain rules (weight limits, fee, tax, verification above 300), so EF Core can
     load them. They end yesterday, so the branches without sales today stay that way. BranchStock is left as it is.
     Each new row has CreatedBy = 'volume-seed', which also stops a second run. One transaction: all rows or none.
 */
@@ -33,10 +36,24 @@ IF EXISTS (SELECT 1 FROM dbo.CounterTransactions WHERE CreatedBy = @Marker)
 
 -- Numbered lookups, so that n can pick a row with n % count + 1.
 SELECT ROW_NUMBER() OVER (ORDER BY Code) AS rn, Code, OpensAt,
-       DATEDIFF(MINUTE, OpensAt, ClosesAt) - 60 AS OpenMinutes
+       DATEDIFF(MINUTE, OpensAt, ClosesAt) - 60 AS OpenMinutes,
+       CAST(0 AS int) AS SharesFrom, CAST(0 AS int) AS SharesTo
 INTO #Branch
 FROM dbo.Branches
 WHERE IsActive = 1;
+
+DECLARE @BranchTotal int = (SELECT COUNT(*) FROM #Branch);
+
+-- Each branch takes the range of shares after the one before it, and the first one has the most.
+WITH Shares AS
+(
+    SELECT rn, @BranchTotal - rn + 1 AS Own, SUM(@BranchTotal - rn + 1) OVER (ORDER BY rn) AS Running
+    FROM #Branch
+)
+UPDATE branch
+SET SharesFrom = shares.Running - shares.Own, SharesTo = shares.Running
+FROM #Branch AS branch
+JOIN Shares AS shares ON shares.rn = branch.rn;
 
 SELECT ROW_NUMBER() OVER (PARTITION BY HomeBranch ORDER BY Email) AS rn,
        COUNT(*) OVER (PARTITION BY HomeBranch) AS total, HomeBranch, Id
@@ -57,7 +74,7 @@ SELECT ROW_NUMBER() OVER (ORDER BY ZoneCode) AS rn, ZoneCode, BaseRate, PerKgRat
 INTO #Zone
 FROM dbo.ShippingRates;
 
-DECLARE @BranchCount int = (SELECT COUNT(*) FROM #Branch);
+DECLARE @ShareTotal int = (SELECT MAX(SharesTo) FROM #Branch);
 DECLARE @ProductCount int = (SELECT COUNT(*) FROM #Product);
 DECLARE @ZoneCount int = (SELECT COUNT(*) FROM #Zone);
 
@@ -77,20 +94,29 @@ SELECT numbers.n,
        manager.Id AS ManagerId,
        DATEADD(MINUTE,
            DATEDIFF(MINUTE, '00:00', branch.OpensAt) + (numbers.n * 7) % branch.OpenMinutes,
-           DATEADD(DAY, -(1 + numbers.n % @Days), @Today)) AS OpenedAt,
-       CASE numbers.n % 20 WHEN 7 THEN 'Voided' WHEN 13 THEN 'Refunded' ELSE 'Paid' END AS Status
+           DATEADD(DAY, -(1 + bucket.ForDay % @Days), @Today)) AS OpenedAt,
+       CASE bucket.ForStatus % 20 WHEN 7 THEN 'Voided' WHEN 13 THEN 'Refunded' ELSE 'Paid' END AS Status
 INTO #Tx
 FROM Numbers AS numbers
-JOIN #Branch AS branch ON branch.rn = numbers.n % @BranchCount + 1
+CROSS APPLY (SELECT HASHBYTES('MD5', CAST(numbers.n AS varchar(10))) AS Bytes) AS hash
+CROSS APPLY
+(
+    SELECT CAST(SUBSTRING(hash.Bytes, 1, 3) AS int) AS ForBranch,
+           CAST(SUBSTRING(hash.Bytes, 4, 3) AS int) AS ForDay,
+           CAST(SUBSTRING(hash.Bytes, 7, 3) AS int) AS ForStatus
+) AS bucket
+JOIN #Branch AS branch
+    ON bucket.ForBranch % @ShareTotal >= branch.SharesFrom
+   AND bucket.ForBranch % @ShareTotal < branch.SharesTo
 CROSS APPLY
 (
     SELECT Id FROM #Clerk
-    WHERE HomeBranch = branch.Code AND rn = (numbers.n / @BranchCount) % total + 1
+    WHERE HomeBranch = branch.Code AND rn = numbers.n % total + 1
 ) AS clerk
 CROSS APPLY
 (
     SELECT Id FROM #Counter
-    WHERE BranchCode = branch.Code AND rn = (numbers.n / @BranchCount) % total + 1
+    WHERE BranchCode = branch.Code AND rn = numbers.n % total + 1
 ) AS counter
 CROSS APPLY
 (

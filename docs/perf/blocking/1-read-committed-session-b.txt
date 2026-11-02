@@ -1,0 +1,8 @@
+SessionB|IsolationLevel|ReadCommittedSnapshot
+--------|--------------|---------------------
+55|READ COMMITTED|0
+QuantityReadByB
+---------------
+33
+Read finished after 6357 ms
+Update finished after 1 ms

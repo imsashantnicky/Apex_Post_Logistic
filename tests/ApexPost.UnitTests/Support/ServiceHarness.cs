@@ -148,7 +148,7 @@ internal sealed class ServiceHarness : IDisposable
     public StockService StockAdjustments() => StockAdjustments(new FakeUnitOfWork());
 
     public StockService StockAdjustments(InMemoryStock stock, FakeUnitOfWork unitOfWork) =>
-        new(User, Catalog, stock, unitOfWork, Gate, Events, Rules, Validator, Clock);
+        new(User, Catalog, stock, Gate, Events, Rules, Validator, Clock);
 
     public InMemoryStock StockRecords(FakeUnitOfWork unitOfWork) => new(Stock, unitOfWork);
 

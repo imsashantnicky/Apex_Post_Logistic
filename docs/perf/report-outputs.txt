@@ -1,0 +1,76 @@
+﻿-- sqlcmd output on ApexPostDb_Perf, 2026-11-02 04:49 UTC. Each report runs with the defaults of its DECLARE block; first 12 rows.
+
+=== 01-daily-branch-sales.sql
+exit code 0
+SalesDay|BranchCode|BranchName|Transactions|Retail|Services|Tax
+--------|----------|----------|------------|------|--------|---
+2026-10-19|BR001|Central Counter|163|3766.70|5500.63|865.16
+2026-10-19|BR002|Harbour Point|143|3107.00|2421.34|743.56
+2026-10-19|BR003|Airport Terminal|105|2462.65|4754.73|536.57
+2026-10-19|BR004|Northgate|66|1432.85|2716.96|326.75
+2026-10-19|BR005|Westfield|39|905.70|1959.69|237.91
+2026-10-20|BR001|Central Counter|158|3577.40|7133.66|764.58
+2026-10-20|BR002|Harbour Point|142|3331.45|10006.15|694.37
+2026-10-20|BR003|Airport Terminal|119|2596.45|4523.97|571.20
+2026-10-20|BR004|Northgate|68|1620.40|3583.47|407.98
+2026-10-20|BR005|Westfield|34|748.25|802.30|152.45
+2026-10-21|BR001|Central Counter|157|3723.90|6664.25|920.28
+2026-10-21|BR002|Harbour Point|152|3441.00|6176.95|781.99
+
+=== 02-branches-without-sales.sql
+exit code 0
+BranchCode|BranchName|Region|Sales
+----------|----------|------|-----
+BR002|Harbour Point|Coast|0
+BR003|Airport Terminal|Airport|0
+BR004|Northgate|North|0
+BR005|Westfield|West|0
+
+(4 rows affected)
+
+=== 03-top-products-by-region.sql
+exit code 0
+Region|RevenueRank|Sku|Product|Units|Revenue
+------|-----------|---|-------|-----|-------
+Airport|1|OFF-0007|Calculator|551|5454.90
+Airport|2|OFF-0008|USB stick 32 GB|537|4564.50
+Airport|3|OFF-0002|Stapler|601|3846.40
+Airport|4|STA-0010|Calendar|459|3626.10
+Airport|5|STA-0007|Address book|521|3542.80
+Airport|6|OFF-0001|Printer paper 500 sheets|553|3262.70
+Airport|7|PKG-0011|Wine bottle box|492|2558.40
+Airport|8|PKG-0005|Large parcel box|540|2484.00
+Airport|9|STA-0006|Postcard set (6)|521|2344.50
+Airport|10|OFF-0009|Braille writing paper|586|2344.00
+City Centre|1|OFF-0007|Calculator|950|9405.00
+City Centre|2|OFF-0008|USB stick 32 GB|933|7930.50
+
+=== 04-shipping-volume.sql
+exit code 0
+ZoneCode|ZoneName|Level|Shipments|ChargeableKg|Revenue
+--------|--------|-----|---------|------------|-------
+Z01|Local|Express|47|266.78|604.68
+Z01|Local|Registered|37|222.60|399.84
+Z01|Local|Standard|100|184.23|497.31
+Z02|Regional|Express|36|200.98|612.95
+Z02|Regional|Registered|43|235.87|588.85
+Z02|Regional|Standard|100|197.14|666.85
+Z03|National|Express|38|174.60|725.52
+Z03|National|Registered|49|245.44|797.03
+Z03|National|Standard|86|194.04|744.71
+Z04|Islands|Express|40|195.87|1043.42
+Z04|Islands|Registered|35|202.18|817.89
+Z04|Islands|Standard|102|239.38|1168.73
+
+=== 05-money-orders-and-verifications.sql
+exit code 0
+BranchCode|BranchName|MoneyOrders|Amount|Fees|Passed|Failed|Pending
+----------|----------|-----------|------|----|------|------|-------
+BR001|Central Counter|226|69619.00|1418.96|45|0|0
+BR002|Harbour Point|199|65196.00|1335.28|46|0|0
+BR003|Airport Terminal|175|56087.00|1157.06|43|0|0
+BR004|Northgate|89|28721.00|586.82|22|0|0
+BR005|Westfield|64|18987.00|387.68|13|1|0
+BR006|Old Quay|0|.00|.00|0|0|0
+
+(6 rows affected)

@@ -6,9 +6,12 @@ using ApexPost.Domain.Inventory;
 
 namespace ApexPost.UnitTests.Support;
 
-/// <summary>The stock port on top of the in-memory store; adjustments are recorded for the tests to read.</summary>
+/// <summary>
+/// The stock ports on top of the in-memory store. Reads and sales go through the unit of work; an adjustment commits
+/// at once like the stored procedure, and is recorded for the tests to read.
+/// </summary>
 internal sealed class InMemoryStock(InMemoryRepository<StockItem, StockKey> store, FakeUnitOfWork unitOfWork)
-    : IStockRepository
+    : IStockRepository, IStockAdjuster
 {
     public List<StockAdjustment> Adjustments { get; } = [];
 
@@ -29,8 +32,6 @@ internal sealed class InMemoryStock(InMemoryRepository<StockItem, StockKey> stor
         return items;
     }
 
-    public void Add(StockItem item) => unitOfWork.Stage(token => store.AddAsync(item, token));
-
     public void Update(IEnumerable<StockItem> items)
     {
         foreach (var item in items)
@@ -39,10 +40,46 @@ internal sealed class InMemoryStock(InMemoryRepository<StockItem, StockKey> stor
         }
     }
 
-    public void AddAdjustment(StockAdjustment adjustment, Guid staffId, DateTimeOffset at) =>
-        unitOfWork.Stage(_ =>
+    public async Task<int> AdjustAsync(
+        BranchCode branch,
+        Sku sku,
+        int change,
+        string reason,
+        Guid staffId,
+        DateTimeOffset at,
+        CancellationToken cancellationToken)
+    {
+        var existing = await store.GetAsync(new StockKey(branch, sku), cancellationToken);
+        var quantity = existing is null
+            ? await CreateAsync(branch, sku, change, cancellationToken)
+            : await ChangeAsync(existing, change, cancellationToken);
+        Adjustments.Add(new StockAdjustment(branch, sku, change, quantity, reason));
+        return quantity;
+    }
+
+    private async Task<int> CreateAsync(BranchCode branch, Sku sku, int change, CancellationToken cancellationToken)
+    {
+        if (change < 0)
         {
-            Adjustments.Add(adjustment);
-            return Task.CompletedTask;
-        });
+            throw new InsufficientStockException(sku, -change, 0);
+        }
+
+        await store.AddAsync(new StockItem(branch, sku, change), cancellationToken);
+        return change;
+    }
+
+    private async Task<int> ChangeAsync(StockItem item, int change, CancellationToken cancellationToken)
+    {
+        if (change > 0)
+        {
+            item.Add(change);
+        }
+        else
+        {
+            item.Remove(-change);
+        }
+
+        await store.UpdateAsync(item, item.Version, cancellationToken);
+        return item.Quantity;
+    }
 }
