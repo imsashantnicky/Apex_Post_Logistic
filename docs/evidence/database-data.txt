@@ -1,0 +1,53 @@
+-- Data in ApexPostDb_FreshClone after the seed and the captured workflows, 2026-11-02
+Status|Transactions
+------|------------
+Paid|206
+Refunded|25
+Voided|24
+-- The sale of the workflow as stored: header, each kind of line, check and payment
+Id|BranchCode|Status|OpenedAt|CreatedBy
+--|----------|------|--------|---------
+01A19AC7-9A81-7E21-A437-27C6AAC54B0B|BR001|Paid|2026-11-02 05:42:14.9134008|01a19ac7-76ad-79c7-a532-f9175d1e70d7
+Sku|Name|UnitPrice|Quantity|TaxCategory
+---|----|---------|--------|-----------
+PKG-0001|Padded envelope A5|1.20|2|Standard
+Type|Level|WeightGrams|LengthCm|WidthCm|HeightCm|ZoneCode|Price
+----|-----|-----------|--------|-------|--------|--------|-----
+Parcel|Standard|2000|30.00|20.00|10.00|Z01|5.10
+Amount|Fee|Sender|Recipient
+------|---|------|---------
+350.00|7.00|Sam Taylor|Priya Nair
+DocumentType|DocumentLast4|Result|VerifiedAt
+------------|-------------|------|----------
+Passport|5678|Passed|2026-11-02 05:42:18.2876421
+Method|Tax|PaidAt
+------|---|------
+Card|1.50|2026-11-02 05:42:18.8731200
+-- Reversals keep their reason and manager
+Status|ReversalReason|ReversalManagerId|ReversedAt
+------|--------------|-----------------|----------
+Refunded|Damaged item returned with receipt.|01A19AC7-76AD-740C-940B-DE70863BDB30|2026-11-02 05:42:24.7029004
+Voided|Wrong item scanned.|01A19AC7-76AD-740C-940B-DE70863BDB30|2026-11-02 05:42:24.1122416
+Refunded|Damaged item returned with receipt.|01A19AC7-76AD-740C-940B-DE70863BDB30|2026-10-31 09:17:00.0000000
+Voided|Customer changed their mind at the counter.|01A19AC7-76AD-73D2-B7EB-E043AAA0AFC6|2026-10-30 21:01:00.0000000
+-- Stock history, written by usp_AdjustStock
+BranchCode|Sku|Change|NewQuantity|Reason|AdjustedAt
+----------|---|------|-----------|------|----------
+BR001|PKG-0002|5|38|Delivery counted.|2026-11-02 05:42:25.3560725
+-- Audit rows by status, including the refused ones
+StatusCode|Entries
+----------|-------
+200|1
+302|21
+400|4
+401|1
+403|1
+409|1
+At|Event|Role|BranchCode|Action|StatusCode
+--|-----|----|----------|------|----------
+2026-11-02 05:42:32.4515135|StaffUpdated|Administrator|BR001|Edit|409
+2026-11-02 05:42:23.7240759|Void|BranchManager|BR001|Void|400
+2026-11-02 05:42:19.6698059|AccessDenied|CounterClerk|BR001|Index|403
+2026-11-02 05:42:17.8162915|Payment|CounterClerk|BR001|Pay|400
+2026-11-02 05:42:17.2868086|MoneyOrderAdded|CounterClerk|BR001|AddMoneyOrder|400
+2026-11-02 05:42:16.8386405|ShipmentAdded|CounterClerk|BR001|AddShipping|400

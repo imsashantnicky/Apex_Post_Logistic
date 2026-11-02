@@ -1,0 +1,36 @@
+# Are the Week 2 business-rule tests unchanged? origin/main is the end of Week 2 (cd5a4b8).
+
+$ git diff --name-status --diff-filter=MDR origin/main HEAD -- tests/ApexPost.UnitTests/Domain tests/ApexPost.UnitTests/Rules tests/ApexPost.UnitTests/Services
+(no output: no file was modified, deleted or renamed)
+
+Files from Week 2 in those folders: 33
+
+Week 3 added these files beside them:
+A	tests/ApexPost.UnitTests/Rules/TransactionLifecycleRuleTests.cs
+A	tests/ApexPost.UnitTests/Services/PriceRevisionServiceTests.cs
+A	tests/ApexPost.UnitTests/Services/StockAdjustmentRecordTests.cs
+A	tests/ApexPost.UnitTests/Services/UnitOfWorkBoundaryTests.cs
+
+$ dotnet test tests/ApexPost.UnitTests -c Release --no-build --filter "FullyQualifiedName~UnitTests.Domain|FullyQualifiedName~UnitTests.Rules|FullyQualifiedName~UnitTests.Services"
+Passed!  - Failed:     0, Passed:   395, Skipped:     0, Total:   395, Duration: 673 ms - ApexPost.UnitTests.dll (net10.0)
+
+Those tests run on fakes by design, so storage cannot change their result. The same rules on SQL Server are
+proved through the real application by these suites, which store every step in a temporary database:
+$ dotnet test tests/ApexPost.IntegrationTests -c Release --no-build --filter "FullyQualifiedName~BusinessRulesOnSqlTests|FullyQualifiedName~CounterWorkflowTests|FullyQualifiedName~ReversalTests|FullyQualifiedName~SaleToReportTests"
+Passed!  - Failed:     0, Passed:    52, Skipped:     0, Total:    52, Duration: 11 s - ApexPost.IntegrationTests.dll (net10.0)
+
+Week 2 integration test files changed in Week 3, when their factory moved to SQL Server:
+ tests/ApexPost.IntegrationTests/Filters/AuditRedactionTests.cs  |  6 +--
+ .../Middleware/ExceptionHandlingTests.cs                        | 21 ++--------
+ .../Middleware/TemporaryStorageTests.cs                         | 28 +++++++------
+ tests/ApexPost.IntegrationTests/Security/SensitiveDataTests.cs  | 21 ++++------
+ tests/ApexPost.IntegrationTests/Support/AdminBrowser.cs         |  4 +-
+ tests/ApexPost.IntegrationTests/Support/AdminData.cs            | 18 ++++----
+ tests/ApexPost.IntegrationTests/Support/ApexFactory.cs          | 65 +++++++++++++++++++++++++----
+ tests/ApexPost.IntegrationTests/Support/AuditTrail.cs           | 36 ++++++++++++----
+ tests/ApexPost.IntegrationTests/Support/Counter.cs              | 21 +++++++++-
+ tests/ApexPost.IntegrationTests/Support/CounterBrowser.cs       | 12 +++++-
+ tests/ApexPost.IntegrationTests/Support/StockReader.cs          | 29 ++++++++++---
+ .../ApexPost.IntegrationTests/Workflows/CounterWorkflowTests.cs |  5 +--
+ tests/ApexPost.IntegrationTests/Workflows/ReportPagesTests.cs   |  4 +-
+ 15 files changed, 191 insertions(+), 95 deletions(-)

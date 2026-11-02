@@ -1,0 +1,15 @@
+# Repository scan on 2026-11-02 at c743345: working tree and all 139 commits of all branches.
+
+Files of a forbidden kind ever added (database, backup, key, secrets, env, bin, obj, .vs, data):
+(none)
+
+Credential patterns in any revision (passwords in connection strings, tokens, private keys):
+(The two hits below are the prompt text of the batch file, not values.)
+setup-secrets.bat:4:set /p DEMO_PASSWORD=Demo password: 
+setup-secrets.bat:5:set /p "DEMO_PASSWORD=Demo password: "
+
+The only connection string in the repository refers to a CI secret:
+.github/workflows/ci.yml:13:      ConnectionStrings__ApexPostTestServer: Server=localhost,1433;User Id=sa;Pass
+
+docs/screenshots/Archive.zip was added and deleted in the history. It held the same 13 screenshots of fictional
+demo data and macOS file metadata, with no user name, path or credential. No history rewrite or rotation was needed.
