@@ -256,8 +256,35 @@ to keep it that way.
 
 ## Screenshots
 
+### Interface
+
+The interface uses a charcoal sidebar grouped into Counter, Insights and Administration, showing only the pages the
+role may open. Red marks primary actions and yellow marks the current page. Every status is shown as a word plus a dot,
+never by colour alone. All styling is in `wwwroot/css/site.css` and all behaviour is in `wwwroot/js/site.js`: the menu
+drawer, the confirmation prompts and the guard against a second submit. Every page also works without JavaScript.
+These images were captured in headless Edge on 2026-11-02 against a newly seeded database.
+
+| Sign-in | Clerk dashboard | Catalogue |
+| --- | --- | --- |
+| ![Sign-in](docs/screenshots/ui/01-sign-in.png) | ![Clerk dashboard](docs/screenshots/ui/02-dashboard-clerk.png) | ![Catalogue with low and out-of-stock pills](docs/screenshots/ui/07-catalogue.png) |
+
+| Basket that needs an identity check | Paid, identity masked | Manager void and refund |
+| --- | --- | --- |
+| ![Counter screen](docs/screenshots/ui/03-counter-basket.png) | ![Paid transaction](docs/screenshots/ui/04-counter-paid.png) | ![Manager actions](docs/screenshots/ui/05-manager-actions.png) |
+
+| Shipping label | Audit log | Tablet, 820 px |
+| --- | --- | --- |
+| ![Shipping label](docs/screenshots/ui/06-shipping-label.png) | ![Audit log](docs/screenshots/ui/08-audit-log.png) | ![Tablet dashboard](docs/screenshots/ui/09-tablet-dashboard.png) |
+
+| Phone, 390 px | Phone menu |
+| --- | --- |
+| ![Phone counter screen](docs/screenshots/ui/10-phone-counter.png) | ![Phone menu drawer](docs/screenshots/ui/11-phone-drawer.png) |
+
+### Workflow run
+
 All 30 steps were driven in headless Edge on 2026-11-02, against a new clone and a new database, with the fictional demo
-data. [docs/evidence/mvc-workflows.txt](docs/evidence/mvc-workflows.txt) lists the status and message of each.
+data. [docs/evidence/mvc-workflows.txt](docs/evidence/mvc-workflows.txt) lists the status and message of each. These
+images were taken before the interface redesign above. The steps and messages are the same, but the page looks older.
 
 ### The counter
 
