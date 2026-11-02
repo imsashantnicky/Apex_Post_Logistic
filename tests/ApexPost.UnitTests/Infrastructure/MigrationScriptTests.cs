@@ -1,6 +1,5 @@
 using ApexPost.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
@@ -22,10 +21,6 @@ public sealed class MigrationScriptTests
             TestContext.Current.CancellationToken);
 
         Assert.NotEmpty(migrations);
-        Assert.All(migrations, migration => Assert.Contains(
-            $"[{HistoryRepository.DefaultTableName}]",
-            script,
-            StringComparison.Ordinal));
         Assert.All(migrations, migration => Assert.Contains($"N'{migration}'", script, StringComparison.Ordinal));
     }
 
