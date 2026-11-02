@@ -1,0 +1,99 @@
+# Real responses of the running application (Development, database ApexPostDb_FreshClone, 2026-11-02). The partner key is not shown.
+
+$ curl /health
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+X-Correlation-Id: ff7788ff160c4e92af9f1d5044d0eea3
+
+$ curl /integration/parcel-status/APX123456 with the key
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+X-Correlation-Id: 58028ae8ba5744429a4a5c156e98bb6d
+{"trackingNumber":"APX123456","status":"In transit","location":"Central sorting hub","updatedAt":"2026-11-02T05:45:28.1014556+00:00"}
+
+$ curl /integration/parcel-status/APX123456 without a key
+HTTP/1.1 401 Unauthorized
+Content-Type: application/problem+json
+Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+X-Correlation-Id: fc69a9f7e5324e7f8e5a826411519111
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.2","title":"Unauthorized","status":401,"detail":"A valid API key is required.","traceId":"00-286251deb944a0857b6ac91743b7d438-23d8269bd6f80d45-00","correlationId":"fc69a9f7e5324e7f8e5a826411519111"}
+
+$ curl /integration/parcel-status/APX123456 with a wrong key
+HTTP/1.1 401 Unauthorized
+Content-Type: application/problem+json
+Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+X-Correlation-Id: 15e96f3c79094328a37a27388e507d2c
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.2","title":"Unauthorized","status":401,"detail":"A valid API key is required.","traceId":"00-b752fb78519f2af0103b38ce20296cb4-9d0b536813affa0b-00","correlationId":"15e96f3c79094328a37a27388e507d2c"}
+
+$ curl /integration/parcel-status/FAIL1 (courier failure)
+HTTP/1.1 502 Bad Gateway
+Content-Type: application/problem+json
+Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+X-Correlation-Id: 24ffa97549bc4f079c83f645e2fa3aff
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.6.3","title":"Bad Gateway","status":502,"detail":"A partner service failed. Try again later.","traceId":"00-c2478a419530656d039dcb217a0ea60f-41feaad0271c04ff-00","correlationId":"24ffa97549bc4f079c83f645e2fa3aff","stackTrace":"ApexPost.Application.Exceptions.ExternalServiceException: The courier tracking service is not available.\r\n   at ApexPost.Infrastructure
+
+$ curl /integration/parcel-status/SLOW1 (courier timeout)
+HTTP/1.1 504 Gateway Timeout
+Content-Type: application/problem+json
+Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+X-Correlation-Id: 6fb2278130f34593a3f069702b4d2bc9
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.6.5","title":"Gateway Timeout","status":504,"detail":"A partner service did not answer in time. Try again later.","traceId":"00-2b4f5dfdff09907566572f6d604c07b5-c0c74b4c5f63b2d4-00","correlationId":"6fb2278130f34593a3f069702b4d2bc9","stackTrace":"ApexPost.Application.Exceptions.ExternalServiceTimeoutException: The courier did not answer within 2000 ms.\r\n ---> 
+
+$ curl /no/such/page as a JSON caller who is not signed in (the fallback policy sends them to sign-in)
+HTTP/1.1 302 Found
+Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+X-Correlation-Id: 0cf860c26e6548faae9a51882cc09fc5
+
+$ curl /Account/Login with an incoming correlation id
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+X-Frame-Options: DENY
+Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+X-Correlation-Id: evidence-run-001
+
+$ curl -X POST /Account/Login, six times within a minute
+attempt 1: 400
+attempt 2: 400
+attempt 3: 400
+attempt 4: 400
+attempt 5: 400
+attempt 6: 429
+
+# Signed in as clerk1.br001, asking for JSON
+
+$ curl /Staff (a clerk may not open it)
+HTTP/1.1 403 Forbidden
+Content-Type: application/problem+json; charset=utf-8
+X-Correlation-Id: 8fef950014cb4568b93d46c2ce3e266e
+{"title":"Access denied","status":403,"detail":"You do not have access to this resource.","traceId":"00-bc882c8c02cee140689cded49f34fb55-078322948fbc240d-00","correlationId":"8fef950014cb4568b93d46c2ce3e266e"}
+
+$ curl /Transactions/Details/<unknown id>
+HTTP/1.1 404 Not Found
+Content-Type: application/problem+json; charset=utf-8
+X-Correlation-Id: b7565ce9b0d349e0a26717ce7ae3c39c
+{"title":"Not Found","status":404,"detail":"The page or record does not exist.","traceId":"00-ef0ae18fcc0180813342d784589bfde5-617a761fd1f76270-00","correlationId":"b7565ce9b0d349e0a26717ce7ae3c39c"}

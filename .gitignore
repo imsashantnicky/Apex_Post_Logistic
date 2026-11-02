@@ -20,3 +20,17 @@ CLAUDE.md
 .claude/
 docs/lab/
 VIVA.md
+
+# Database files and credentials never belong in the repository
+*.mdf
+*.ldf
+*.ndf
+*.bak
+*.bacpac
+*.dacpac
+*.pfx
+*.p12
+*.pem
+*.key
+.env
+.env.*

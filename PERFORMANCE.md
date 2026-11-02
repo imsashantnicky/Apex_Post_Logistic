@@ -366,9 +366,22 @@ adjustment, branch and staff administration, all reports and the audit log. It a
 fail. [docs/perf/least-privilege-check.txt](docs/perf/least-privilege-check.txt) shows the effective permissions and the
 same refusals (error 229) on the performance database.
 
+## Measured again
+
+Three workloads ran again on 2026-11-02 at the end of the project, on the same database
+([output](docs/evidence/perf-recheck.txt)):
+
+| Workload | Documented | Measured again | Reading |
+| --- | --- | --- | --- |
+| W2a, first page of a branch | 88 reads, seek | 72 reads, seek | The new run selected fewer columns of `Payments` than the application does, so it is not the same statement; the seek and the absence of a Sort are what it confirms |
+| W6b, low stock of one branch | 12 reads, 2 on `BranchStock` | 12 reads, 2 on `BranchStock` | Same |
+| W1c, one branch and one day | 3,637 reads | 4,680 reads | Another day of the same branch, so another number of rows; the shape, `#Paid` first and then the amounts, is the same |
+
 ## Index Catalogue
 
-The keys, included columns and filters are read from the database: [docs/perf/schema-checks.txt](docs/perf/schema-checks.txt).
+The keys, included columns and filters are read from the database: [docs/evidence/database-schema.txt](docs/evidence/database-schema.txt).
+`RequireCounterBranch` came after the measurements: it made `Counters.BranchCode` required, which only removed the filter
+of `UX_Counters_Branch_Number`, on a table no workload scans.
 Primary keys are left out. Paths are under `src/ApexPost.Infrastructure/Persistence/`. "FK" means EF Core created the
 index for that foreign key by convention.
 
@@ -381,7 +394,7 @@ index for that foreign key by convention.
 | `IX_StockAdjustments_BranchCode` | StockAdjustments | BranchCode | - | - | Records/StockAdjustmentRecord.cs:8 | InitialCreate |
 | `IX_StockAdjustments_Sku` | StockAdjustments | Sku | - | - | Records/StockAdjustmentRecord.cs:9 | InitialCreate |
 | `IX_StockAdjustments_StaffId` | StockAdjustments | StaffId | - | - | Records/StockAdjustmentRecord.cs:10 | InitialCreate |
-| `UX_Counters_Branch_Number` | Counters | BranchCode, Number (unique) | - | `[BranchCode] IS NOT NULL` | Configurations/CounterConfiguration.cs:16 | InitialCreate |
+| `UX_Counters_Branch_Number` | Counters | BranchCode, Number (unique) | - | - | Configurations/CounterConfiguration.cs:16 | RequireCounterBranch |
 | `UX_Staff_Email` | Staff | Email (unique) | - | - | Configurations/StaffConfiguration.cs:35 | InitialCreate |
 | `IX_BranchStock_Sku` | BranchStock | Sku | - | - | FK, Configurations/BranchStockConfiguration.cs:26 | InitialCreate |
 | `IX_CounterTransactions_ClerkId` | CounterTransactions | ClerkId | - | - | FK, Configurations/CounterTransactionConfiguration.cs:47 | InitialCreate |
@@ -408,7 +421,9 @@ Three of these came from a workload; `IX_CounterTransactions_BranchCode_OpenedAt
 | Reporting queries executed | Verified | [report-outputs.txt](docs/perf/report-outputs.txt) |
 | Procedures: valid calls and every `THROW` | Verified | [procedure-checks.txt](docs/perf/procedure-checks.txt) |
 | Procedures called through parameters from EF Core | Verified | `StoredProcedureTests`, `SqlReportQueries`, `SqlStockAdjuster` |
-| Migration, also as an idempotent script run twice on a blank database | Verified | 3 procedures, 5 migrations, 3 indexes afterwards |
+| Migration, also as an idempotent script run twice on a blank database | Verified | [idempotent-migration-check.txt](docs/evidence/idempotent-migration-check.txt): 6 migrations, 17 tables, 3 procedures |
+| Numbers in this file against the raw data | Verified | All 105 cells of the before and after table were compared with the two `summary.csv` files by script; 0 differ |
+| Same workloads measured again | Verified | [perf-recheck.txt](docs/evidence/perf-recheck.txt), see [Measured again](#measured-again) |
 | Sale transaction and rollback | Verified | [sale-transaction-output.txt](docs/perf/sale-transaction-output.txt) |
 | Plans, reads and CPU before and after | Verified | [docs/perf/raw/](docs/perf/raw/), [docs/perf/plans/](docs/perf/plans/) |
 | `ToQueryString()` | Verified | [ef-tostring.sql](docs/perf/ef-tostring.sql) |
@@ -418,7 +433,8 @@ Three of these came from a workload; `IX_CounterTransactions_BranchCode_OpenedAt
 
 - **Two SSMS sessions.** SSMS is not installed on the test machine. Blocking was observed in two sqlcmd sessions with a
   third as monitor. The scripts and the isolation behaviour are the same, but SSMS itself was not used.
-- **Screenshots.** There are none. The evidence is `.sqlplan` files and raw text output.
+- **Plan screenshots.** There are none, because SSMS is not installed. The plans are `.sqlplan` files that open in SSMS, with
+  the raw text output beside them.
 - **Signing in with the application login.** This server accepts Windows logins only (`IsIntegratedSecurityOnly = 1`), so
   `apexpost_app_login` could be created but not used to connect. The role was tested by impersonating a database user,
   which checks the same permissions.
@@ -426,5 +442,5 @@ Three of these came from a workload; `IX_CounterTransactions_BranchCode_OpenedAt
 - **Load.** No test ran many users at once, so lock contention under real traffic is unknown.
 - **CI.** The pipeline uses a SQL Server 2022 image. These measurements come from SQL Server 2025 and were not repeated
   there; the tests were not run on 2022.
-- **Week 3 lab brief.** `docs/lab/week3-brief.md` was not available, so this work follows `CLAUDE.md` and the task
+- **Week 3 lab brief and rubric.** Neither file was available, so this work follows the project rules and the task
   description.

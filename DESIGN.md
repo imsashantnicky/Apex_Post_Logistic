@@ -66,8 +66,48 @@ flowchart TB
 | --- | --- | --- |
 | `ApexPost.Domain` | Business rules, with no knowledge of storage or the web | Nothing |
 | `ApexPost.Application` | Use cases, ports, role and branch checks | Domain |
-| `ApexPost.Infrastructure` | Files, hashing, cache and simulated partners | Application |
+| `ApexPost.Infrastructure` | EF Core storage, hashing, cache and simulated partners | Application |
 | `ApexPost.Web` | HTTP, pipeline, filters and views | Application, and Infrastructure in the composition root only |
+
+### Project and package dependencies
+
+```mermaid
+flowchart LR
+    web["ApexPost.Web"] --> application["ApexPost.Application"]
+    web --> infrastructure["ApexPost.Infrastructure"]
+    infrastructure --> application
+    application --> domain["ApexPost.Domain"]
+    infrastructure --> ef["EF Core 10 SqlServer and Design"]
+    ef --> sqlclient["Microsoft.Data.SqlClient, transitive"]
+    unit["ApexPost.UnitTests"] --> domain
+    unit --> application
+    unit --> infrastructure
+    integration["ApexPost.IntegrationTests"] --> web
+```
+
+Domain references nothing, and only Infrastructure knows EF Core. `System.Security.Cryptography.Pkcs` is pinned in
+Infrastructure on purpose: `SqlClient` otherwise brings version 9.0.11, which `NuGetAudit` refuses for known
+vulnerabilities (NU1902, NU1903).
+
+### Reads and writes
+
+There is one database and no separate read store. Writes go through repositories and one commit, and reads go through
+query services or stored procedures.
+
+```mermaid
+flowchart LR
+    controller["Controller"] --> command["Command service, such as CheckoutService"]
+    controller --> query["Query service port, such as IReportQueries"]
+    command --> repositories["Repositories: stage only"]
+    command --> unit["IUnitOfWork: one commit per use case"]
+    repositories --> context["Scoped ApexPostDbContext"]
+    unit --> context
+    query --> shortlived["Short-lived context, no tracking, or a stored procedure"]
+    filter["AuditActionFilter"] --> audit["SqlAuditStore: own context, after the commit"]
+    context --> database[("SQL Server")]
+    shortlived --> database
+    audit --> database
+```
 
 The repository holds the projects under `src/` and `tests/`. `tests/ApexPost.UnitTests/Architecture/LayeringTests.cs`
 and `tests/ApexPost.IntegrationTests/Architecture/ControllerLayeringTests.cs` enforce these rules by scanning signatures
@@ -184,6 +224,7 @@ classDiagram
 
 `CounterTransaction` is the aggregate root: `Open` is the only way to create one, and its status moves from Open to
 Paid to Refunded, or from Open or Paid to Voided. Business-rule violations throw `DomainException` or a subclass.
+How this model is stored is in [section 14](#14-database-schema-and-normalization).
 
 ## 4. Middleware pipeline and order
 
@@ -286,7 +327,7 @@ reflection tests stop the layers from drifting apart.
 tax category. `RetailLineItem`, `ShippingLineItem` and `MoneyOrderLineItem` are separate records.
 
 **Consequences:** A new kind of line needs no change to the basket's totals. Code that needs a specific kind filters with
-`OfType`, and the JSON mapping has to store which kind each line is.
+`OfType`, and storage has to keep the kinds apart: one table per kind, see [ADR-014](#adr-014-domain-model-versus-persistence-model).
 
 ### ADR-3: Strategy for pricing and delegates for tax
 
@@ -342,7 +383,7 @@ SameSite=Strict, with a sliding 30 minutes. `RevalidatingCookieEvents` reloads t
 Passwords use PBKDF2 with a random salt, 600,000 iterations and a constant-time comparison. Unknown emails are checked
 against a dummy hash, so a wrong email takes as long as a wrong password.
 
-**Consequences:** Deactivation and role changes apply on the next request, at the cost of reading the staff file each
+**Consequences:** Deactivation and role changes apply on the next request, at the cost of one staff query each
 time. Setting a new password does not yet end open sessions.
 
 ### ADR-7: Audit with an action filter and an append-only store
@@ -394,7 +435,7 @@ they refer to. The domain already enforces the rules, but a script or a bug can 
 business keys and let the database enforce the basics as well.
 
 **Decision:** The 17 tables keep two kinds of foreign key
-([read from the database](docs/perf/schema-checks.txt)):
+([read from the database](docs/evidence/database-schema.txt)):
 
 | Delete behaviour | Foreign keys | Why |
 | --- | --- | --- |
@@ -405,7 +446,8 @@ business keys and let the database enforce the basics as well.
 so it must block a delete. The 28 `CHECK` constraints repeat the rules that protect data if the domain is bypassed:
 quantities at or above zero, allowed status and enum values, weights within limits, and exactly 4 stored document
 characters. `UNIQUE` covers `Staff.Email` and the counter number within a branch. Money is `decimal(18,2)`, times are
-`datetime2` in UTC, and enums are `varchar(20)` with a `CHECK`.
+`datetime2` in UTC, and enums are `varchar(20)` with a `CHECK`. `RequireCounterBranch` made `Counters.BranchCode` `NOT NULL`,
+because a shadow foreign key had left it optional.
 
 **Consequences:** The behaviour was tried, not assumed. Deleting a branch, a sold product or a clerk with transactions
 fails with error 547. Deleting a transaction removes its 4 lines, 1 shipment and 1 payment and nothing else, and a
@@ -506,6 +548,39 @@ more than one connection, which the pool absorbs. The number of commands per req
 the counts of a real run are in [docs/perf/ef-command-counts.txt](docs/perf/ef-command-counts.txt), and
 `CommandCountTests` keeps them there.
 
+### ADR-014: Domain model versus persistence model
+
+**Context:** The domain must not know EF Core, and most entities keep their invariants behind private setters. Some stored
+data has no domain entity at all, and identity checks must never be able to hold a full document number.
+
+**Options:** Separate persistence classes and mappers for everything; map every domain type directly; decide per type.
+
+**Decision:** Decide per type, and write the reason down:
+
+| Kind | Types | Why |
+| --- | --- | --- |
+| Mapped directly with the Fluent API | `Branch`, `Counter`, `Staff`, `Product`, `StockItem`, `ShippingZone`, `CounterTransaction`, the three line kinds, `Payment`, `Reversal` | EF Core can bind private constructors and backing fields, so a second class would only repeat them. All rules stay on the domain type |
+| Record with a mapper | `IdentityVerificationRecord`, `AuditEntryRecord` | The stored shape differs from the domain on purpose: `DocumentLast4` instead of the mask. A check reaches the table only through `IdentityVerificationMapper` |
+| Record without a domain type | `StockAdjustmentRecord`, `RoleRecord`, `ProductCategoryRecord` | Append-only history written by `usp_AdjustStock`, and lookup tables for values that are enums in the domain |
+
+Three points differ from the first Week 3 outline, and each has a reason:
+
+- **Shipment and money order have no record.** The three kinds of line are one hierarchy in the domain, so they are mapped
+  table-per-concrete-type: `TransactionLines` holds retail lines, and `Shipments` and `MoneyOrders` hold their own, keyed by
+  `TransactionLineId`. A record per kind would have mapped the same columns twice. It also means there is no shared
+  parent table: a line id is unique in the domain, not through a foreign key.
+- **`Address` is owned by `Shipment`, not by `Branch`.** The domain gives a branch no address; a shipment has a recipient.
+- **`Dimensions` and `Address` are owned types**, so they stay value objects and their columns stay in `Shipments`.
+
+Value objects use converters in `Persistence/Converters`. Audit columns and `RowVersion` are shadow properties, so the domain
+never sees them. The domain made two concessions: private constructors, and a list that `TransactionLoader` fills through
+`UnsafeAccessor`, because a loaded check must skip the rules for a new one.
+
+**Consequences:** Domain stays free of EF Core, which `LayeringTests` proves, and there is little mapping code to keep in step.
+The price is that a mapping can fail only at run time: `EfMappingTests` runs a mixed basket through a real server for that
+reason, and compares stored columns with what the schema promises. If the stored shape of a directly mapped type ever has
+to differ from the domain, that type moves to a record and a mapper.
+
 ### ADR-015: Concurrency strategy
 
 **Context:** Two clerks must not sell the last unit, on one server or on several. The form screens have a Week 2 rule
@@ -577,11 +652,11 @@ two places to look.
 
 | Principle | Where it shows |
 | --- | --- |
-| Single responsibility | `TaxCalculator`, `ShippingPricer` and `StockGate` each do one job; one public type per file; controllers only translate HTTP |
-| Open/closed | A new service level adds an `IShippingPricingStrategy`; a new line kind adds an `ILineItem`; a new listener subscribes to `CounterEvents` |
-| Liskov substitution | Every `ILineItem` works in basket totals and tax; test fakes replace every port without changing service behaviour |
-| Interface segregation | Small ports such as `IClock`, `IAuditStore` (append and read only) and `INotificationSink`; `CachedCatalog` serves `IProductCatalog` and `IZoneCatalog` separately |
-| Dependency inversion | Application defines the ports and Infrastructure implements them; only `Program.cs` and `Composition/` know the concrete types |
+| Single responsibility | `TaxCalculator`, `ShippingPricer` and `StockGate` each do one job; repositories stage, `UnitOfWork` commits, query services read and `SqlAuditStore` audits; `IEntityTypeConfiguration` per table; controllers only translate HTTP |
+| Open/closed | A new service level adds an `IShippingPricingStrategy`; a new line kind adds an `ILineItem` and a table; a new listener subscribes to `CounterEvents`; a new index or table is a new migration, not an edit of an old one |
+| Liskov substitution | Every `ILineItem` works in basket totals and tax; `FakeUnitOfWork` and the in-memory repositories replace the EF Core ones and the services run on either unchanged, because both only stage until the commit |
+| Interface segregation | Small ports such as `IClock`, `IAuditStore` (append and read only) and `INotificationSink`; write ports and read ports are separate, such as `IBranchRepository` and `IBranchQueries`; `IStockAdjuster`, which commits by itself, is not part of `IStockRepository`, which only stages |
+| Dependency inversion | Application defines the ports and Infrastructure implements them; only `Program.cs` and `Composition/` know the concrete types, and `AddSqlPersistence` is the one line that chose SQL Server over files |
 
 ## 8. async, Task.WhenAll, SemaphoreSlim, ValueTask and measured numbers
 
@@ -666,8 +741,11 @@ Extension members and the `field` keyword are new in C# 14. The others are the e
 | Spoofed address | Forwarded headers are ignored, and a test proves they cannot pass the allowlist |
 | Access to another branch's data | Role and branch checks in services, the `SameBranchOnly` policy and `BranchAccessFilter` |
 | Sensitive data in errors | Problem Details with a safe message and a trace ID; stack traces only in Development |
-| Lost updates | A record `Version`, with a 409 answer on a stale update |
-| Damaged data files | Temporary file then replace; a malformed file raises an error instead of being overwritten |
+| Lost updates | `RowVersion` on stock and transactions and `Version` on branches and staff, with a 409 answer on a stale update |
+| Half-finished work | One save is one database transaction; `CHECK` and foreign keys refuse what a bug or a script sends |
+| SQL injection | LINQ, and interpolated `SqlQuery` and `ExecuteSqlAsync` calls whose values become parameters; no concatenated SQL |
+| Too much database access | The role `apexpost_app` holds only what the application needs; migrations run under a separate login |
+| Connection strings in the repository | Only in user-secrets or the environment; `.gitignore` also covers database and key files |
 | Vulnerable packages | Exact package versions and `NuGetAudit` |
 | Secrets in the repository | User-secrets and environment variables only; demo data runs only in Development with seeding enabled |
 
@@ -698,8 +776,9 @@ when the log was still a JSON Lines file.
 - The audit filter stores route values and simple arguments only, never a bound form model.
 - `AuditRedactor` drops values under sensitive names such as password, token or card, removes card-like numbers, and
   masks anything shaped like a document number.
-- Integration tests prove that document numbers and passwords never reach the audit file, and that document numbers and
-  API keys never reach the data files or logs.
+- `IdentityVerifications` has `DocumentLast4 varchar(4)` with `CHECK (LEN = 4)`, so the database cannot hold more.
+- Integration tests prove that document numbers and passwords never reach `AuditEntries`, and that document numbers and
+  API keys never reach the logs. `EfMappingTests` reads the stored rows past the application to prove the same.
 - Card data is never collected: the payment records only the method.
 
 ## 11. DI lifetimes
@@ -767,6 +846,206 @@ no longer registers it.
   [section 8](#8-async-taskwhenall-semaphoreslim-valuetask-and-measured-numbers). The SQL measurements are in
   [PERFORMANCE.md](PERFORMANCE.md), with what was not verified.
 - Stored procedures are checked by tests, not by the compiler.
+- A line id is unique through the domain, not through the database: the three line tables have no shared parent.
+- `CounterTransactions.BranchCode` repeats what `CounterId` implies, on purpose: see [section 14](#14-database-schema-and-normalization).
+
+## 14. Database schema and normalization
+
+### Entity relationship diagram
+
+All 17 tables, read from the database in [docs/evidence/database-schema.txt](docs/evidence/database-schema.txt). Every table
+also has `CreatedAtUtc`, `CreatedBy` and `ModifiedAtUtc`, left out here to keep the diagram readable.
+
+```mermaid
+erDiagram
+    Branches ||--|{ Counters : has
+    Branches ||--o{ BranchStock : holds
+    Branches ||--o{ Staff : employs
+    Branches ||--o{ CounterTransactions : records
+    Branches ||--o{ StockAdjustments : records
+    Roles ||--o{ Staff : grants
+    Staff ||--o{ CounterTransactions : opens
+    Staff |o--o{ CounterTransactions : reverses
+    Staff ||--o{ StockAdjustments : makes
+    Counters ||--o{ CounterTransactions : serves
+    ProductCategories ||--o{ Products : groups
+    Products ||--o{ BranchStock : stocked_as
+    Products ||--o{ TransactionLines : sold_as
+    Products ||--o{ StockAdjustments : adjusted
+    ShippingZones ||--|| ShippingRates : priced_by
+    ShippingRates ||--o{ Shipments : prices
+    CounterTransactions ||--o{ TransactionLines : retail_lines
+    CounterTransactions ||--o{ Shipments : shipping_lines
+    CounterTransactions ||--o{ MoneyOrders : money_order_lines
+    CounterTransactions ||--o| Payments : paid_by
+    CounterTransactions ||--o{ IdentityVerifications : checked_by
+
+    Branches {
+        varchar Code PK
+        nvarchar Name
+        nvarchar Region
+        time OpensAt
+        time ClosesAt
+        bit IsActive
+        int Version
+    }
+    Counters {
+        uniqueidentifier Id PK
+        varchar BranchCode FK
+        int Number
+    }
+    Staff {
+        uniqueidentifier Id PK
+        nvarchar Name
+        varchar Email UK
+        varchar Role FK
+        varchar HomeBranch FK
+        bit IsActive
+        varchar PasswordHash
+        int Version
+    }
+    Roles {
+        varchar Name PK
+    }
+    ProductCategories {
+        varchar Name PK
+    }
+    Products {
+        varchar Sku PK
+        nvarchar Name
+        varchar Category FK
+        decimal UnitPrice
+        varchar TaxCategory
+    }
+    BranchStock {
+        varchar BranchCode PK
+        varchar Sku PK
+        int Quantity
+        rowversion RowVersion
+    }
+    StockAdjustments {
+        uniqueidentifier Id PK
+        varchar BranchCode FK
+        varchar Sku FK
+        int Change
+        int NewQuantity
+        nvarchar Reason
+        uniqueidentifier StaffId FK
+        datetime2 AdjustedAt
+    }
+    ShippingZones {
+        varchar Code PK
+        nvarchar Name
+    }
+    ShippingRates {
+        varchar ZoneCode PK
+        decimal BaseRate
+        decimal PerKgRate
+    }
+    CounterTransactions {
+        uniqueidentifier Id PK
+        varchar BranchCode FK
+        uniqueidentifier CounterId FK
+        uniqueidentifier ClerkId FK
+        datetime2 OpenedAt
+        varchar Status
+        datetime2 ReversedAt
+        uniqueidentifier ReversalManagerId FK
+        nvarchar ReversalReason
+        rowversion RowVersion
+    }
+    TransactionLines {
+        uniqueidentifier Id PK
+        uniqueidentifier TransactionId FK
+        varchar Sku FK
+        nvarchar Name
+        decimal UnitPrice
+        int Quantity
+        varchar TaxCategory
+    }
+    Shipments {
+        uniqueidentifier TransactionLineId PK
+        uniqueidentifier TransactionId FK
+        varchar Type
+        varchar Level
+        int WeightGrams
+        decimal LengthCm
+        decimal WidthCm
+        decimal HeightCm
+        nvarchar RecipientName
+        varchar ZoneCode FK
+        decimal Price
+    }
+    MoneyOrders {
+        uniqueidentifier TransactionLineId PK
+        uniqueidentifier TransactionId FK
+        decimal Amount
+        decimal Fee
+        nvarchar Sender
+        nvarchar Recipient
+    }
+    Payments {
+        uniqueidentifier TransactionId PK
+        datetime2 PaidAt
+        varchar Method
+        decimal Tax
+    }
+    IdentityVerifications {
+        uniqueidentifier Id PK
+        uniqueidentifier TransactionId FK
+        varchar DocumentType
+        varchar DocumentLast4
+        varchar Result
+        datetime2 VerifiedAt
+    }
+    AuditEntries {
+        bigint Id PK
+        datetime2 At
+        varchar Event
+        uniqueidentifier StaffId
+        varchar BranchCode
+        varchar CorrelationId
+        int StatusCode
+    }
+```
+
+`AuditEntries` has no foreign keys on purpose. A record of what happened must survive whatever happens to the rows it names,
+and it must also accept a refused request from someone who is no longer staff.
+
+### The anomalies this schema avoids
+
+Picture the counter's first spreadsheet, one row per sold item:
+
+| TransactionId | BranchCode | BranchName | ClerkEmail | Sku | ProductName | CurrentPrice | Quantity | ZoneName | PerKgRate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| T1 | BR001 | Central Counter | clerk1.br001@apexpost.test | PKG-0001 | Padded envelope A5 | 1.20 | 2 | Local | 0.80 |
+| T2 | BR001 | Central Counter | clerk2.br001@apexpost.test | PKG-0001 | Padded envelope A5 | 1.20 | 1 | Local | 0.80 |
+
+| Anomaly | What goes wrong in that sheet | What prevents it here |
+| --- | --- | --- |
+| Insert | A new product, branch or zone cannot be recorded until someone sells it | `Products`, `Branches` and `ShippingZones` exist on their own |
+| Update | Renaming a branch or changing a rate must touch every row; miss one and two names exist for one code | Each fact lives in one row, such as `Branches.Name` |
+| Delete | Deleting the last sale of a product also forgets the product and its price | Sales and products are separate, and `Restrict` refuses to delete a product with history |
+
+### Normal forms
+
+| Form | Rule | Where it shows |
+| --- | --- | --- |
+| 1NF | Atomic values, no repeating groups | One row per line in `TransactionLines`, `Shipments` and `MoneyOrders`. `Dimensions` is three columns, not one text |
+| 2NF | Every column depends on the whole key | Only `BranchStock` has a composite key, and `Quantity` depends on both branch and product. A product's name is in `Products`, keyed by `Sku` alone |
+| 3NF | No column depends on another non-key column | A branch name is reached through `BranchCode`, a rate through `ZoneCode`, and a role is a key of `Roles` |
+
+### Deliberate exceptions
+
+Each repeats data for a reason, and is not an oversight.
+
+| Column | Looks like | Why it stays |
+| --- | --- | --- |
+| `TransactionLines.Name`, `UnitPrice`, `TaxCategory` | A copy of `Products` | It is a different fact: what this customer was charged. A price revision must not rewrite history, which `A_basket_keeps_the_price_it_was_built_with` proves |
+| `Shipments.Price`, `Payments.Tax`, `MoneyOrders.Fee` | Derivable from rates | Frozen at the moment of sale for the same reason |
+| `CounterTransactions.BranchCode` | Implied by `CounterId`, a transitive dependency | The most used filter needs it in the index `(BranchCode, OpenedAt)`. A join to `Counters` first would cost that seek ([ADR-011](#adr-011-index-choices)). `CounterTransaction.Open` checks that the counter belongs to the branch, so the two cannot disagree through the application, but no constraint enforces it |
+| `StockAdjustments.NewQuantity` | Derivable from the `Change` values | The history is append-only, and reading one row must show the result then |
+| `ShippingRates` | One row per zone, so it could be columns of `ShippingZones` | Rates change for different reasons than a zone's name, and shipments refer to the priced row |
 
 ## Decisions index
 
@@ -783,3 +1062,8 @@ no longer registers it.
 | 9 | Schema and delete behaviour | [ADR-010](#adr-010-schema-and-delete-behaviour) |
 | 10 | Index choices, with plan evidence | [ADR-011](#adr-011-index-choices), [ADR-017](#adr-017-index-attribute-versus-fluent-api), [PERFORMANCE.md](PERFORMANCE.md) |
 | 11 | Stored procedures versus LINQ | [ADR-012](#adr-012-stored-procedures-versus-linq) |
+| 12 | Repository and unit of work boundaries, and where direct projections are allowed | [ADR-013](#adr-013-repository-and-unit-of-work-boundaries) |
+| 13 | Domain model versus persistence model | [ADR-014](#adr-014-domain-model-versus-persistence-model) |
+| 14 | Concurrency strategy | [ADR-015](#adr-015-concurrency-strategy) |
+| 15 | Audit store versus unit of work | [ADR-016](#adr-016-audit-store-versus-unit-of-work) |
+| 16 | ER diagram, normalization and deliberate exceptions | [Section 14](#14-database-schema-and-normalization) |

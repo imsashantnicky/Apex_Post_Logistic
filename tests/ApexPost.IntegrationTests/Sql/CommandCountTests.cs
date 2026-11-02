@@ -1,5 +1,7 @@
+using ApexPost.Application.Abstractions;
 using System.Net;
 using ApexPost.IntegrationTests.Support;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ApexPost.IntegrationTests.Sql;
 
@@ -36,6 +38,7 @@ public sealed class CommandCountTests(CommandLogFactory factory) : IClassFixture
     {
         using var manager = await CounterBrowser.SignInAsync(factory, DemoAccounts.Manager);
         const string sku = "OFF-0005";
+        factory.Services.GetRequiredService<IProductCatalog>().Refresh();
 
         using var adjusted = await manager.PostAsync(
             $"/Catalogue/Adjust?sku={sku}",

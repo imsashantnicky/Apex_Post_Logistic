@@ -1,0 +1,50 @@
+# The 30 workflow steps behind docs/screenshots, driven in headless Edge on 2026-11-02 against a fresh clone.
+# Columns: screenshot, signed-in role, HTTP status of the page, address; then any message the page showed.
+01-sign-in                     anonymous  HTTP 200  /Account/Login
+02-dashboard-clerk             clerk      HTTP 200  /
+03-catalogue                   clerk      HTTP 200  /Catalogue
+04-mixed-basket-tax-preview    clerk      HTTP 200  /Transactions/Details/01a19ac7-9a81-7e21-a437-27c6aac54b0b
+    flash: Money order added to the basket. | This basket needs a passed identity verification before payment.
+    note:  Tax is previewed while the basket is open
+05-validation-parcel-over-limit clerk      HTTP 200  /Transactions/Details/01a19ac7-9a81-7e21-a437-27c6aac54b0b
+    flash: The limit for Standard Parcel is 30.000 kg; this one weighs 31.000 kg. | This basket needs a passed identity verification before payment.
+    note:  Domain rule: Standard parcels stop at 30 kg
+06-validation-money-order-amount clerk      HTTP 200  /Transactions/Details/01a19ac7-9a81-7e21-a437-27c6aac54b0b
+    flash: Amount must be greater than zero. | This basket needs a passed identity verification before payment.
+07-payment-refused-no-identity-check clerk      HTTP 200  /Transactions/Details/01a19ac7-9a81-7e21-a437-27c6aac54b0b
+    flash: A money order above 300.00 USD needs a passed identity check first. | This basket needs a passed identity verification before payment.
+    note:  Rule 4: 350.00 needs a passed check
+08-identity-verified-masked    clerk      HTTP 200  /Transactions/Details/01a19ac7-9a81-7e21-a437-27c6aac54b0b
+    flash: Identity verification recorded: Passed.
+09-paid-transaction            clerk      HTTP 200  /Transactions/Details/01a19ac7-9a81-7e21-a437-27c6aac54b0b
+    flash: Payment taken.
+10-shipping-label              clerk      HTTP 200  /Transactions/Label/01a19ac7-9a81-7e21-a437-27c6aac54b0b?lineId=01a19ac7-9ed9-7572-9354-713c0dfa38ad
+11-403-clerk-on-staff-page     clerk      HTTP 403  /Staff
+    note:  Browser users see Problem Details as a page
+12-404-unknown-transaction     clerk      HTTP 404  /Transactions/Details/00000000-0000-0000-0000-000000000000
+13-dashboard-manager           manager    HTTP 200  /
+14-manager-sees-void-and-refund manager    HTTP 200  /Transactions/Details/01a19ac7-afef-7615-b5fb-7e4b9f28d641
+15-void-needs-a-reason         manager    HTTP 200  /Transactions/Details/01a19ac7-afef-7615-b5fb-7e4b9f28d641
+    flash: One or more fields are not valid.
+16-voided                      manager    HTTP 200  /Transactions/Details/01a19ac7-afef-7615-b5fb-7e4b9f28d641
+    flash: Transaction voided.
+17-refunded                    manager    HTTP 200  /Transactions/Details/01a19ac7-b455-73ff-b934-ad523c9891c7
+    flash: Transaction refunded.
+18-stock-adjusted-by-procedure manager    HTTP 200  /Catalogue
+    flash: PKG-0002 now has 38 in stock.
+19-notifications               manager    HTTP 200  /Notifications
+20-report-daily-sales-today    auditor    HTTP 200  /Reports/DailySales?from=2026-11-02&to=2026-11-02
+21-report-daily-sales-14-days  auditor    HTTP 200  /Reports/DailySales
+22-report-low-stock            auditor    HTTP 200  /Reports/LowStock
+23-report-shipping-volume      auditor    HTTP 200  /Reports/ShippingVolume
+24-report-money-orders         auditor    HTTP 200  /Reports/MoneyOrders
+25-audit-log                   auditor    HTTP 200  /Audit
+26-staff                       admin      HTTP 200  /Staff
+27-branches                    admin      HTTP 200  /Branches
+28-409-stale-form-refused      admin-tab2 HTTP 200  /Staff/Edit/01a19ac7-76ad-7be8-b161-6cdc0d2e2132
+    flash: This record was changed by someone else. Check it and try again.
+    note:  Two tabs edit one member; the second save holds an old Version
+29-closed-branch               closed     HTTP 200  /Transactions/New
+    flash: This branch is closed and cannot accept transactions.
+30-inactive-staff-sign-in-refused anonymous  HTTP 200  /Account/Login
+    flash: The email or password is not correct.

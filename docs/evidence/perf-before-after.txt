@@ -1,0 +1,17 @@
+# Logical reads and elapsed ms: docs/perf/raw/0-baseline against docs/perf/raw/10-final
+
+Workload      Reads before   Reads after   Change   Elapsed before   after
+W1a                 191355         26651     -86%              178     168
+W1b                  65761         25563     -61%              167      80
+W1c                  16621          3637     -78%               95      27
+W2a                  11633            88     -99%               24       0
+W2c                   8063            83     -99%              140       0
+W3                    7150          2984     -58%               32      36
+W5y                  23975         23903       0%             1077     266
+W7                    8067          1147     -86%               21      46
+R1                  281748         29929     -89%              259     166
+R4                    9692          3740     -61%               85      69
+R5                    9463          2378     -75%               43      63
+
+The 3 kept indexes cost 19.36 MB and about 4 % more log per sale. W7 and R5 got slower on the clock:
+see PERFORMANCE.md.

@@ -1,0 +1,34 @@
+-- The three stored procedures on ApexPostDb_FreshClone, called with parameters, 2026-11-02
+-- usp_DailyBranchSales, one branch, today
+SalesDay|BranchCode|Transactions|Retail|Services|Tax
+--------|----------|------------|------|--------|---
+2026-11-02|BR001|4|6.70|496.37|18.81
+-- usp_LowStockReport, threshold 25, one branch
+BranchCode|Sku|Product|Quantity
+----------|---|-------|--------
+BR003|OFF-0001|Printer paper 500 sheets|4
+BR003|OFF-0010|Prepaid return envelope|4
+BR003|PKG-0005|Large parcel box|4
+BR003|STA-0002|Writing pad A4|4
+-- usp_AdjustStock takes 2 and keeps its history
+Before_
+-------
+55
+NewQuantity
+-----------
+53
+Change|NewQuantity|Reason
+------|-----------|------
+-2|53|Evidence run.
+-- usp_AdjustStock refuses to go below zero and changes nothing
+ErrorNumber|ErrorText
+-----------|---------
+51024|usp_AdjustStock: not enough stock.
+-- usp_DailyBranchSales refuses a reversed range
+ErrorNumber|ErrorText
+-----------|---------
+51002|usp_DailyBranchSales: @To must not be before @From.
+-- usp_LowStockReport refuses a negative threshold
+ErrorNumber|ErrorText
+-----------|---------
+51011|usp_LowStockReport: @Threshold must be zero or more.

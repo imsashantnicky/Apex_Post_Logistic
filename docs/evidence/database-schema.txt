@@ -1,0 +1,270 @@
+-- Migrations applied
+MigrationId|ProductVersion
+-----------|--------------
+20261101171629_InitialCreate|10.0.14
+20261101172625_AddStaffPasswordHash|10.0.14
+20261101183620_AddBranchAndStaffVersion|10.0.14
+20261102042018_AddStoredProcedures|10.0.14
+20261102043309_AddWorkloadIndexes|10.0.14
+20261102052538_RequireCounterBranch|10.0.14
+-- Tables with rows, primary key and size
+TableName|RowsStored|PrimaryKey
+---------|----------|----------
+AuditEntries|29|Id
+Branches|6|Code
+BranchStock|192|BranchCode, Sku
+Counters|13|Id
+CounterTransactions|255|Id
+IdentityVerifications|49|Id
+MoneyOrders|100|TransactionLineId
+Payments|253|TransactionId
+ProductCategories|3|Name
+Products|32|Sku
+Roles|4|Name
+Shipments|104|TransactionLineId
+ShippingRates|10|ZoneCode
+ShippingZones|10|Code
+Staff|26|Id
+StockAdjustments|1|Id
+TransactionLines|223|Id
+-- Columns
+TableName|ColumnName|ColumnType|Nullable|DefaultValue
+---------|----------|----------|--------|------------
+AuditEntries|Id|bigint|NO|-
+AuditEntries|At|datetime2|NO|-
+AuditEntries|Event|varchar(100)|NO|-
+AuditEntries|StaffId|uniqueidentifier|YES|-
+AuditEntries|Role|varchar(20)|YES|-
+AuditEntries|BranchCode|varchar(5)|YES|-
+AuditEntries|Controller|varchar(100)|NO|-
+AuditEntries|Action|varchar(100)|NO|-
+AuditEntries|RouteValues|nvarchar(max)|NO|-
+AuditEntries|StatusCode|int|NO|-
+AuditEntries|DurationMs|bigint|NO|-
+AuditEntries|CorrelationId|varchar(64)|NO|-
+AuditEntries|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+AuditEntries|CreatedBy|varchar(50)|YES|-
+AuditEntries|ModifiedAtUtc|datetime2|YES|-
+Branches|Code|varchar(5)|NO|-
+Branches|Name|nvarchar(100)|NO|-
+Branches|Region|nvarchar(100)|NO|-
+Branches|OpensAt|time|NO|-
+Branches|ClosesAt|time|NO|-
+Branches|IsActive|bit|NO|(CONVERT([bit],(1)))
+Branches|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+Branches|CreatedBy|varchar(50)|YES|-
+Branches|ModifiedAtUtc|datetime2|YES|-
+Branches|Version|int|NO|((1))
+BranchStock|BranchCode|varchar(5)|NO|-
+BranchStock|Sku|varchar(8)|NO|-
+BranchStock|Quantity|int|NO|-
+BranchStock|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+BranchStock|CreatedBy|varchar(50)|YES|-
+BranchStock|ModifiedAtUtc|datetime2|YES|-
+BranchStock|RowVersion|timestamp|NO|-
+Counters|Id|uniqueidentifier|NO|-
+Counters|Number|int|NO|-
+Counters|BranchCode|varchar(5)|NO|('')
+Counters|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+Counters|CreatedBy|varchar(50)|YES|-
+Counters|ModifiedAtUtc|datetime2|YES|-
+CounterTransactions|Id|uniqueidentifier|NO|-
+CounterTransactions|BranchCode|varchar(5)|NO|-
+CounterTransactions|CounterId|uniqueidentifier|NO|-
+CounterTransactions|ClerkId|uniqueidentifier|NO|-
+CounterTransactions|OpenedAt|datetime2|NO|-
+CounterTransactions|Status|varchar(20)|NO|('Open')
+CounterTransactions|ReversedAt|datetime2|YES|-
+CounterTransactions|ReversalManagerId|uniqueidentifier|YES|-
+CounterTransactions|ReversalReason|nvarchar(500)|YES|-
+CounterTransactions|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+CounterTransactions|CreatedBy|varchar(50)|YES|-
+CounterTransactions|ModifiedAtUtc|datetime2|YES|-
+CounterTransactions|RowVersion|timestamp|NO|-
+IdentityVerifications|Id|uniqueidentifier|NO|-
+IdentityVerifications|TransactionId|uniqueidentifier|NO|-
+IdentityVerifications|DocumentType|varchar(20)|NO|-
+IdentityVerifications|DocumentLast4|varchar(4)|NO|-
+IdentityVerifications|Result|varchar(20)|NO|-
+IdentityVerifications|VerifiedAt|datetime2|NO|-
+IdentityVerifications|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+IdentityVerifications|CreatedBy|varchar(50)|YES|-
+IdentityVerifications|ModifiedAtUtc|datetime2|YES|-
+MoneyOrders|TransactionLineId|uniqueidentifier|NO|-
+MoneyOrders|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+MoneyOrders|CreatedBy|varchar(50)|YES|-
+MoneyOrders|ModifiedAtUtc|datetime2|YES|-
+MoneyOrders|TransactionId|uniqueidentifier|NO|-
+MoneyOrders|Amount|decimal(18,2)|NO|-
+MoneyOrders|Fee|decimal(18,2)|NO|-
+MoneyOrders|Sender|nvarchar(100)|NO|-
+MoneyOrders|Recipient|nvarchar(100)|NO|-
+Payments|TransactionId|uniqueidentifier|NO|-
+Payments|PaidAt|datetime2|NO|-
+Payments|Method|varchar(20)|NO|-
+Payments|Tax|decimal(18,2)|NO|-
+Payments|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+Payments|CreatedBy|varchar(50)|YES|-
+Payments|ModifiedAtUtc|datetime2|YES|-
+ProductCategories|Name|varchar(20)|NO|-
+ProductCategories|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+ProductCategories|CreatedBy|varchar(50)|YES|-
+ProductCategories|ModifiedAtUtc|datetime2|YES|-
+Products|Sku|varchar(8)|NO|-
+Products|Name|nvarchar(100)|NO|-
+Products|Category|varchar(20)|NO|-
+Products|UnitPrice|decimal(18,2)|NO|-
+Products|TaxCategory|varchar(20)|NO|-
+Products|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+Products|CreatedBy|varchar(50)|YES|-
+Products|ModifiedAtUtc|datetime2|YES|-
+Roles|Name|varchar(20)|NO|-
+Roles|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+Roles|CreatedBy|varchar(50)|YES|-
+Roles|ModifiedAtUtc|datetime2|YES|-
+Shipments|TransactionLineId|uniqueidentifier|NO|-
+Shipments|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+Shipments|CreatedBy|varchar(50)|YES|-
+Shipments|ModifiedAtUtc|datetime2|YES|-
+Shipments|TransactionId|uniqueidentifier|NO|-
+Shipments|Type|varchar(20)|NO|-
+Shipments|Level|varchar(20)|NO|-
+Shipments|WeightGrams|int|NO|-
+Shipments|LengthCm|decimal(9,2)|NO|-
+Shipments|WidthCm|decimal(9,2)|NO|-
+Shipments|HeightCm|decimal(9,2)|NO|-
+Shipments|RecipientName|nvarchar(100)|NO|-
+Shipments|RecipientStreet|nvarchar(200)|NO|-
+Shipments|RecipientCity|nvarchar(100)|NO|-
+Shipments|RecipientPostalCode|nvarchar(12)|NO|-
+Shipments|RecipientCountry|nvarchar(100)|NO|-
+Shipments|ZoneCode|varchar(10)|NO|-
+Shipments|Price|decimal(18,2)|NO|-
+ShippingRates|ZoneCode|varchar(10)|NO|-
+ShippingRates|BaseRate|decimal(18,2)|NO|-
+ShippingRates|PerKgRate|decimal(18,2)|NO|-
+ShippingRates|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+ShippingRates|CreatedBy|varchar(50)|YES|-
+ShippingRates|ModifiedAtUtc|datetime2|YES|-
+ShippingZones|Code|varchar(10)|NO|-
+ShippingZones|Name|nvarchar(100)|NO|-
+ShippingZones|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+ShippingZones|CreatedBy|varchar(50)|YES|-
+ShippingZones|ModifiedAtUtc|datetime2|YES|-
+Staff|Id|uniqueidentifier|NO|-
+Staff|Name|nvarchar(100)|NO|-
+Staff|Email|varchar(254)|NO|-
+Staff|Role|varchar(20)|NO|-
+Staff|HomeBranch|varchar(5)|NO|-
+Staff|IsActive|bit|NO|(CONVERT([bit],(1)))
+Staff|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+Staff|CreatedBy|varchar(50)|YES|-
+Staff|ModifiedAtUtc|datetime2|YES|-
+Staff|PasswordHash|varchar(200)|YES|-
+Staff|Version|int|NO|((1))
+StockAdjustments|Id|uniqueidentifier|NO|-
+StockAdjustments|BranchCode|varchar(5)|NO|-
+StockAdjustments|Sku|varchar(8)|NO|-
+StockAdjustments|Change|int|NO|-
+StockAdjustments|NewQuantity|int|NO|-
+StockAdjustments|Reason|nvarchar(500)|NO|-
+StockAdjustments|StaffId|uniqueidentifier|NO|-
+StockAdjustments|AdjustedAt|datetime2|NO|-
+StockAdjustments|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+StockAdjustments|CreatedBy|varchar(50)|YES|-
+StockAdjustments|ModifiedAtUtc|datetime2|YES|-
+TransactionLines|Id|uniqueidentifier|NO|-
+TransactionLines|CreatedAtUtc|datetime2|NO|(sysutcdatetime())
+TransactionLines|CreatedBy|varchar(50)|YES|-
+TransactionLines|ModifiedAtUtc|datetime2|YES|-
+TransactionLines|TransactionId|uniqueidentifier|NO|-
+TransactionLines|Sku|varchar(8)|NO|-
+TransactionLines|Name|nvarchar(100)|NO|-
+TransactionLines|UnitPrice|decimal(18,2)|NO|-
+TransactionLines|Quantity|int|NO|-
+TransactionLines|TaxCategory|varchar(20)|NO|-
+-- Foreign keys
+Child|Parent|ForeignKey|OnDelete
+-----|------|----------|--------
+BranchStock|Branches|FK_BranchStock_Branches_BranchCode|NO_ACTION
+BranchStock|Products|FK_BranchStock_Products_Sku|NO_ACTION
+Counters|Branches|FK_Counters_Branches_BranchCode|NO_ACTION
+CounterTransactions|Branches|FK_CounterTransactions_Branches_BranchCode|NO_ACTION
+CounterTransactions|Counters|FK_CounterTransactions_Counters_CounterId|NO_ACTION
+CounterTransactions|Staff|FK_CounterTransactions_Staff_ClerkId|NO_ACTION
+CounterTransactions|Staff|FK_CounterTransactions_Staff_ReversalManagerId|NO_ACTION
+IdentityVerifications|CounterTransactions|FK_IdentityVerifications_CounterTransactions_TransactionId|NO_ACTION
+MoneyOrders|CounterTransactions|FK_MoneyOrders_CounterTransactions_TransactionId|CASCADE
+Payments|CounterTransactions|FK_Payments_CounterTransactions_TransactionId|CASCADE
+Products|ProductCategories|FK_Products_ProductCategories_Category|NO_ACTION
+Shipments|CounterTransactions|FK_Shipments_CounterTransactions_TransactionId|CASCADE
+Shipments|ShippingRates|FK_Shipments_ShippingRates_ZoneCode|NO_ACTION
+ShippingRates|ShippingZones|FK_ShippingRates_ShippingZones_ZoneCode|CASCADE
+Staff|Branches|FK_Staff_Branches_HomeBranch|NO_ACTION
+Staff|Roles|FK_Staff_Roles_Role|NO_ACTION
+StockAdjustments|Branches|FK_StockAdjustments_Branches_BranchCode|NO_ACTION
+StockAdjustments|Products|FK_StockAdjustments_Products_Sku|NO_ACTION
+StockAdjustments|Staff|FK_StockAdjustments_Staff_StaffId|NO_ACTION
+TransactionLines|CounterTransactions|FK_TransactionLines_CounterTransactions_TransactionId|CASCADE
+TransactionLines|Products|FK_TransactionLines_Products_Sku|NO_ACTION
+-- CHECK constraints
+TableName|ConstraintName|Definition
+---------|--------------|----------
+AuditEntries|CK_AuditEntries_DurationMs|([DurationMs]>=(0))
+AuditEntries|CK_AuditEntries_Role|([Role] IS NULL OR ([Role]='Administrator' OR [Role]='Auditor' OR [Role]='BranchManager' OR [Role]='CounterClerk'))
+AuditEntries|CK_AuditEntries_StatusCode|([StatusCode]>=(100) AND [StatusCode]<=(599))
+Branches|CK_Branches_Hours|([OpensAt]<[ClosesAt])
+BranchStock|CK_BranchStock_Quantity|([Quantity]>=(0))
+Counters|CK_Counters_Number|([Number]>(0))
+CounterTransactions|CK_CounterTransactions_Status|([Status]='Refunded' OR [Status]='Voided' OR [Status]='Paid' OR [Status]='Open')
+IdentityVerifications|CK_IdentityVerifications_DocumentType|([DocumentType]='DrivingLicence' OR [DocumentType]='NationalIdCard' OR [DocumentType]='Passport')
+IdentityVerifications|CK_IdentityVerifications_Last4|(len([DocumentLast4])=(4))
+IdentityVerifications|CK_IdentityVerifications_Result|([Result]='Pending' OR [Result]='Failed' OR [Result]='Passed')
+MoneyOrders|CK_MoneyOrders_Amount|([Amount]>(0) AND [Fee]>=(0))
+Payments|CK_Payments_Method|([Method]='Card' OR [Method]='Cash')
+Payments|CK_Payments_Tax|([Tax]>=(0))
+ProductCategories|CK_ProductCategories_Name|([Name]='OfficeSupplies' OR [Name]='Stationery' OR [Name]='Packaging')
+Products|CK_Products_TaxCategory|([TaxCategory]='Exempt' OR [TaxCategory]='Reduced' OR [TaxCategory]='Standard')
+Products|CK_Products_UnitPrice|([UnitPrice]>(0))
+Roles|CK_Roles_Name|([Name]='Administrator' OR [Name]='Auditor' OR [Name]='BranchManager' OR [Name]='CounterClerk')
+Shipments|CK_Shipments_Level|([Level]='Registered' OR [Level]='Express' OR [Level]='Standard')
+Shipments|CK_Shipments_Price|([Price]>(0))
+Shipments|CK_Shipments_Type|([Type]='Parcel' OR [Type]='Letter')
+Shipments|CK_Shipments_Weight|([WeightGrams]>(0) AND [WeightGrams]<=(30000))
+ShippingRates|CK_ShippingRates_Positive|([BaseRate]>(0) AND [PerKgRate]>(0))
+Staff|CK_Staff_Role|([Role]='Administrator' OR [Role]='Auditor' OR [Role]='BranchManager' OR [Role]='CounterClerk')
+StockAdjustments|CK_StockAdjustments_Change|([Change]<>(0))
+StockAdjustments|CK_StockAdjustments_NewQuantity|([NewQuantity]>=(0))
+TransactionLines|CK_TransactionLines_Quantity|([Quantity]>(0))
+TransactionLines|CK_TransactionLines_TaxCategory|([TaxCategory]='Exempt' OR [TaxCategory]='Reduced' OR [TaxCategory]='Standard')
+TransactionLines|CK_TransactionLines_UnitPrice|([UnitPrice]>(0))
+-- Indexes outside primary keys
+TableName|IndexName|IsUnique|KeyColumns|IncludedColumns
+---------|---------|--------|----------|---------------
+BranchStock|IX_BranchStock_Sku|0|Sku|-
+Counters|UX_Counters_Branch_Number|1|BranchCode, Number|-
+CounterTransactions|IX_CounterTransactions_BranchCode_OpenedAt|0|BranchCode, OpenedAt|Status
+CounterTransactions|IX_CounterTransactions_ClerkId|0|ClerkId|-
+CounterTransactions|IX_CounterTransactions_CounterId|0|CounterId|-
+CounterTransactions|IX_CounterTransactions_OpenedAt|0|OpenedAt|BranchCode, Status
+CounterTransactions|IX_CounterTransactions_ReversalManagerId|0|ReversalManagerId|-
+IdentityVerifications|IX_IdentityVerifications_TransactionId|0|TransactionId|-
+MoneyOrders|IX_MoneyOrders_TransactionId|0|TransactionId|-
+Payments|IX_Payments_PaidAt|0|PaidAt|Tax
+Products|IX_Products_Category|0|Category|-
+Shipments|IX_Shipments_TransactionId|0|TransactionId|-
+Shipments|IX_Shipments_ZoneCode|0|ZoneCode|-
+Staff|IX_Staff_HomeBranch|0|HomeBranch|-
+Staff|IX_Staff_Role|0|Role|-
+Staff|UX_Staff_Email|1|Email|-
+StockAdjustments|IX_StockAdjustments_BranchCode|0|BranchCode|-
+StockAdjustments|IX_StockAdjustments_Sku|0|Sku|-
+StockAdjustments|IX_StockAdjustments_StaffId|0|StaffId|-
+TransactionLines|IX_TransactionLines_Sku|0|Sku|-
+TransactionLines|IX_TransactionLines_TransactionId|0|TransactionId|-
+-- Stored procedures
+ProcedureName|Created
+-------------|-------
+usp_AdjustStock|2026-11-02 11:09:29.423
+usp_DailyBranchSales|2026-11-02 11:09:29.420
+usp_LowStockReport|2026-11-02 11:09:29.423
