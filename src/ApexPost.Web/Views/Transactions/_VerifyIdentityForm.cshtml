@@ -3,7 +3,9 @@
     var transaction = Model.Transaction;
 }
 <section class="card">
-    <h2>Identity verification</h2>
+    <div class="card-head">
+        <h2><partial name="_Icon" model='"id"' />Identity verification</h2>
+    </div>
     @if (Model.NeedsVerification)
     {
         <p class="alert alert-warn">This basket needs a passed identity verification before payment.</p>
@@ -24,6 +26,6 @@
                    id="DocumentNumber" name="DocumentNumber" minlength="6" maxlength="20" autocomplete="off" required />
             <span class="hint">Only the last 4 characters are stored.</span>
         </div>
-        <button type="submit" class="button">Verify identity</button>
+        <button type="submit" class="button button-secondary">Verify identity</button>
     </form>
 </section>

@@ -20,10 +20,10 @@
             }
         </select>
     </div>
-    <button type="submit" class="button button-outline">Filter</button>
+    <button type="submit" class="button button-secondary">Filter</button>
     @if (Model.CanTransact)
     {
-        <a class="button" asp-action="New">New transaction</a>
+        <a class="button toolbar-end" asp-action="New"><partial name="_Icon" model='"plus"' />New transaction</a>
     }
 </form>
 
@@ -50,12 +50,16 @@
                     @foreach (var row in result.Items)
                     {
                         <tr>
-                            <td>@row.OpenedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="nowrap">@row.OpenedAt.ToString("yyyy-MM-dd HH:mm")</td>
                             <td>@row.Branch</td>
                             <td><partial name="_StatusPill" model="row.Status.ToString()" /></td>
                             <td class="num">@row.LineCount</td>
-                            <td class="num"><partial name="_Money" model="row.Total" /></td>
-                            <td><a asp-action="Details" asp-route-id="@row.Id">Open</a></td>
+                            <td class="num cell-strong"><partial name="_Money" model="row.Total" /></td>
+                            <td class="num">
+                                <a class="row-link" asp-action="Details" asp-route-id="@row.Id">
+                                    Open<partial name="_Icon" model='"arrow"' />
+                                </a>
+                            </td>
                         </tr>
                     }
                 </tbody>

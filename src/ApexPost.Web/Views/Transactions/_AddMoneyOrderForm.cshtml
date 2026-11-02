@@ -1,10 +1,12 @@
 @model CounterPage
 <section class="card">
-    <h2>Add money order</h2>
-    <p class="help">
-        Amounts above @Model.VerificationThreshold.Amount.ToString("0.00") need a passed identity verification.
-    </p>
+    <div class="card-head">
+        <h2><partial name="_Icon" model='"banknote"' />Add money order</h2>
+    </div>
     <form asp-action="AddMoneyOrder" asp-route-id="@Model.Transaction.Id" method="post" class="form">
+        <p class="note">
+            Amounts above @Model.VerificationThreshold.Amount.ToString("0.00") need a passed identity verification.
+        </p>
         <div class="field">
             <label for="Amount">Amount</label>
             <input apex-form="AddMoneyOrder" id="Amount" name="Amount" type="number" min="0.01" step="0.01" required />
