@@ -23,7 +23,7 @@ internal sealed class BranchConfiguration : IEntityTypeConfiguration<Branch>
         builder.Property(branch => branch.ClosesAt).HasColumnType("time");
         builder.Property(branch => branch.IsActive).HasDefaultValue(true);
 
-        builder.HasMany(branch => branch.Counters).WithOne().HasForeignKey("BranchCode")
+        builder.HasMany(branch => branch.Counters).WithOne().HasForeignKey("BranchCode").IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
         builder.Navigation(branch => branch.Counters).HasField("_counters");
         builder.AddAuditColumns();
