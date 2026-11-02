@@ -32,6 +32,14 @@ internal sealed class CounterTransactionConfiguration : IEntityTypeConfiguration
             .HasSentinel(TransactionStatus.Open);
         builder.Property<byte[]>("RowVersion").IsRowVersion().IsRequired();
 
+        // Workloads W2a and W2c of PERFORMANCE.md. The first also replaces the foreign key index on BranchCode.
+        builder.HasIndex(transaction => new { transaction.Branch, transaction.OpenedAt })
+            .HasDatabaseName("IX_CounterTransactions_BranchCode_OpenedAt")
+            .IncludeProperties(transaction => transaction.Status);
+        builder.HasIndex(transaction => transaction.OpenedAt)
+            .HasDatabaseName("IX_CounterTransactions_OpenedAt")
+            .IncludeProperties(transaction => new { transaction.Branch, transaction.Status });
+
         builder.HasOne<Branch>().WithMany().HasForeignKey(transaction => transaction.Branch)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Counter>().WithMany().HasForeignKey(transaction => transaction.CounterId)
@@ -64,6 +72,10 @@ internal sealed class CounterTransactionConfiguration : IEntityTypeConfiguration
                 payment.Property(value => value.Tax).HasConversion<MoneyConverter>().HasColumnType(ColumnRules.Money);
                 payment.Property(value => value.PaidAt).HasConversion<UtcDateTimeConverter>()
                     .HasColumnType(ColumnRules.UtcTime);
+                // Every period report starts here: W1, W3, W4, W5 and W7 of PERFORMANCE.md.
+                payment.HasIndex(value => value.PaidAt)
+                    .HasDatabaseName("IX_Payments_PaidAt")
+                    .IncludeProperties(value => value.Tax);
                 payment.AddAuditColumns();
             });
 

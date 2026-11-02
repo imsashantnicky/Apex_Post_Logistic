@@ -431,11 +431,19 @@ namespace ApexPost.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Branch");
-
                     b.HasIndex("ClerkId");
 
                     b.HasIndex("CounterId");
+
+                    b.HasIndex("OpenedAt")
+                        .HasDatabaseName("IX_CounterTransactions_OpenedAt");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OpenedAt"), new[] { "Branch", "Status" });
+
+                    b.HasIndex("Branch", "OpenedAt")
+                        .HasDatabaseName("IX_CounterTransactions_BranchCode_OpenedAt");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("Branch", "OpenedAt"), new[] { "Status" });
 
                     b.ToTable("CounterTransactions", null, t =>
                         {
@@ -609,7 +617,7 @@ namespace ApexPost.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TransactionId");
+                    b.HasIndex(new[] { "TransactionId" }, "IX_IdentityVerifications_TransactionId");
 
                     b.ToTable("IdentityVerifications", null, t =>
                         {
@@ -775,11 +783,11 @@ namespace ApexPost.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Branch");
+                    b.HasIndex(new[] { "Branch" }, "IX_StockAdjustments_BranchCode");
 
-                    b.HasIndex("Sku");
+                    b.HasIndex(new[] { "Sku" }, "IX_StockAdjustments_Sku");
 
-                    b.HasIndex("StaffId");
+                    b.HasIndex(new[] { "StaffId" }, "IX_StockAdjustments_StaffId");
 
                     b.ToTable("StockAdjustments", null, t =>
                         {
@@ -1029,6 +1037,11 @@ namespace ApexPost.Infrastructure.Persistence.Migrations
                                 .HasColumnType("decimal(18,2)");
 
                             b1.HasKey("TransactionId");
+
+                            b1.HasIndex("PaidAt")
+                                .HasDatabaseName("IX_Payments_PaidAt");
+
+                            SqlServerIndexBuilderExtensions.IncludeProperties(b1.HasIndex("PaidAt"), new[] { "Tax" });
 
                             b1.ToTable("Payments", null, t =>
                                 {
