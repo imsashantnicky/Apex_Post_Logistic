@@ -69,6 +69,7 @@ Results at the end of the work (2026-11-02, Windows 11, .NET SDK 10.0.402, SQL S
 | `Address` owned by `Branch` | Deviation | The domain gives a branch no address; `Address` is owned by `Shipment`. See ADR-014 |
 | Role and ProductCategory as domain entities | Deviation | They are enums in the domain, stored as lookup tables through records. See ADR-014 |
 | Audit store commits separately and never throws | Done | ADR-016, `AuditPersistenceTests` |
+| Forms cannot set fields they do not offer | Done | [OverPostingTests.cs](../../tests/ApexPost.IntegrationTests/Sql/OverPostingTests.cs) reads the rows back. It found that a posted `Id` overrode the URL, now fixed with `[FromRoute]` on every POST |
 | No invented numbers | Done | Every figure links to saved output |
 
 ## What the verification found and fixed

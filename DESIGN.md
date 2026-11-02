@@ -758,6 +758,10 @@ that trusts only the known proxy.
 or any other non-browser client. Only `https://tracking.partner.example` is allowed, for GET only, but the real protection
 is the API key and the allowlist.
 
+**Over-posting:** forms bind only to narrow command types and each POST reads its `id` with `[FromRoute]`, so a posted field
+cannot set a status, redirect the action to another row or touch the audit columns, as
+[OverPostingTests.cs](tests/ApexPost.IntegrationTests/Sql/OverPostingTests.cs) proves against SQL Server.
+
 ### What is audited
 
 `AuditActionFilter` covers 23 events, listed in `src/ApexPost.Web/Filters/AuditEvents.cs`: sign-in and sign-out, each
