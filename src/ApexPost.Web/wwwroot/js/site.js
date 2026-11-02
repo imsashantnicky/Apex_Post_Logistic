@@ -22,7 +22,8 @@ document.addEventListener("submit", (event) => {
         event.preventDefault();
         return;
     }
-    if (form.method.toLowerCase() !== "post") {
+    // getAttribute, because a field named "method" (the payment form has one) shadows form.method.
+    if ((form.getAttribute("method") ?? "get").toLowerCase() !== "post") {
         return;
     }
     if (form.dataset.submitting) {

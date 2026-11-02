@@ -199,7 +199,8 @@ main:focus {
 .brand-text {
     display: flex;
     flex-direction: column;
-    line-height: 1.1;
+    gap: 0.15rem;
+    line-height: 1.15;
 }
 
 .brand-name {
@@ -306,7 +307,7 @@ main:focus {
     border-bottom: 1px solid var(--line);
 }
 
-.menu-toggle,
+.topbar .menu-toggle,
 .scrim {
     display: none;
 }
@@ -1247,8 +1248,9 @@ details .form {
 }
 
 .totals dt.total {
+    display: flex;
+    align-items: flex-end;
     font-size: 1rem;
-    align-self: end;
 }
 
 .pay-amounts {
@@ -1329,7 +1331,7 @@ details .form {
 .login-brand {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: center;
     gap: var(--s5);
     padding: var(--s6);
     background: var(--ink);
@@ -1543,7 +1545,7 @@ details .form {
         background: rgba(37, 37, 37, 0.45);
     }
 
-    .js .menu-toggle {
+    .js .topbar .menu-toggle {
         display: inline-flex;
     }
 
