@@ -19,6 +19,8 @@ The design and its reasoning are in [DESIGN.md](DESIGN.md). A sample of the audi
 | `src/ApexPost.Web` | MVC front end, middleware, filters and the composition root | Application, Infrastructure |
 | `tests/ApexPost.UnitTests` | Rules, services, infrastructure, layering scans and measurements | Domain, Application, Infrastructure |
 | `tests/ApexPost.IntegrationTests` | The real application through `WebApplicationFactory` | Web |
+| `sql` | Report queries, stored procedures, transaction and blocking examples, the database role and performance scripts | |
+| `docs/perf` | Evidence: raw measurements, `.sqlplan` files, query output | |
 | `.github/workflows/ci.yml` | Restore, Release build and tests on every push and pull request to `main` | |
 
 ## Run it
@@ -61,6 +63,10 @@ the seed and of a volume run are in [docs/perf/](docs/perf/).
 ```bash
 sqlcmd -S localhost -E -C -d ApexPostDb -b -i sql/perf/volume-seed.sql
 ```
+
+The reports, stored procedures and performance work are explained in [PERFORMANCE.md](PERFORMANCE.md). The procedures are
+deployed by the migrations. The role for the running application is in
+[sql/security/least-privilege-role.sql](sql/security/least-privilege-role.sql).
 
 To build and test:
 
@@ -192,9 +198,11 @@ to keep it that way.
   `Shipping`, `Transactions` and `Verification`.
 - `src/ApexPost.Application` has one folder per kind of code, such as `Services`, `Reports` and `Validation`.
 - `src/ApexPost.Infrastructure/Persistence` holds the EF Core model and migrations, and `Repositories` holds what the
-  application calls: `UnitOfWork`, the repositories, `Queries` for read screens and `Sql/SqlAuditStore`.
+  application calls: `UnitOfWork`, the repositories, `SqlStockAdjuster`, `Queries` for read screens and
+  `Sql/SqlAuditStore`.
   `Persistence/Json` is the Week 2 file storage, which the web host no longer uses.
 - `src/ApexPost.Web` holds `Controllers`, `Views`, `ViewModels`, `Middleware`, `Filters`, `Security` and `Health`.
+- `sql/reports` holds the report queries, and `sql/procedures` the stored procedures that a migration deploys.
 
 ## Screenshots
 
@@ -207,11 +215,11 @@ Release build on 2026-11-02: 0 warnings, 0 errors.
 
 | Project | Passed | Failed | Skipped |
 | --- | --- | --- | --- |
-| `ApexPost.UnitTests` (measurements excluded) | 497 | 0 | 0 |
-| `ApexPost.IntegrationTests` (on SQL Server) | 318 | 0 | 0 |
-| **Total** | **815** | **0** | **0** |
+| `ApexPost.UnitTests` (measurements excluded) | 500 | 0 | 0 |
+| `ApexPost.IntegrationTests` (on SQL Server) | 353 | 0 | 0 |
+| **Total** | **853** | **0** | **0** |
 
-The 7 measurement tests are excluded from these counts and from CI. Their numbers are in
+The 8 measurement tests are excluded from these counts and from CI. Their numbers are in
 [DESIGN.md](DESIGN.md#8-async-taskwhenall-semaphoreslim-valuetask-and-measured-numbers).
 
 ## Known limitations
@@ -234,3 +242,5 @@ The 7 measurement tests are excluded from these counts and from CI. Their number
 - Setting a new password does not end the member's open sessions; deactivating the account does.
 - The audit log is append-only through its interface, but anyone with write access to the database can edit the table.
 - `setup-secrets.bat` has not been run: the project was developed on macOS.
+- What was not verified in the SQL work, such as a real sign-in with the application login, is listed in
+  [PERFORMANCE.md](PERFORMANCE.md#not-verified).

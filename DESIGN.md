@@ -385,6 +385,96 @@ single application instance. Between servers the row versions of [ADR-015](#adr-
 **Consequences:** Logs show real failures only, and partners get an accurate status. Each external service has to apply
 the same pattern.
 
+### ADR-010: Schema and delete behaviour
+
+**Context:** Sales, reversals and adjustments are financial history and must outlive the staff, products and branches
+they refer to. The domain already enforces the rules, but a script or a bug can bypass it.
+
+**Options:** Rely on the domain alone; cascade deletes for tidy clean-up; soft deletes everywhere; restrict deletes on
+business keys and let the database enforce the basics as well.
+
+**Decision:** The 17 tables keep two kinds of foreign key
+([read from the database](docs/perf/schema-checks.txt)):
+
+| Delete behaviour | Foreign keys | Why |
+| --- | --- | --- |
+| `Restrict` (`NO ACTION` in SQL Server) | 16: every business reference, such as transaction to branch, staff or counter, line to product, stock to branch or product, and check to transaction | History is never removed by a side effect. Staff and branches are deactivated or closed instead |
+| `Cascade` | 5: `CounterTransactions` to `TransactionLines`, `Shipments`, `MoneyOrders` and `Payments`, and `ShippingZones` to `ShippingRates` | The child has no meaning without its parent: it belongs to the aggregate |
+
+`IdentityVerifications` stays on `Restrict` although it belongs to a transaction: a recorded identity check is evidence,
+so it must block a delete. The 28 `CHECK` constraints repeat the rules that protect data if the domain is bypassed:
+quantities at or above zero, allowed status and enum values, weights within limits, and exactly 4 stored document
+characters. `UNIQUE` covers `Staff.Email` and the counter number within a branch. Money is `decimal(18,2)`, times are
+`datetime2` in UTC, and enums are `varchar(20)` with a `CHECK`.
+
+**Consequences:** The behaviour was tried, not assumed. Deleting a branch, a sold product or a clerk with transactions
+fails with error 547. Deleting a transaction removes its 4 lines, 1 shipment and 1 payment and nothing else, and a
+transaction with an identity check refuses to go. The `CHECK` constraints refused negative stock, an unknown status and
+a 3-character document number. The evidence is in [docs/perf/schema-checks.txt](docs/perf/schema-checks.txt).
+
+The price is that nothing old can simply be deleted: a counter with transactions stays, and removing old data will need
+a planned archive. Each rule exists twice, in the domain and in a `CHECK`, so a change touches both; the column rules are
+generated from the same enums to limit that.
+
+### ADR-011: Index choices
+
+**Context:** The schema had only foreign key indexes, so every period report scanned `Payments`, and the list of a branch
+sorted all its rows to show 20. Each index also slows every sale, and an index chosen by guesswork often goes unused.
+
+**Options:** Follow the missing-index hints; cover every report; add indexes only for measured workloads.
+
+**Decision:** Seven candidates ran one at a time against the real workloads on 200k transactions. Three were kept, in the
+`AddWorkloadIndexes` migration:
+
+| Index | Workload | Reads before and after | Extra storage |
+| --- | --- | --- | --- |
+| `IX_Payments_PaidAt` | Every period report | W7 `Payments`: 2,218 to 9 | 7.65 MB |
+| `IX_CounterTransactions_BranchCode_OpenedAt` | List of a branch | W2a: 11,777 to 66, and no Sort | 2.81 MB net |
+| `IX_CounterTransactions_OpenedAt` | List of all branches | W2c: 5,356 to 66 | 8.90 MB |
+
+Covering indexes on `TransactionLines`, `Shipments` and `MoneyOrders` were rejected: they halved the reads of the daily
+sales procedure but made one case slower on the clock, for 17.34 MB and 11 % more log per sale. A filtered index on low
+stock was rejected because the plan did not use it: the table has 192 rows on 4 pages.
+
+**Consequences:** The kept set costs 19.36 MB and, measured three times per set, about 4 % more log and 12 % more CPU on
+writes, about 0.03 ms of CPU per sale. Two rare reports became slower in elapsed time because they went from parallel to
+serial plans, although they do far less work. Low stock and the product report still scan, and
+[PERFORMANCE.md](PERFORMANCE.md#scans-that-remain) says why. All the numbers and plans are there, and an index that
+loses its workload should be removed again.
+
+### ADR-012: Stored procedures versus LINQ
+
+**Context:** LINQ stays the default, because it is typed, tested and follows the model. A procedure is justified only by a
+specific gain, since it is logic in a second language that the compiler does not check.
+
+**Options:** LINQ for everything; procedures for all reads; procedures only where each one earns it.
+
+**Decision:** Three procedures, each for its own reason. The rest stays in LINQ, including shipping volume and the money
+order report, which have no such gain. EF Core calls them through `SqlQuery` and `ExecuteSqlAsync` with interpolated
+values, which become parameters; no SQL is ever concatenated. The scripts live in `sql/procedures` and are embedded, so
+the `AddStoredProcedures` migration deploys those same files.
+
+| Procedure | Why it beats LINQ for this purpose | Evidence |
+| --- | --- | --- |
+| `usp_DailyBranchSales` | It stores the period in a temporary table first. The second statement then works from real rows and statistics, which one LINQ query cannot express. It replaced three queries and adding up in memory with one round trip | W1a: 177,612 to 20,984 reads on the same indexes; 5 to 3 commands per request |
+| `usp_LowStockReport` | Two statements give each caller its own plan. A LINQ query with an optional filter would be one shape per call or a catch-all. The plan stays stable and is reused on every dashboard load | 773 µs per call, against 991 µs catch-all |
+| `usp_AdjustStock` | The new quantity is computed in one `UPDATE` under the row's lock, with the history row in the same transaction. No read-then-write window exists, so 12 parallel adjustments lost no update | `Parallel_adjustments_lose_no_update_and_each_keeps_its_own_history`; `A_failure_after_the_update_rolls_the_quantity_back` |
+
+For its optional branch, `usp_LowStockReport` does not use `OPTION (RECOMPILE)`. Recompiling gets the same 2 reads for one
+branch, but 5000 calls took 5,184 µs each, against 773 µs for two static statements, because every call compiles a plan.
+`OPTION (RECOMPILE)` went to report 3 instead, which is rare and whose period decides the plan.
+
+`usp_AdjustStock` commits by itself, so it sits behind its own port, `IStockAdjuster`, not `IStockRepository`, whose
+methods only stage. Role and ownership stay in `StockService`; the procedure protects the data. The domain's stock rule
+is repeated there, but the `CHECK` and the procedure agree with it.
+
+**Consequences:** Reports became faster and simpler, and the stock write has no race. The price is T-SQL that the
+compiler cannot see: `StoredProcedureTests` runs each procedure against a real server, including every error, and
+compares daily sales with an independent calculation. A column change must now be checked against these files. A
+procedure call also bypasses `AuditColumnsInterceptor`, so `usp_AdjustStock` sets its own audit columns. The execution
+strategy could retry a call whose commit succeeded but whose reply was lost; this rare case would adjust twice and is
+accepted, since the history row would show it.
+
 ### ADR-013: Repository and unit of work boundaries
 
 **Context:** A use case such as a sale changes several tables and must commit once. The dashboard runs queries in
@@ -407,6 +497,9 @@ would repeat the header and payment columns on every line.
 
 There is no `IMoneyOrderRepository`. A money order is a line of the aggregate and is stored with it, so such a port
 would have no caller.
+
+One write leaves this pattern on purpose: a stock adjustment runs `usp_AdjustStock` through `IStockAdjuster`, which commits
+by itself. See [ADR-012](#adr-012-stored-procedures-versus-linq).
 
 **Consequences:** One save is one database transaction, so a sale cannot half-happen. Requests that read and write open
 more than one connection, which the pool absorbs. The number of commands per request stays fixed, whatever the rows:
@@ -435,6 +528,9 @@ returns with a message and the audit entry records 409, and a JSON caller gets P
 different quantities of the same product on different servers can also conflict, although stock would suffice; they
 simply pay again.
 
+`usp_AdjustStock` needs none of these checks to be safe: its single `UPDATE` adds the change under the row lock, and the
+row version still changes, so a sale that read the row earlier gets the usual 409.
+
 `DuplicateKeyException` covers two administrators saving one email at once, past the friendly check in `StaffService`.
 `RecordInUseException` covers a delete refused by a `Restrict` foreign key. Both answer 409.
 
@@ -460,6 +556,22 @@ entry, which a shared transaction would lose. The price is a small window: if th
 dies between the two commits, the action has no row in `AuditEntries`. The error log covers the first case. An outbox
 would close the window; this design accepts it for now. The filter passes `CancellationToken.None`, so a client hanging
 up after the commit cannot cancel the entry.
+
+### ADR-017: Index attribute versus Fluent API
+
+**Context:** Indexes should be visible where the table is declared, but Domain must not reference EF Core, so a domain
+entity cannot carry an attribute.
+
+**Options:** All indexes in the Fluent API; all on classes; the place decided by the kind of class.
+
+**Decision:** A persistence record belongs to Infrastructure, so its indexes are `[Index(..., Name = "IX_...")]` attributes
+on the class: `IdentityVerificationRecord` and `StockAdjustmentRecord`. Directly mapped domain entities use `HasIndex` in
+their configuration: `IX_CounterTransactions_*` and `IX_Payments_PaidAt`, with `IncludeProperties` for the included columns.
+The attributes only name indexes EF Core already made for the foreign keys, so the migration adds nothing for them.
+
+**Consequences:** Domain stays free of EF Core, and a reader finds an index next to the type it belongs to. The
+[Index Catalogue](PERFORMANCE.md#index-catalogue) lists every index with its file, line and migration, because there are
+two places to look.
 
 ## 7. SOLID mapping
 
@@ -620,11 +732,12 @@ The application now runs on SQL Server and EF Core 10; Domain stayed free of bot
 - Ids are primary keys. `BranchStock` and `CounterTransactions` have a `RowVersion`, and `Branches` and `Staff` an integer
   `Version`, as concurrency tokens.
 - Lists and reports became SQL in `Repositories/Queries`: the database adds up the rows and only totals travel. A cast
-  through object reads a converted column, such as `Money`, as its stored decimal.
+  through object reads a converted column, such as `Money`, as its stored decimal. Daily sales and low stock are stored
+  procedures: see [ADR-012](#adr-012-stored-procedures-versus-linq).
 - Seed data is still plain C# objects, independent of storage.
 
-Pay, void, refund and stock adjustment each stage their changes in one service method and save once, so one database
-transaction covers stock, status, payment and adjustment records. Work that cannot go through one save, such as the
+Pay, void and refund each stage their changes in one service method and save once, so one database transaction covers
+stock, status and payment. A stock adjustment is one transaction inside `usp_AdjustStock`. Work that cannot go through one save, such as the
 set-based price revision with `ExecuteUpdateAsync`, runs in `IUnitOfWork.ExecuteInTransactionAsync`: the EF Core execution
 strategy replays the whole unit after a transient failure, and an explicit transaction joins the update with whatever
 was staged. The revision is one statement today, so nothing else is staged yet.
@@ -651,7 +764,9 @@ no longer registers it.
 - The courier, identity verification and notifications are simulations.
 - Password hashing runs on the request thread, so it costs CPU under heavy sign-in traffic.
 - The measurements are one run on one laptop, with the limits described in
-  [section 8](#8-async-taskwhenall-semaphoreslim-valuetask-and-measured-numbers).
+  [section 8](#8-async-taskwhenall-semaphoreslim-valuetask-and-measured-numbers). The SQL measurements are in
+  [PERFORMANCE.md](PERFORMANCE.md), with what was not verified.
+- Stored procedures are checked by tests, not by the compiler.
 
 ## Decisions index
 
@@ -665,3 +780,6 @@ no longer registers it.
 | 6 | async, `Task.WhenAll`, `SemaphoreSlim`, `ValueTask` and measurements | [Section 8](#8-async-taskwhenall-semaphoreslim-valuetask-and-measured-numbers), [ADR-8](#adr-8-bounded-concurrency-with-semaphoreslim) |
 | 7 | DI lifetimes | [Section 11](#11-di-lifetimes) |
 | 8 | What is audited, where, and how personal data is protected | [Section 10](#10-security-and-audit), [ADR-7](#adr-7-audit-with-an-action-filter-and-an-append-only-store) |
+| 9 | Schema and delete behaviour | [ADR-010](#adr-010-schema-and-delete-behaviour) |
+| 10 | Index choices, with plan evidence | [ADR-011](#adr-011-index-choices), [ADR-017](#adr-017-index-attribute-versus-fluent-api), [PERFORMANCE.md](PERFORMANCE.md) |
+| 11 | Stored procedures versus LINQ | [ADR-012](#adr-012-stored-procedures-versus-linq) |
