@@ -39,10 +39,13 @@ internal sealed partial class Counter(CounterBrowser browser, string path)
     public Task<HttpResponseMessage> AddRetailAsync(string sku, int quantity = 1) =>
         PostAsync("AddRetail", new() { ["Sku"] = sku, ["Quantity"] = Text(quantity) });
 
-    public Task<HttpResponseMessage> AddParcelAsync(decimal weightKg = 2m, string level = "Standard") =>
+    public Task<HttpResponseMessage> AddParcelAsync(
+        decimal weightKg = 2m,
+        string level = "Standard",
+        string type = "Parcel") =>
         PostAsync("AddShipping", new()
         {
-            ["Type"] = "Parcel",
+            ["Type"] = type,
             ["Level"] = level,
             ["WeightKg"] = Text(weightKg),
             ["LengthCm"] = "30",
@@ -73,6 +76,20 @@ internal sealed partial class Counter(CounterBrowser browser, string path)
     public Task<HttpResponseMessage> VoidAsync(string reason) => PostAsync("Void", new() { ["Reason"] = reason });
 
     public Task<HttpResponseMessage> RefundAsync(string reason) => PostAsync("Refund", new() { ["Reason"] = reason });
+
+    /// <summary>Pays another transaction with the token of this counter's page, as a stale tab would.</summary>
+    public Task<HttpResponseMessage> PayOtherAsync(Guid transactionId) =>
+        browser.PostAsync(path, $"{TransactionsPath}/Pay/{transactionId}", new Dictionary<string, string>
+        {
+            ["method"] = "Card",
+        });
+
+    /// <summary>Voids a transaction whose page this browser may not open, with the token of its own page.</summary>
+    public Task<HttpResponseMessage> VoidOtherAsync(string transactionId, string reason) =>
+        browser.PostAsync(path, $"{TransactionsPath}/Void/{transactionId}", new Dictionary<string, string>
+        {
+            ["Reason"] = reason,
+        });
 
     /// <summary>The link to the first label preview on the counter screen.</summary>
     public async Task<string> LabelLinkAsync()
