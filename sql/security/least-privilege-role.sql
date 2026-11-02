@@ -43,6 +43,7 @@ GRANT INSERT ON dbo.AuditEntries TO apexpost_app;
 GO
 -- Ownership chaining lets usp_AdjustStock insert stock and history rows without a grant on those operations.
 GRANT EXECUTE ON OBJECT::dbo.usp_DailyBranchSales TO apexpost_app;
+GRANT EXECUTE ON OBJECT::dbo.usp_DailyBranchSalesRange TO apexpost_app;
 GRANT EXECUTE ON OBJECT::dbo.usp_LowStockReport TO apexpost_app;
 GRANT EXECUTE ON OBJECT::dbo.usp_AdjustStock TO apexpost_app;
 GO

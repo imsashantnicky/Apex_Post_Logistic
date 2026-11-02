@@ -20,6 +20,7 @@ public sealed class StoredProcedureTests(ApexFactory factory) : IClassFixture<Ap
     private const string Reason = "Stock count.";
     private const int UnknownBranchInReport = 51003;
     private const int RangeReversed = 51002;
+    private const int DateMissing = 51004;
     private const int ThresholdInvalid = 51011;
     private const int AdjustmentInvalid = 51021;
     private const int ForeignKeyViolation = 547;
@@ -85,12 +86,71 @@ public sealed class StoredProcedureTests(ApexFactory factory) : IClassFixture<Ap
         await using var database = factory.OpenDatabase();
 
         var reversed = await Assert.ThrowsAsync<SqlException>(() => database.Database
-            .SqlQuery<DailySalesProcedureRow>($"EXEC dbo.usp_DailyBranchSales @From = {To}, @To = {From}")
+            .SqlQuery<DailySalesProcedureRow>($"EXEC dbo.usp_DailyBranchSalesRange @From = {To}, @To = {From}")
             .ToListAsync(Ct));
         var unknown = await Assert.ThrowsAsync<SqlException>(() => DailySalesAsync(database, "BR999"));
 
         Assert.Equal(RangeReversed, reversed.Number);
         Assert.Equal(UnknownBranchInReport, unknown.Number);
+    }
+
+    [Fact]
+    public async Task The_brief_signature_returns_the_range_row_of_that_branch_and_day()
+    {
+        await using var database = factory.OpenDatabase();
+        var expected = (await DailySalesAsync(database, Branch))[0];
+        var code = BranchParameter(Branch);
+
+        var day = await database.Database
+            .SqlQuery<DailySalesProcedureRow>(
+                $"EXEC dbo.usp_DailyBranchSales @BranchCode = {code}, @Date = {expected.SalesDay}")
+            .ToListAsync(Ct);
+
+        var row = Assert.Single(day);
+        Assert.Equivalent(expected, row);
+    }
+
+    [Fact]
+    public async Task The_brief_signature_needs_a_date_and_a_known_branch()
+    {
+        await using var database = factory.OpenDatabase();
+        var code = BranchParameter(Branch);
+        var unknownCode = BranchParameter("BR999");
+        var day = new DateOnly(2026, 11, 2);
+
+        var noDate = await Assert.ThrowsAsync<SqlException>(() => database.Database
+            .SqlQuery<DailySalesProcedureRow>($"EXEC dbo.usp_DailyBranchSales @BranchCode = {code}, @Date = NULL")
+            .ToListAsync(Ct));
+        var unknown = await Assert.ThrowsAsync<SqlException>(() => database.Database
+            .SqlQuery<DailySalesProcedureRow>(
+                $"EXEC dbo.usp_DailyBranchSales @BranchCode = {unknownCode}, @Date = {day}")
+            .ToListAsync(Ct));
+
+        Assert.Equal(DateMissing, noDate.Number);
+        Assert.Equal(UnknownBranchInReport, unknown.Number);
+    }
+
+    [Fact]
+    public async Task An_adjustment_by_the_brief_signature_takes_the_time_of_the_server()
+    {
+        const string sku = "STA-0007";
+        await factory.SetQuantityAsync(sku, 10);
+        var manager = await factory.StaffAsync(DemoAccounts.Manager);
+        await using var database = factory.OpenDatabase();
+        var before = DateTimeOffset.UtcNow.AddMinutes(-1);
+
+        await database.Database.ExecuteSqlAsync(
+            $"""
+            EXEC dbo.usp_AdjustStock @BranchCode = {Branch}, @Sku = {sku}, @Delta = {-3}, @Reason = {Reason},
+                @ChangedBy = {manager.Id}
+            """,
+            Ct);
+
+        var row = Assert.Single(await HistoryAsync(database, sku));
+        Assert.Equal(7, await factory.QuantityAsync(sku));
+        Assert.Equal(-3, row.Change);
+        Assert.Equal(manager.Id, row.StaffId);
+        Assert.InRange(row.AdjustedAt, before, DateTimeOffset.UtcNow.AddMinutes(1));
     }
 
     [Fact]
@@ -241,7 +301,7 @@ public sealed class StoredProcedureTests(ApexFactory factory) : IClassFixture<Ap
         var code = BranchParameter(branch);
         return database.Database
             .SqlQuery<DailySalesProcedureRow>(
-                $"EXEC dbo.usp_DailyBranchSales @From = {From}, @To = {To}, @BranchCode = {code}")
+                $"EXEC dbo.usp_DailyBranchSalesRange @From = {From}, @To = {To}, @BranchCode = {code}")
             .ToListAsync(Ct);
     }
 

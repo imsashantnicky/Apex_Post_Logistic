@@ -1,6 +1,8 @@
 namespace ApexPost.Infrastructure.Repositories.Queries;
 
-/// <summary>One row of dbo.usp_DailyBranchSales; the property names are its column names.</summary>
+/// <summary>
+/// One row of dbo.usp_DailyBranchSalesRange, and of usp_DailyBranchSales over it; the property names are its columns.
+/// </summary>
 public sealed class DailySalesProcedureRow
 {
     public DateOnly SalesDay { get; init; }
