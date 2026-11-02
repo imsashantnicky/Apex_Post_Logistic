@@ -19,7 +19,9 @@ public sealed class ValidationFilter : IAsyncActionFilter
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(next);
         var request = context.HttpContext.Request;
-        var isForm = HttpMethods.IsPost(request.Method) && request.HasFormContentType;
+        var isForm = HttpMethods.IsPost(request.Method)
+            && request.HasFormContentType
+            && !ProblemResponses.WantsJson(context.HttpContext);
         if (context.ModelState.IsValid || (isForm && context.Controller is not ApexController))
         {
             await next();
