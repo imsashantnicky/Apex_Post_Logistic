@@ -26,23 +26,23 @@ public sealed class BranchesController(BranchService branches) : ApexController
 
     [Audit(AuditEvents.BranchClosed)]
     [HttpPost]
-    public Task<IActionResult> Close(string id, int version, CancellationToken cancellationToken) =>
+    public Task<IActionResult> Close([FromRoute] string id, int version, CancellationToken cancellationToken) =>
         ChangeAsync(id, "Branch closed.", code => branches.CloseAsync(code, version, cancellationToken));
 
     [Audit(AuditEvents.BranchReopened)]
     [HttpPost]
-    public Task<IActionResult> Reopen(string id, int version, CancellationToken cancellationToken) =>
+    public Task<IActionResult> Reopen([FromRoute] string id, int version, CancellationToken cancellationToken) =>
         ChangeAsync(id, "Branch reopened.", code => branches.ReopenAsync(code, version, cancellationToken));
 
     [Audit(AuditEvents.CounterAdded)]
     [HttpPost]
-    public Task<IActionResult> AddCounter(string id, int version, CancellationToken cancellationToken) =>
+    public Task<IActionResult> AddCounter([FromRoute] string id, int version, CancellationToken cancellationToken) =>
         ChangeAsync(id, "Counter added.", code => branches.AddCounterAsync(code, version, cancellationToken));
 
     [Audit(AuditEvents.CounterRemoved)]
     [HttpPost]
     public Task<IActionResult> RemoveCounter(
-        string id,
+        [FromRoute] string id,
         Guid counterId,
         int version,
         CancellationToken cancellationToken) =>
