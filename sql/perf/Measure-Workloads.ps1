@@ -39,16 +39,16 @@ $efRange = @(
 $efBranch = @{ Name = '@branch'; Type = 'VarChar'; Value = 'BR001' }
 $efPage = @(@{ Name = '@p'; Type = 'Int'; Value = 0 }, @{ Name = '@p2'; Type = 'Int'; Value = 20 })
 
-$procedureSales = 'EXEC dbo.usp_DailyBranchSales @From = @From, @To = @To, @BranchCode = @BranchCode'
+$procedureSales = 'EXEC dbo.usp_DailyBranchSalesRange @From = @From, @To = @To, @BranchCode = @BranchCode'
 $procedureStock = 'EXEC dbo.usp_LowStockReport @Threshold = @Threshold, @BranchCode = @BranchCode'
 $threshold = @{ Name = '@Threshold'; Type = 'Int'; Value = 5 }
 
 $workloads = @(
-    @{ Id = 'W1a'; Title = 'usp_DailyBranchSales, all branches, 15 days (Auditor report)'; Text = $procedureSales
+    @{ Id = 'W1a'; Title = 'usp_DailyBranchSalesRange, all branches, 15 days (Auditor report)'; Text = $procedureSales
        Parameters = $dates + $allBranches }
-    @{ Id = 'W1b'; Title = 'usp_DailyBranchSales, one branch, 15 days (Manager report)'; Text = $procedureSales
+    @{ Id = 'W1b'; Title = 'usp_DailyBranchSalesRange, one branch, 15 days (Manager report)'; Text = $procedureSales
        Parameters = $dates + $oneBranch }
-    @{ Id = 'W1c'; Title = 'usp_DailyBranchSales, one branch, one day (dashboard)'; Text = $procedureSales
+    @{ Id = 'W1c'; Title = 'usp_DailyBranchSalesRange, one branch, one day (dashboard)'; Text = $procedureSales
        Parameters = @(@{ Name = '@From'; Type = 'Date'; Value = $to }, @{ Name = '@To'; Type = 'Date'; Value = $to }, $oneBranch) }
     @{ Id = 'W2a'; Title = 'GET /Transactions: page 1 of a branch (EF Core)'; File = 'sql\perf\workloads\transaction-page.sql'
        Parameters = @($efBranch) + $efPage }

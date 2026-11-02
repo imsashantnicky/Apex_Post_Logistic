@@ -48,8 +48,8 @@ public sealed class SqlStockAdjuster(ApexPostDbContext database) : IStockAdjuste
         {
             await database.Database.ExecuteSqlAsync(
                 $"""
-                EXEC dbo.usp_AdjustStock @BranchCode = {code}, @Sku = {product}, @Change = {change},
-                    @Reason = {text}, @StaffId = {staffId}, @AdjustedAt = {adjustedAt},
+                EXEC dbo.usp_AdjustStock @BranchCode = {code}, @Sku = {product}, @Delta = {change},
+                    @Reason = {text}, @ChangedBy = {staffId}, @AdjustedAt = {adjustedAt},
                     @NewQuantity = {newQuantity} OUTPUT
                 """,
                 cancellationToken).ConfigureAwait(false);

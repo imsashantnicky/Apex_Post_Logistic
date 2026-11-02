@@ -336,17 +336,17 @@ The rest of the 30 steps are in [docs/screenshots/](docs/screenshots/). The imag
 
 ## Test results
 
-Verified on 2026-11-02 after deleting all build output: Windows 11, .NET SDK 10.0.402, SQL Server 2025. The Release build
+Verified on 2026-11-02 after the evaluator fixes: Windows 11, .NET SDK 10.0.402, SQL Server 2025. The Release build
 has 0 warnings and 0 errors.
 
 | Project | Passed | Failed | Skipped |
 | --- | --- | --- | --- |
 | `ApexPost.UnitTests` (measurements excluded) | 534 | 0 | 0 |
-| `ApexPost.IntegrationTests` (on SQL Server) | 430 | 0 | 0 |
-| **Total** | **964** | **0** | **0** |
+| `ApexPost.IntegrationTests` (on SQL Server) | 440 | 0 | 0 |
+| **Total** | **974** | **0** | **0** |
 
-The 8 measurement tests are excluded from these counts and from CI; `dotnet test -c Release` runs them too and reports
-972 passed. Their numbers are in
+The 8 measurement tests are excluded from these counts and from CI. Run on their own on the same day, all 8 passed, so a
+plain `dotnet test -c Release` runs 982. Their numbers are in
 [DESIGN.md](DESIGN.md#8-async-taskwhenall-semaphoreslim-valuetask-and-measured-numbers).
 
 The same steps passed from a new clone: [docs/evidence/fresh-clone.txt](docs/evidence/fresh-clone.txt). The checks and

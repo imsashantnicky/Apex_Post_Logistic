@@ -9,7 +9,7 @@ listed under [Not verified](#not-verified). The decisions these measurements sup
 - Three indexes were kept out of seven candidates. They cost 19.36 MB and about 4 % more log per sale.
 - The largest gains came from indexes on `Payments.PaidAt` and `CounterTransactions (BranchCode, OpenedAt)`. The list of
   a branch fell from 11,633 logical reads to 88 and no longer sorts.
-- Rewriting `usp_DailyBranchSales` with a temporary table saved more than any covering index, so the covering indexes
+- Rewriting the daily sales procedure with a temporary table saved more than any covering index, so the covering indexes
   were rejected.
 - The worst estimate error came from parameter sniffing, not from statistics. It caused a tempdb spill, which
   `OPTION (RECOMPILE)` removed from that one rare report.
@@ -70,7 +70,7 @@ Each workload is a real path through the application, or one of the reports in [
 
 | ID | Workload | Why it matters |
 | --- | --- | --- |
-| W1a | `usp_DailyBranchSales`, all branches, 15 days | Auditor's daily sales report |
+| W1a | `usp_DailyBranchSalesRange`, all branches, 15 days | Auditor's daily sales report |
 | W1b | The same, one branch | Manager's daily sales report |
 | W1c | The same, one branch, one day | Every dashboard load |
 | W2a, W2b | `/Transactions`: first page and total of a branch | The screen a branch uses most |
@@ -82,6 +82,11 @@ Each workload is a real path through the application, or one of the reports in [
 | W7 | Branches with no sales on a day | Report 2 |
 | R1, R4, R5 | Reports 1, 4 and 5 | Written for this phase |
 | WR | 1000 sales inserted and rolled back | The write cost of each index set |
+
+W1 was measured as `usp_DailyBranchSales(@From, @To, @BranchCode)`. Migration `MatchBriefProcedureSignatures` later gave
+that name to the brief's signature: the measured body now runs unchanged as `usp_DailyBranchSalesRange`, and
+`usp_DailyBranchSales(@BranchCode, @Date)` is a thin wrapper over it. The same three days return the same rows before and
+after the change ([procedure-checks.txt](docs/perf/procedure-checks.txt)). The raw files and plans keep the old name.
 
 ## Before and after
 
@@ -119,6 +124,13 @@ What did not improve:
 The plans of W2a show the clearest change: [before](docs/perf/plans/0-baseline/W2a.sqlplan), a clustered index scan and a
 Sort over all rows of the branch; [after](docs/perf/plans/10-final/W2a.sqlplan), a seek on
 `IX_CounterTransactions_BranchCode_OpenedAt` that stops after 20 rows.
+
+[sql/perf/ssms/w2a-plan-before-after.sql](sql/perf/ssms/w2a-plan-before-after.sql) shows both plans in one SSMS run. It
+drops the two workload indexes on `CounterTransactions` inside a transaction, runs W2a, rolls back and runs W2a again.
+In its [run](docs/perf/w2a-before-after.txt) the reads were 16,897 before (9,395 on `Payments`, 7,502 on
+`CounterTransactions`) and 77 after. These counts differ from phase 0 (11,633 and 88), and the cause was not
+investigated: the script only rebuilds part of the phase 0 state, and phase 0 also lacked `IX_Payments_PaidAt`. The
+script is for the shape of the plan; the numbers in the table come from phase 0 and phase 10.
 
 ## Index candidates, step by step
 
@@ -254,14 +266,14 @@ A second, smaller mismatch has a different cause: in W5 the final aggregate esti
 optimizer treats region and product as independent, but 5 regions and 32 products make 160 groups at most. This changes
 nothing in the plan and needs no fix.
 
-The optimizer also used the **parameter sensitive plan** feature: the plans of `usp_DailyBranchSales` contain a
+The optimizer also used the **parameter sensitive plan** feature: the plans of the daily sales procedure contain a
 `Dispatcher` and a `QueryVariantID` at baseline, which is why W1a and W1b ran different plans from one procedure. W1c
 still reused a plan compiled for 15 days. The final procedure has no dispatcher: its join works from `#Paid`, whose real
 row count the optimizer can see.
 
 ## Query shape matters more than indexes here
 
-**`usp_DailyBranchSales`.** The first version referenced one CTE twice, so the join was done twice and the optimizer stopped
+**`usp_DailyBranchSalesRange`.** The first version referenced one CTE twice, so the join was done twice and the optimizer stopped
 with `StatementOptmEarlyAbortReason="TimeOut"`. The final version fills `#Paid` first and joins the amounts to it, so the
 second statement sees real rows and real statistics.
 
@@ -320,7 +332,7 @@ the transaction, even the deliberate `THROW`, so only `ROLLBACK` is allowed. The
 
 Session A updates a stock row and waits 8 seconds before rolling back. Session B reads that row, then updates it, and a
 third session watches. Scripts are in [sql/transactions/](sql/transactions/), output in
-[docs/perf/blocking/](docs/perf/blocking/). The sessions ran in **sqlcmd, not SSMS**, because SSMS is not installed; the
+[docs/perf/blocking/](docs/perf/blocking/). The sessions ran in **sqlcmd, not SSMS**, because SSMS was not installed then; the
 scripts work unchanged in two SSMS windows.
 
 | Database setting | Isolation reported by B | B's read | B's update | Wait seen by the monitor |
@@ -340,6 +352,64 @@ The setting stays off: changing it adds tempdb load, which was not measured, and
 problem yet. The application keeps its transactions short. This is the first thing to try if reports start to wait on
 sales.
 
+## Deadlock avoidance
+
+A deadlock needs two transactions that each hold a lock the other one wants. Four rules keep that cycle from forming,
+and each one is checked by a test or a saved run.
+
+**1. One fixed table order inside a sale: `CounterTransactions`, then `TransactionLines`, then `BranchStock`, then
+`Payments`.** The application writes a sale over several requests, each one its own commit.
+`WriteOrderTests` records the rows EF Core really sends:
+
+| Step | Rows written by the commit, in this order |
+| --- | --- |
+| Open the transaction | INSERT `CounterTransactions` |
+| Add an item (once per line) | UPDATE `CounterTransactions` (its version), INSERT `TransactionLines` |
+| Take payment | UPDATE `BranchStock`, one row per SKU, in key order; UPDATE `CounterTransactions` (status); INSERT `Payments` |
+| Void or refund | UPDATE `BranchStock`, in key order; UPDATE `CounterTransactions` |
+
+The header and the lines are new keys, which no other session can hold yet. Two sessions can only want the same stock
+rows and the same existing header, and every commit takes them in one order: the stock rows sorted by
+`(BranchCode, Sku)`, then the header. EF Core sorts the commands of one `SaveChanges` by table and key. The test adds
+`STA-0002` before `PKG-0003` and checks that both the payment and the void still update `PKG-0003` first, so an EF Core
+upgrade that changed this order would fail the build. The T-SQL sale in
+[sql/transactions/sale-transaction.sql](sql/transactions/sale-transaction.sql) writes the four tables in the same order
+([output](docs/perf/sale-transaction-output.txt)).
+
+**2. The stock row is updated by one statement, with no read before the write.** `usp_AdjustStock` runs
+`UPDATE ... SET @NewQuantity = Quantity = Quantity + @Delta WHERE ... AND Quantity + @Delta >= 0`. The check and the
+write happen under the same exclusive lock. No `SELECT` comes first, so there is no shared lock that has to become an
+exclusive one, and two sessions cannot deadlock on that conversion. The sale script changes stock the same way. The
+payment in the application reads the stock before its commit and outside any transaction. Under READ COMMITTED that read
+releases its shared lock at once, and the `UPDATE` then checks the row version instead ([ADR-015](DESIGN.md#adr-015-concurrency-strategy)).
+
+**3. Short transactions, with no user wait inside one.** Every request is its own commit. A transaction starts in
+`SaveChanges` or inside the procedure, and it ends before the response is sent. No transaction stays open while a clerk
+types or a manager decides. The longest one, the payment, is a single batch: one `UPDATE` per stock row, one for the
+header and one `INSERT`. On one server, `StockGate` also lets only one payment per branch run at a time.
+
+**4. Retry on error 1205 through `EnableRetryOnFailure`.** The option installs `SqlServerRetryingExecutionStrategy`,
+which counts error 1205 (deadlock victim) as transient. It replays the whole unit: a `SaveChanges`,
+`IUnitOfWork.ExecuteInTransactionAsync` or a procedure call, by default up to 6 times with a growing delay. A replayed
+payment keeps its row versions. If the other session changed the stock in the meantime, the replay ends in 409 instead
+of overwriting the change.
+
+| Claim | Evidence |
+| --- | --- |
+| The order in the table above | `WriteOrderTests`, 2 tests |
+| Rows taken in opposite order deadlock, and the application's strategy would retry the error | `DeadlockTests.Opposite_order_deadlocks_with_an_error_the_strategy_retries`: two real sessions; SQL Server picks a victim with error 1205 |
+| The same rows in one order only wait | `DeadlockTests.One_order_makes_the_second_session_wait_instead` |
+| The application runs on that strategy | `DeadlockTests.The_application_retries_transient_failures` |
+
+Output of the run: [docs/perf/deadlock-tests.txt](docs/perf/deadlock-tests.txt).
+
+The first version of `DeadlockTests` found a trap. Its `nvarchar` parameter, compared with the `varchar` `Sku` column,
+converted the column, so the `UPDATE` scanned the table and waited on the other session's row even for a different
+SKU. EF Core and the procedures pass `varchar`, which matches the column.
+
+Not verified: a deadlock under real traffic, and the strategy replaying a real payment after a real 1205. The tests show
+that the error occurs and that the strategy classifies it as retryable, not a full replay.
+
 ## Least-privilege database role
 
 [sql/security/least-privilege-role.sql](sql/security/least-privilege-role.sql) defines the role `apexpost_app`, and
@@ -356,7 +426,7 @@ Migrations run under a separate deployment login with `db_owner`.
 | `TransactionLines`, `Shipments`, `MoneyOrders`, `Payments`, `IdentityVerifications` | INSERT | Nothing edits or removes a line, payment or check |
 | `AuditEntries` | INSERT (SELECT above), DENY UPDATE, DELETE | Append-only |
 | `StockAdjustments` | SELECT, DENY INSERT, UPDATE, DELETE | Only `usp_AdjustStock` writes history |
-| The three procedures | EXECUTE | Ownership chaining lets `usp_AdjustStock` insert without a table grant |
+| The four procedures | EXECUTE | Ownership chaining lets `usp_AdjustStock` insert without a table grant |
 
 The login gets no `db_datareader`, `db_datawriter` or `db_owner`, no DDL, and no access to `__EFMigrationsHistory`,
 because the application never migrates. Development seeding needs more, so it runs under the owner.
@@ -419,9 +489,10 @@ Three of these came from a workload; `IX_CounterTransactions_BranchCode_OpenedAt
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | Reporting queries executed | Verified | [report-outputs.txt](docs/perf/report-outputs.txt) |
-| Procedures: valid calls and every `THROW` | Verified | [procedure-checks.txt](docs/perf/procedure-checks.txt) |
+| Procedures: valid calls and every `THROW`, in the brief's signatures | Verified | [procedure-checks.txt](docs/perf/procedure-checks.txt) |
 | Procedures called through parameters from EF Core | Verified | `StoredProcedureTests`, `SqlReportQueries`, `SqlStockAdjuster` |
-| Migration, also as an idempotent script run twice on a blank database | Verified | [idempotent-migration-check.txt](docs/evidence/idempotent-migration-check.txt): 6 migrations, 17 tables, 3 procedures |
+| Migration, also as an idempotent script run twice on a blank database | Verified | [idempotent-migration-check.txt](docs/evidence/idempotent-migration-check.txt): 7 migrations, 17 tables, 4 procedures |
+| Deadlock avoidance: write order, a real 1205, the retry strategy | Verified | `WriteOrderTests`, `DeadlockTests`, [deadlock-tests.txt](docs/perf/deadlock-tests.txt) |
 | Numbers in this file against the raw data | Verified | All 105 cells of the before and after table were compared with the two `summary.csv` files by script; 0 differ |
 | Same workloads measured again | Verified | [perf-recheck.txt](docs/evidence/perf-recheck.txt), see [Measured again](#measured-again) |
 | Sale transaction and rollback | Verified | [sale-transaction-output.txt](docs/perf/sale-transaction-output.txt) |
@@ -431,10 +502,12 @@ Three of these came from a workload; `IX_CounterTransactions_BranchCode_OpenedAt
 
 ### Not verified
 
-- **Two SSMS sessions.** SSMS is not installed on the test machine. Blocking was observed in two sqlcmd sessions with a
+- **Two SSMS sessions.** SSMS was not installed when blocking was measured. It was observed in two sqlcmd sessions with a
   third as monitor. The scripts and the isolation behaviour are the same, but SSMS itself was not used.
-- **Plan screenshots.** There are none, because SSMS is not installed. The plans are `.sqlplan` files that open in SSMS, with
-  the raw text output beside them.
+- **Plan screenshots.** None yet. SSMS is installed now, and
+  [w2a-plan-before-after.sql](sql/perf/ssms/w2a-plan-before-after.sql) shows both W2a plans in one run, but the
+  screenshots are still to be taken. Until then the plans are the `.sqlplan` files, which open in SSMS, with the raw text
+  output beside them.
 - **Signing in with the application login.** This server accepts Windows logins only (`IsIntegratedSecurityOnly = 1`), so
   `apexpost_app_login` could be created but not used to connect. The role was tested by impersonating a database user,
   which checks the same permissions.

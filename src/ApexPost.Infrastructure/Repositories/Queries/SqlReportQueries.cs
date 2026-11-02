@@ -44,7 +44,8 @@ public sealed class SqlReportQueries(IDbContextFactory<ApexPostDbContext> contex
                 var rows = await database.Database
                     .SqlQuery<DailySalesProcedureRow>(
                         $"""
-                        EXEC dbo.usp_DailyBranchSales @From = {filter.From}, @To = {filter.To}, @BranchCode = {branch}
+                        EXEC dbo.usp_DailyBranchSalesRange
+                            @From = {filter.From}, @To = {filter.To}, @BranchCode = {branch}
                         """)
                     .ToListAsync(cancellationToken)
                     .ConfigureAwait(false);

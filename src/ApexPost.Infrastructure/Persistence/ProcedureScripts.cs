@@ -9,6 +9,7 @@ namespace ApexPost.Infrastructure.Persistence;
 internal static class ProcedureScripts
 {
     public const string DailyBranchSales = "usp_DailyBranchSales";
+    public const string DailyBranchSalesRange = "usp_DailyBranchSalesRange";
     public const string LowStockReport = "usp_LowStockReport";
     public const string AdjustStock = "usp_AdjustStock";
 

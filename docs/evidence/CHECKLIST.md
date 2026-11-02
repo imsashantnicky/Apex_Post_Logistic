@@ -21,6 +21,18 @@ Results at the end of the work (2026-11-02, Windows 11, .NET SDK 10.0.402, SQL S
 | New clone, following the README | Passed, including the batch file, migrations, build, tests and a first start | [fresh-clone.txt](fresh-clone.txt) |
 | CI on GitHub: Ubuntu, SQL Server 2022 | All steps succeeded, tests in 69 seconds | [Run 41399500671](https://github.com/imsashantnicky/Apex_Post_Logistic/actions/runs/41399500671). Its log needs a GitHub sign-in, so the test counts of that run were not read |
 
+After the evaluator's remarks (same day, same machine): Release build 0 warnings, 0 errors; 974 passed, 0 failed,
+0 skipped without the measurement tests (534 unit, 440 integration), and the 8 measurement tests passed on their own.
+
+## Evaluator remarks
+
+| Remark | Status | Evidence |
+| --- | --- | --- |
+| Deadlock avoidance section: table order, single-statement stock update, short transactions, retry on 1205 | Done | [PERFORMANCE.md, Deadlock avoidance](../../PERFORMANCE.md#deadlock-avoidance). `WriteOrderTests` records the real write order; `DeadlockTests` produces a real 1205 and checks the retry strategy; [deadlock-tests.txt](../perf/deadlock-tests.txt) |
+| Week 4 scaffold on the Week 3 branch | Done | The merge of `week4-partA` (PR #19) was undone on the default branch, and the `week4-partA` branch was deleted. The tree equals commit `58bd25f`, the last Week 3 commit, plus the fixes below. Tag `week3-submission` marks the submitted commit |
+| Procedure signatures as in the brief | Done | `usp_DailyBranchSales @BranchCode, @Date` is a thin wrapper over the measured `usp_DailyBranchSalesRange`; `usp_AdjustStock` takes `@Delta` and `@ChangedBy`. Migration `MatchBriefProcedureSignatures`, `StoredProcedureTests`, [procedure-checks.txt](../perf/procedure-checks.txt), [ADR-012](../../DESIGN.md#adr-012-stored-procedures-versus-linq) |
+| Real SSMS screenshots: W2a plan before and after, two-window blocking | Open | SSMS is installed now, and [sql/perf/ssms/w2a-plan-before-after.sql](../../sql/perf/ssms/w2a-plan-before-after.sql) produces both W2a plans in one run ([reads](../perf/w2a-before-after.txt)). The screenshots themselves still have to be taken by hand |
+
 ## Requirements of Phase 5
 
 | # | Requirement | Status | Evidence |
@@ -32,7 +44,7 @@ Results at the end of the work (2026-11-02, Windows 11, .NET SDK 10.0.402, SQL S
 | 2 | Query translation | Done | `QueryTranslationTests` compares each query service with hand-written SQL; `GeneratedSqlTests` |
 | 2 | Atomic rollback | Done | `AtomicSaleTests` |
 | 2 | Stock concurrency conflicts | Done | `StockConcurrencyTests` (two servers on one database), [rowversion-conflict.txt](rowversion-conflict.txt) |
-| 2 | Stored procedure results | Done | `StoredProcedureTests`, [stored-procedures.txt](stored-procedures.txt) |
+| 2 | Stored procedure results | Done | `StoredProcedureTests`, [stored-procedures.txt](stored-procedures.txt) (first run, old signatures), [procedure-checks.txt](../perf/procedure-checks.txt) (brief signatures) |
 | 3 | MVC tests: sale persistence | Done | `SaleToReportTests.A_sale_leaves_every_row_it_should` |
 | 3 | MVC tests: Branch Manager authorization for voids | Done | `SaleToReportTests`, `ReversalTests`, `BusinessRulesOnSqlTests` |
 | 3 | MVC tests: report totals | Done | `The_daily_sales_report_grows_by_exactly_the_sale` checks the exact change against arithmetic done by the test |
@@ -91,6 +103,6 @@ Results at the end of the work (2026-11-02, Windows 11, .NET SDK 10.0.402, SQL S
 | --- | --- |
 | The official rubric | Not available. Items it adds, or weighs differently, are not covered here |
 | Performance on SQL Server 2022 | The tests pass there in CI, but the measurements come from SQL Server 2025 and were not repeated |
-| SSMS screenshots and two SSMS sessions | SSMS is not installed; `sqlcmd` was used |
+| SSMS screenshots and two SSMS sessions | SSMS is installed now and the scripts are ready, but the screenshots have not been taken yet; until then the evidence is the `sqlcmd` output |
 | Signing in as `apexpost_app_login` | The server accepts Windows logins only. The role was tested by impersonation |
 | Load, disk performance | No test ran many users at once, and all runs were served from memory |

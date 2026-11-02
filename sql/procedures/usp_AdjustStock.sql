@@ -5,26 +5,29 @@
     no read-then-write window exists. The first delivery to a branch creates the row. Role and branch ownership stay
     in StockService, which runs before this; this procedure protects the data. See ADR-012 in DESIGN.md.
 
+    @Delta is the signed change, @ChangedBy the staff member who made it. @AdjustedAt defaults to now; the application
+    passes its own clock so tests can fix the time.
+
     Errors: 51021 invalid input, 51022 unknown branch, 51023 unknown product, 51024 not enough stock.
 */
 CREATE OR ALTER PROCEDURE dbo.usp_AdjustStock
     @BranchCode varchar(5),
     @Sku varchar(8),
-    @Change int,
+    @Delta int,
     @Reason nvarchar(500),
-    @StaffId uniqueidentifier,
-    @AdjustedAt datetime2,
+    @ChangedBy uniqueidentifier,
+    @AdjustedAt datetime2 = NULL,
     @NewQuantity int = NULL OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF @BranchCode IS NULL OR @Sku IS NULL OR @StaffId IS NULL OR @AdjustedAt IS NULL
-        THROW 51021, 'usp_AdjustStock: branch, SKU, staff and time are required.', 1;
+    IF @BranchCode IS NULL OR @Sku IS NULL OR @ChangedBy IS NULL
+        THROW 51021, 'usp_AdjustStock: branch, SKU and @ChangedBy are required.', 1;
 
-    IF @Change IS NULL OR @Change = 0
-        THROW 51021, 'usp_AdjustStock: @Change must not be zero.', 1;
+    IF @Delta IS NULL OR @Delta = 0
+        THROW 51021, 'usp_AdjustStock: @Delta must not be zero.', 1;
 
     IF NULLIF(LTRIM(RTRIM(@Reason)), N'') IS NULL
         THROW 51021, 'usp_AdjustStock: a reason is required.', 1;
@@ -35,35 +38,36 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM dbo.Products WHERE Sku = @Sku)
         THROW 51023, 'usp_AdjustStock: the product does not exist.', 1;
 
-    DECLARE @CreatedBy varchar(50) = CAST(@StaffId AS varchar(36));
+    DECLARE @At datetime2 = COALESCE(@AdjustedAt, SYSUTCDATETIME());
+    DECLARE @CreatedBy varchar(50) = CAST(@ChangedBy AS varchar(36));
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
         UPDATE dbo.BranchStock
-        SET @NewQuantity = Quantity = Quantity + @Change,
-            ModifiedAtUtc = @AdjustedAt
+        SET @NewQuantity = Quantity = Quantity + @Delta,
+            ModifiedAtUtc = @At
         WHERE BranchCode = @BranchCode
           AND Sku = @Sku
-          AND Quantity + @Change >= 0;
+          AND Quantity + @Delta >= 0;
 
         IF @@ROWCOUNT = 0
         BEGIN
             -- The row is missing or too low. Only a first delivery may go on, and only by creating the row.
-            IF @Change < 0 OR EXISTS (SELECT 1 FROM dbo.BranchStock WHERE BranchCode = @BranchCode AND Sku = @Sku)
+            IF @Delta < 0 OR EXISTS (SELECT 1 FROM dbo.BranchStock WHERE BranchCode = @BranchCode AND Sku = @Sku)
                 THROW 51024, 'usp_AdjustStock: not enough stock.', 1;
 
             INSERT dbo.BranchStock (BranchCode, Sku, Quantity, CreatedAtUtc, CreatedBy)
-            VALUES (@BranchCode, @Sku, @Change, @AdjustedAt, @CreatedBy);
+            VALUES (@BranchCode, @Sku, @Delta, @At, @CreatedBy);
 
-            SET @NewQuantity = @Change;
+            SET @NewQuantity = @Delta;
         END;
 
         INSERT dbo.StockAdjustments
             (Id, BranchCode, Sku, Change, NewQuantity, Reason, StaffId, AdjustedAt, CreatedAtUtc, CreatedBy)
         VALUES
-            (NEWID(), @BranchCode, @Sku, @Change, @NewQuantity, LTRIM(RTRIM(@Reason)), @StaffId, @AdjustedAt,
-             @AdjustedAt, @CreatedBy);
+            (NEWID(), @BranchCode, @Sku, @Delta, @NewQuantity, LTRIM(RTRIM(@Reason)), @ChangedBy, @At, @At,
+             @CreatedBy);
 
         COMMIT TRANSACTION;
     END TRY

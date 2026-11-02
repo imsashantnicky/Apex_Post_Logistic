@@ -1,0 +1,12 @@
+-- sqlcmd output of sql/perf/ssms/w2a-plan-before-after.sql on ApexPostDb_Perf, 2026-11-02 13:09 UTC.
+-- The first CounterTransactions line is the CREATE INDEX of the before state, not the query.
+Table 'CounterTransactions'. Scan count 4, logical reads 30008, physical reads 0
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0
+-- Query 1: before, no workload index
+Table 'Payments'. Scan count 0, logical reads 9395, physical reads 5
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0
+Table 'CounterTransactions'. Scan count 5, logical reads 7502, physical reads 0
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0
+-- Query 2: after, IX_CounterTransactions_BranchCode_OpenedAt
+Table 'Payments'. Scan count 0, logical reads 68, physical reads 0
+Table 'CounterTransactions'. Scan count 1, logical reads 9, physical reads 2
