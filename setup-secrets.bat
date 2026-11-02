@@ -4,6 +4,8 @@ setlocal
 set "LOCAL_DATABASE=Server=localhost;Database=ApexPostDb;Integrated Security=True;Encrypt=True;TrustServerCertificate=True"
 set /p "DEMO_PASSWORD=Demo password: "
 set /p "API_KEY=Partner API key: "
+if not defined DEMO_PASSWORD goto :missing
+if not defined API_KEY goto :missing
 set "CONNECTION="
 set /p "CONNECTION=Connection string (Enter for ApexPostDb on this computer, signing in with Windows): "
 if not defined CONNECTION set "CONNECTION=%LOCAL_DATABASE%"
@@ -15,3 +17,8 @@ dotnet user-secrets set "ConnectionStrings:ApexPostDb" "%CONNECTION%" --project 
 if errorlevel 1 exit /b 1
 echo Secrets stored. Next: dotnet tool restore, then dotnet ef database update --project src\ApexPost.Infrastructure
 endlocal
+exit /b 0
+
+:missing
+echo The demo password and the API key cannot be empty. Nothing was stored.
+exit /b 1
