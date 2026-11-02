@@ -1,12 +1,12 @@
--- sqlcmd output of sql/transactions/sale-transaction.sql on ApexPostDb_Perf, 2026-11-02 04:39 UTC.
-Start: stock 25, example sales 0
+-- sqlcmd output of sql/transactions/sale-transaction.sql on ApexPostDb_Perf, 2026-11-02 12:56 UTC.
+Start: stock 24, example sales 1
 Call 1: a sale that succeeds
-After call 1: stock 24, example sales 1
-Call 2: not enough stock
+After call 1: stock 23, example sales 2
+Call 2: not enough stock, found after header and line were written
 CATCH: error 51031, XACT_STATE() = -1, @@TRANCOUNT = 1
 Caller received: 51031 Sale refused: not enough stock.
-After call 2: stock 24, example sales 1
-Call 3: the last INSERT breaks a CHECK constraint, after stock, header and line were written
+After call 2: stock 23, example sales 2
+Call 3: the last INSERT breaks a CHECK constraint, after header, line and stock were written
 CATCH: error 547, XACT_STATE() = -1, @@TRANCOUNT = 1
 Caller received: 547 The INSERT statement conflicted with the CHECK constraint "CK_Payments_Method". The conflict occurred in database "ApexPostDb_Perf", table "dbo.Payments", column 'Method'.
-After call 3: stock 24, example sales 1
+After call 3: stock 23, example sales 2

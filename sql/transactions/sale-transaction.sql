@@ -32,15 +32,11 @@ BEGIN
     DECLARE @Counter uniqueidentifier =
         (SELECT TOP (1) Id FROM dbo.Counters WHERE BranchCode = @BranchCode ORDER BY Number);
 
+    -- Fixed table order, the same in every sale: CounterTransactions, TransactionLines, BranchStock, Payments.
+    -- The header and lines are new keys nobody else can hold; the only shared row, the stock, is changed by one
+    -- UPDATE that checks and writes under the same lock, with no SELECT before it. (PERFORMANCE.md, Deadlock avoidance)
     BEGIN TRY
         BEGIN TRAN;
-
-        UPDATE dbo.BranchStock
-        SET Quantity = Quantity - @Quantity, ModifiedAtUtc = @Now
-        WHERE BranchCode = @BranchCode AND Sku = @Sku AND Quantity >= @Quantity;
-
-        IF @@ROWCOUNT = 0
-            THROW 51031, 'Sale refused: not enough stock.', 1;
 
         INSERT dbo.CounterTransactions (Id, BranchCode, CounterId, ClerkId, OpenedAt, Status, CreatedBy)
         VALUES (@Id, @BranchCode, @Counter, @Clerk, @Now, 'Paid', 'sale-example');
@@ -49,6 +45,13 @@ BEGIN
         SELECT NEWID(), @Id, Sku, Name, UnitPrice, @Quantity, TaxCategory, 'sale-example'
         FROM dbo.Products
         WHERE Sku = @Sku;
+
+        UPDATE dbo.BranchStock
+        SET Quantity = Quantity - @Quantity, ModifiedAtUtc = @Now
+        WHERE BranchCode = @BranchCode AND Sku = @Sku AND Quantity >= @Quantity;
+
+        IF @@ROWCOUNT = 0
+            THROW 51031, 'Sale refused: not enough stock.', 1;
 
         -- The CHECK on Method fails here for an unknown payment method, after the stock has already changed.
         INSERT dbo.Payments (TransactionId, Method, Tax, PaidAt, CreatedBy)
@@ -81,7 +84,7 @@ PRINT 'Call 1: a sale that succeeds';
 EXEC #Sale @BranchCode = 'BR001', @Sku = 'PKG-0001', @Quantity = 1, @Method = 'Card';
 EXEC #Show @Moment = 'After call 1';
 
-PRINT 'Call 2: not enough stock';
+PRINT 'Call 2: not enough stock, found after header and line were written';
 BEGIN TRY
     EXEC #Sale @BranchCode = 'BR001', @Sku = 'PKG-0001', @Quantity = 100000, @Method = 'Card';
 END TRY
@@ -90,7 +93,7 @@ BEGIN CATCH
 END CATCH;
 EXEC #Show @Moment = 'After call 2';
 
-PRINT 'Call 3: the last INSERT breaks a CHECK constraint, after stock, header and line were written';
+PRINT 'Call 3: the last INSERT breaks a CHECK constraint, after header, line and stock were written';
 BEGIN TRY
     EXEC #Sale @BranchCode = 'BR001', @Sku = 'PKG-0001', @Quantity = 1, @Method = 'Bitcoin';
 END TRY
