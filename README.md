@@ -30,7 +30,7 @@ The design and its reasoning are in [DESIGN.md](DESIGN.md). A sample of the audi
 | Tool | Version | Used for |
 | --- | --- | --- |
 | .NET SDK | 10.0.100 or later ([global.json](global.json)); verified on 10.0.402 | Build, test, run |
-| SQL Server | Verified on SQL Server 2025. CI uses a SQL Server 2022 image | `ApexPostDb` and the temporary test databases |
+| SQL Server | Verified on SQL Server 2025 here and SQL Server 2022 in CI | `ApexPostDb` and the temporary test databases |
 | `sqlcmd` | Any current version | Only for the SQL scripts |
 | `dotnet-ef` | 10.0.14, from [dotnet-tools.json](dotnet-tools.json) | Migrations; `dotnet tool restore` installs it |
 

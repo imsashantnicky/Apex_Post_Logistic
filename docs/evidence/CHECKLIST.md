@@ -19,6 +19,7 @@ Results at the end of the work (2026-11-02, Windows 11, .NET SDK 10.0.402, SQL S
 | `dotnet test -c Release` | 972 passed, 0 failed, 0 skipped (542 unit, 430 integration) | [build-and-test.txt](build-and-test.txt) |
 | The same without the 8 measurement tests | 964 passed | [fresh-clone.txt](fresh-clone.txt) |
 | New clone, following the README | Passed, including the batch file, migrations, build, tests and a first start | [fresh-clone.txt](fresh-clone.txt) |
+| CI on GitHub: Ubuntu, SQL Server 2022 | All steps succeeded, tests in 69 seconds | [Run 41399500671](https://github.com/imsashantnicky/Apex_Post_Logistic/actions/runs/41399500671). Its log needs a GitHub sign-in, so the test counts of that run were not read |
 
 ## Requirements of Phase 5
 
@@ -42,7 +43,7 @@ Results at the end of the work (2026-11-02, Windows 11, .NET SDK 10.0.402, SQL S
 | 5 | All database access asynchronous, with `CancellationToken` where supported | Done | `PortContractTests` reads the compiled code. A cancelled token is tested in `QueryTranslationTests`. `ApexFactory` migrates synchronously, because the host override it runs in is synchronous; that is test code |
 | 6 | At least seven new ADRs | Done | ADR-010 to ADR-017 in [DESIGN.md](../../DESIGN.md): eight |
 | 7 | README: prerequisites, database, secrets, migrations, build, test, run, demo accounts, screenshots, troubleshooting | Done | [README.md](../../README.md) |
-| 8 | DESIGN: architecture and dependency diagrams, ER diagram, normalization anomalies, ADRs, SOLID | Done | Sections 2, 6, 7 and 14 of [DESIGN.md](../../DESIGN.md). Diagram syntax: see Open items |
+| 8 | DESIGN: architecture and dependency diagrams, ER diagram, normalization anomalies, ADRs, SOLID | Done | Sections 2, 6, 7 and 14 of [DESIGN.md](../../DESIGN.md). The 6 diagrams were opened on GitHub: all rendered, no error text, and the ER diagram was inspected by eye |
 | 9 | PERFORMANCE: plans, measurements, index trade-offs, generated SQL | Done | [PERFORMANCE.md](../../PERFORMANCE.md). All 105 cells of its main table were compared with the raw files, and 3 workloads were measured again ([perf-recheck.txt](perf-recheck.txt)) |
 | 10 | Idempotent migration script; SQL scripts, migrations and seed data committed | Done | `sql/migrations/idempotent-migrations.sql`, run twice on a blank database ([idempotent-migration-check.txt](idempotent-migration-check.txt)); `MigrationScriptTests` |
 | 11 | Build and test evidence | Done | [build-and-test.txt](build-and-test.txt), images 31 and 32 |
@@ -81,14 +82,14 @@ Results at the end of the work (2026-11-02, Windows 11, .NET SDK 10.0.402, SQL S
 | `CommandCountTests` depended on the order of the tests, which only a new clone showed | The test clears the catalogue cache first |
 | The idempotent script fails under plain `sqlcmd` (Msg 1934) | `-I` is documented in the README |
 | The README claimed that no screenshots exist, and CI never ran on the branch in use | Both corrected |
+| The first CI run on that branch stalled in the tests for over 20 minutes. The likely cause is a missing repository secret, so that SQL Server never started; the log could not be read to confirm it | The container now gets a password made per run, with a health check and a 20-minute limit. The next run passed |
 
 ## Open items
 
 | Item | Why it is open |
 | --- | --- |
 | The official rubric | Not available. Items it adds, or weighs differently, are not covered here |
-| Mermaid diagrams checked by a parser | Not done: the parser would have had to be downloaded and run. The diagrams need a look on GitHub |
-| CI on SQL Server 2022 | `.github/workflows/ci.yml` needs the repository secret `MSSQL_SA_PASSWORD`, and it has only ever run on `main`, before Week 3. The tests have not run on SQL Server 2022 |
+| Performance on SQL Server 2022 | The tests pass there in CI, but the measurements come from SQL Server 2025 and were not repeated |
 | SSMS screenshots and two SSMS sessions | SSMS is not installed; `sqlcmd` was used |
 | Signing in as `apexpost_app_login` | The server accepts Windows logins only. The role was tested by impersonation |
 | Load, disk performance | No test ran many users at once, and all runs were served from memory |
