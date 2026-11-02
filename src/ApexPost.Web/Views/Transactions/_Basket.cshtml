@@ -3,7 +3,10 @@
     var transaction = Model.Transaction;
 }
 <section class="card">
-    <h2>Basket</h2>
+    <div class="card-head">
+        <h2><partial name="_Icon" model='"cart"' />Basket</h2>
+        <span class="tag">@transaction.Lines.Count @(transaction.Lines.Count == 1 ? "line" : "lines")</span>
+    </div>
     @if (transaction.Lines.Count == 0)
     {
         <partial name="_EmptyState" model="Model.EmptyBasketText" />
@@ -25,15 +28,17 @@
                     @foreach (var line in transaction.Lines)
                     {
                         <tr>
-                            <td>@line.Description</td>
+                            <td><span class="tag">@EnumText.Label(line.Kind)</span> @line.Description</td>
                             <td class="num">@line.Quantity</td>
                             <td class="num"><partial name="_Money" model="line.UnitPrice" /></td>
-                            <td class="num"><partial name="_Money" model="line.Total" /></td>
+                            <td class="num cell-strong"><partial name="_Money" model="line.Total" /></td>
                             <td>
                                 @if (line.Kind == LineKind.Shipping)
                                 {
-                                    <a asp-action="Label" asp-route-id="@transaction.Id"
-                                       asp-route-lineId="@line.Id">Label preview</a>
+                                    <a class="row-link" asp-action="Label" asp-route-id="@transaction.Id"
+                                       asp-route-lineId="@line.Id">
+                                        <partial name="_Icon" model='"printer"' />Label preview
+                                    </a>
                                 }
                             </td>
                         </tr>

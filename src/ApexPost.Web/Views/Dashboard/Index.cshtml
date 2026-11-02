@@ -16,25 +16,42 @@
     <partial name="_KpiCard" model='new KpiCard("Transactions today", dashboard.Transactions.ToString())' />
     <partial name="_KpiCard" model='new KpiCard("Retail", dashboard.Retail.Amount.ToString("0.00"), currency)' />
     <partial name="_KpiCard" model='new KpiCard("Services", dashboard.Services.Amount.ToString("0.00"), currency)' />
-    <partial name="_KpiCard" model='new KpiCard("Total", dashboard.Total.Amount.ToString("0.00"), currency)' />
+    <partial name="_KpiCard"
+             model='new KpiCard("Total", dashboard.Total.Amount.ToString("0.00"), currency, IsTotal: true)' />
 </section>
 
-<div class="actions">
+<nav class="shortcuts" aria-label="Shortcuts">
     @if (Model.CanTransact)
     {
-        <a class="button" asp-controller="Transactions" asp-action="New">New transaction</a>
+        <a class="shortcut shortcut-primary" asp-controller="Transactions" asp-action="New">
+            <partial name="_Icon" model='"plus"' />New transaction
+        </a>
     }
-    <a class="button button-outline" asp-controller="Transactions" asp-action="Index">Transactions</a>
-    <a class="button button-outline" asp-controller="Catalogue" asp-action="Index">Catalogue</a>
+    <a class="shortcut" asp-controller="Transactions" asp-action="Index">
+        <partial name="_Icon" model='"receipt"' />Transactions
+    </a>
+    <a class="shortcut" asp-controller="Catalogue" asp-action="Index">
+        <partial name="_Icon" model='"box"' />Catalogue
+    </a>
     @if (Model.CanViewReports)
     {
-        <a class="button button-outline" asp-controller="Reports" asp-action="Index">Reports</a>
+        <a class="shortcut" asp-controller="Reports" asp-action="Index">
+            <partial name="_Icon" model='"chart"' />Reports
+        </a>
     }
-</div>
+</nav>
 
 <div class="split">
     <section class="card">
-        <h2>Low stock</h2>
+        <div class="card-head">
+            <h2><partial name="_Icon" model='"box"' />Low stock</h2>
+            @if (dashboard.LowStock.Rows.Count > 0)
+            {
+                <span class="pill pill-low">
+                    @dashboard.LowStock.Rows.Count at or below @dashboard.LowStock.Threshold
+                </span>
+            }
+        </div>
         @if (dashboard.LowStock.Rows.Count == 0)
         {
             <partial name="_EmptyState" model='"No item is at or below the threshold."' />
@@ -57,9 +74,9 @@
                         {
                             <tr>
                                 @if (dashboard.Branch is null) { <td>@row.Branch</td> }
-                                <td class="nowrap">@row.Sku</td>
+                                <td class="code">@row.Sku</td>
                                 <td>@row.Product</td>
-                                <td class="num">@row.Quantity</td>
+                                <td class="num cell-strong">@row.Quantity</td>
                                 <td class="num">@dashboard.LowStock.Threshold</td>
                             </tr>
                         }
@@ -69,7 +86,9 @@
         }
     </section>
     <section class="card">
-        <h2>Alerts</h2>
+        <div class="card-head">
+            <h2><partial name="_Icon" model='"bell"' />Alerts</h2>
+        </div>
         @if (dashboard.Alerts.Count == 0)
         {
             <partial name="_EmptyState" model='"No alerts since the application started."' />
@@ -80,7 +99,7 @@
                 @foreach (var alert in dashboard.Alerts)
                 {
                     <li>
-                        <strong>@EnumText.Label(alert.Kind)</strong> @alert.Message
+                        <span><strong>@EnumText.Label(alert.Kind)</strong> @alert.Message</span>
                         <span class="muted">@alert.At.ToString("yyyy-MM-dd HH:mm")</span>
                     </li>
                 }

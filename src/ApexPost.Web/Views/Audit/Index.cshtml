@@ -5,8 +5,8 @@
 }
 <partial name="_PageHeader" model="header" />
 
-<div class="toolbar">
-    <a class="button button-outline" asp-action="Export">Export JSON</a>
+<div class="actions">
+    <a class="button button-secondary" asp-action="Export"><partial name="_Icon" model='"download"' />Export JSON</a>
 </div>
 
 <section class="card">
@@ -37,15 +37,15 @@
                     {
                         <tr>
                             <td class="nowrap">@row.At.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                            <td>@row.Event</td>
+                            <td class="cell-strong">@row.Event</td>
                             <td class="values">@row.StaffId</td>
                             <td>@row.Role</td>
                             <td>@row.Branch</td>
-                            <td>@row.Controller/@row.Action</td>
+                            <td class="nowrap">@row.Controller/@row.Action</td>
                             <td class="values">@row.Values</td>
                             <td class="num">@row.StatusCode</td>
                             <td class="num">@row.DurationMs</td>
-                            <td class="values">@row.CorrelationId</td>
+                            <td class="values code">@row.CorrelationId</td>
                         </tr>
                     }
                 </tbody>

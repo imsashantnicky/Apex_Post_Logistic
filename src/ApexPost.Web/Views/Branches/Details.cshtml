@@ -12,7 +12,10 @@
 
 <div class="split">
     <section class="card">
-        <h2>Counters</h2>
+        <div class="card-head">
+            <h2><partial name="_Icon" model='"receipt"' />Counters</h2>
+            <span class="tag">@Model.Counters.Count</span>
+        </div>
         <div class="table-wrap" tabindex="0" role="region" aria-label="Table">
             <table>
                 <thead>
@@ -25,7 +28,7 @@
                     @foreach (var counter in Model.Counters)
                     {
                         <tr>
-                            <td>Counter @counter.Number</td>
+                            <td class="cell-strong">Counter @counter.Number</td>
                             <td class="num">
                                 @if (Model.Counters.Count > 1)
                                 {
@@ -33,7 +36,7 @@
                                           class="inline-form" data-confirm="Remove counter @counter.Number?">
                                         <input type="hidden" name="counterId" value="@counter.Id" />
                                         <input type="hidden" name="version" value="@Model.Version" />
-                                        <button type="submit" class="button button-outline">
+                                        <button type="submit" class="button button-outline button-small">
                                             Remove<span class="sr-only"> counter @counter.Number</span>
                                         </button>
                                     </form>
@@ -46,13 +49,18 @@
         </div>
         <form asp-action="AddCounter" asp-route-id="@code" method="post" class="more">
             <input type="hidden" name="version" value="@Model.Version" />
-            <button type="submit" class="button">Add counter</button>
+            <button type="submit" class="button button-secondary">
+                <partial name="_Icon" model='"plus"' />Add counter
+            </button>
         </form>
     </section>
-    <section class="card">
-        <h2>Status</h2>
+    <section class="card card-accent">
+        <div class="card-head">
+            <h2><partial name="_Icon" model='"building"' />Status</h2>
+        </div>
         @if (Model.IsActive)
         {
+            <p class="help">Closing stops all counter work at this branch until it is reopened.</p>
             <form asp-action="Close" asp-route-id="@code" method="post" class="form"
                   data-confirm="Close @Model.Name? Its clerks can no longer work on any basket.">
                 <input type="hidden" name="version" value="@Model.Version" />
@@ -61,6 +69,7 @@
         }
         else
         {
+            <p class="help">The branch is closed. Reopening lets its clerks work again.</p>
             <form asp-action="Reopen" asp-route-id="@code" method="post" class="form">
                 <input type="hidden" name="version" value="@Model.Version" />
                 <button type="submit" class="button">Reopen branch</button>

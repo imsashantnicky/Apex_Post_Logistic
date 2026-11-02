@@ -9,7 +9,7 @@
 }
 <partial name="_PageHeader" model="header" />
 
-<form method="get" class="toolbar">
+<form method="get" class="toolbar" role="search">
     <partial name="_BranchFilter" model="Model.Filter" />
     <div class="field">
         <label for="search">Search</label>
@@ -27,7 +27,7 @@
             }
         </select>
     </div>
-    <button type="submit" class="button button-outline">Filter</button>
+    <button type="submit" class="button button-secondary">Filter</button>
 </form>
 
 <section class="card">
@@ -54,18 +54,29 @@
                     @foreach (var item in Model.Items)
                     {
                         <tr>
-                            <td>@item.Sku</td>
-                            <td>@item.Name</td>
-                            <td>@EnumText.Label(item.Category)</td>
+                            <td class="code">@item.Sku</td>
+                            <td class="cell-strong">@item.Name</td>
+                            <td><span class="tag">@EnumText.Label(item.Category)</span></td>
                             <td>@item.TaxCategory</td>
                             <td class="num"><partial name="_Money" model="item.UnitPrice" /></td>
                             <td class="num">
                                 @item.InStock
-                                @if (item.IsLow) { <span class="pill pill-low">Low</span> }
+                                @if (item.InStock == 0)
+                                {
+                                    <span class="pill pill-out">Out</span>
+                                }
+                                else if (item.IsLow)
+                                {
+                                    <span class="pill pill-low">Low</span>
+                                }
                             </td>
                             @if (Model.CanAdjust)
                             {
-                                <td><a asp-action="Adjust" asp-route-sku="@item.Sku.Value">Adjust</a></td>
+                                <td class="num">
+                                    <a class="row-link" asp-action="Adjust" asp-route-sku="@item.Sku.Value">
+                                        Adjust<span class="sr-only"> @item.Sku</span>
+                                    </a>
+                                </td>
                             }
                         </tr>
                     }
@@ -78,26 +89,30 @@
 @if (Model.CanRevisePrices)
 {
     <section class="card narrow">
-        <h2>Revise prices</h2>
+        <div class="card-head">
+            <h2><partial name="_Icon" model='"chart"' />Revise prices</h2>
+        </div>
         <p class="muted">
             Changes the list prices of one category or of all products. Baskets keep the prices they were built with.
         </p>
         <form asp-action="RevisePrices" method="post" class="form">
-            <div class="field">
-                <label for="RevisionCategory">Category</label>
-                <select id="RevisionCategory" name="category">
-                    <option value="">All categories</option>
-                    @foreach (var option in EnumText.Options<ProductCategory>())
-                    {
-                        <option value="@option.Value">@option.Text</option>
-                    }
-                </select>
-            </div>
-            <div class="field">
-                <label for="RevisionPercent">Percent (a cut is negative)</label>
-                <input id="RevisionPercent" name="percent" type="number" step="0.01"
-                       min="-@PriceRevisionCommand.MaximumPercent" max="@PriceRevisionCommand.MaximumPercent"
-                       required />
+            <div class="field-row">
+                <div class="field">
+                    <label for="RevisionCategory">Category</label>
+                    <select id="RevisionCategory" name="category">
+                        <option value="">All categories</option>
+                        @foreach (var option in EnumText.Options<ProductCategory>())
+                        {
+                            <option value="@option.Value">@option.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="RevisionPercent">Percent (a cut is negative)</label>
+                    <input id="RevisionPercent" name="percent" type="number" step="0.01"
+                           min="-@PriceRevisionCommand.MaximumPercent" max="@PriceRevisionCommand.MaximumPercent"
+                           required />
+                </div>
             </div>
             <div class="field">
                 <label for="RevisionReason">Reason</label>

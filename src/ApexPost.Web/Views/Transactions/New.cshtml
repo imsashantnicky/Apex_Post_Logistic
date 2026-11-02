@@ -8,7 +8,10 @@
 }
 <partial name="_PageHeader" model="header" />
 
-<section class="card narrow">
+<section class="card card-accent narrow">
+    <div class="card-head">
+        <h2><partial name="_Icon" model='"receipt"' />Open a basket</h2>
+    </div>
     @if (!Model.IsActive)
     {
         <p class="alert alert-bad">This branch is closed and cannot accept transactions.</p>
