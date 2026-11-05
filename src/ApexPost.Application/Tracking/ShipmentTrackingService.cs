@@ -128,6 +128,28 @@ public sealed class ShipmentTrackingService(
         }
     }
 
+    public async Task<ScanUploadResult> UploadShipmentScansAsync(
+        string trackingNumber,
+        IReadOnlyList<ScanUpload> scans,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(scans);
+        TrackingLimits.CheckUpload(scans.Count);
+        _ = await GetAsync(trackingNumber, cancellationToken).ConfigureAwait(false);
+        var foreign = scans
+            .Select((scan, index) => (scan.TrackingNumber, Index: index))
+            .Where(scan => !string.Equals(scan.TrackingNumber, trackingNumber, StringComparison.Ordinal))
+            .ToDictionary(
+                scan => $"scans[{scan.Index}].trackingNumber",
+                _ => new[] { $"Every scan must belong to shipment {trackingNumber}." });
+        if (foreign.Count > 0)
+        {
+            throw new ValidationFailedException(foreign);
+        }
+
+        return await UploadScansAsync(scans, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<ScanView>> GetScansAsync(
         string trackingNumber,
         CancellationToken cancellationToken) =>

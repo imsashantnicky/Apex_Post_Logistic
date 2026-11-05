@@ -51,6 +51,16 @@ public interface IShipmentTrackingService
     /// </summary>
     Task<ScanUploadResult> UploadScansAsync(IReadOnlyList<ScanUpload> scans, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Stores a batch of scans of one shipment, with the same duplicate handling as <see cref="UploadScansAsync"/>.
+    /// An unknown tracking number throws NotFoundException; a scan of another shipment throws
+    /// ValidationFailedException and nothing is stored.
+    /// </summary>
+    Task<ScanUploadResult> UploadShipmentScansAsync(
+        string trackingNumber,
+        IReadOnlyList<ScanUpload> scans,
+        CancellationToken cancellationToken);
+
     /// <summary>The scans of one shipment, oldest first.</summary>
     Task<IReadOnlyList<ScanView>> GetScansAsync(string trackingNumber, CancellationToken cancellationToken);
 }
