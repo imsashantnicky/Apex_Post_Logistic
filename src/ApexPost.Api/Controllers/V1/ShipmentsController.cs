@@ -2,22 +2,24 @@ using System.ComponentModel.DataAnnotations;
 using ApexPost.Api.Contracts.V1;
 using ApexPost.Application.Tracking;
 using ApexPost.Domain.Tracking;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ApexPost.Api.Controllers;
+namespace ApexPost.Api.Controllers.V1;
 
 /// <summary>
-/// Shipments: list, read, create, replace, change status and delete. Each action binds the input, calls
+/// Shipments in the deprecated v1 contract (Part B, unchanged): list, read, create, replace, change status and delete. Each action binds the input, calls
 /// <see cref="IShipmentTrackingService"/> and returns the result; errors are thrown by the service and written as
 /// ProblemDetails by the global exception handler.
 /// </summary>
 /// <remarks>
 /// The OpenAPI metadata of every action: the route name is the operationId, <c>[EndpointSummary]</c> and
 /// <c>[EndpointDescription]</c> fill summary and description, and one <c>[ProducesResponseType]</c> per status code
-/// the action can answer, errors as application/problem+json.
+/// the action can answer, errors as application/problem+json. Every action answers on /api/v1/shipments and on the
+/// unversioned /api/shipments alias; only the versioned route is named and documented.
 /// </remarks>
 [ApiController]
-[Route(ApiRoutes.Shipments)]
+[ApiVersion(ApiRoutes.Version1, Deprecated = true)]
 [Tags(ApiRoutes.ShipmentsTag)]
 [ProducesJson]
 public sealed class ShipmentsController(IShipmentTrackingService tracking) : ControllerBase
@@ -31,7 +33,8 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="200">One page of shipments, ordered by tracking number.</response>
     /// <response code="400">page or pageSize out of range, or an unknown status.</response>
     /// <response code="500">An unexpected server error.</response>
-    [HttpGet(Name = ApiRoutes.ListShipments)]
+    [HttpGet(ApiRoutes.VersionedShipments, Name = ApiRoutes.ListShipmentsV1)]
+    [HttpGet(ApiRoutes.Shipments)]
     [EndpointSummary("List shipments")]
     [EndpointDescription(
         "Returns one page of shipments, optionally only one status and one city. pageSize is 1 to 50 (default " +
@@ -56,7 +59,8 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="200">The shipment.</response>
     /// <response code="404">No shipment has this tracking number, or it is not APX- followed by 8 digits.</response>
     /// <response code="500">An unexpected server error.</response>
-    [HttpGet(ApiRoutes.TrackingNumber, Name = ApiRoutes.GetShipment)]
+    [HttpGet(ApiRoutes.VersionedShipment, Name = ApiRoutes.GetShipmentV1)]
+    [HttpGet(ApiRoutes.Shipment)]
     [EndpointSummary("Get a shipment")]
     [EndpointDescription(
         "Returns one shipment by tracking number. A value that is not APX- followed by 8 digits does not match " +
@@ -78,11 +82,12 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="409">A shipment with this tracking number already exists.</response>
     /// <response code="415">The body is not application/json.</response>
     /// <response code="500">An unexpected server error.</response>
-    [HttpPost(Name = ApiRoutes.CreateShipment)]
+    [HttpPost(ApiRoutes.VersionedShipments, Name = ApiRoutes.CreateShipmentV1)]
+    [HttpPost(ApiRoutes.Shipments)]
     [EndpointSummary("Create a shipment")]
     [EndpointDescription(
         "Registers a new shipment, which starts as Created. Answers 201 with the shipment and a Location header " +
-        "pointing to GET /api/shipments/{trackingNumber}.")]
+        "pointing to GET /api/v1/shipments/{trackingNumber} (on the /api/shipments alias when that was called).")]
     [Consumes(ApiRoutes.Json)]
     [ProducesResponseType<ShipmentResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ApiRoutes.ProblemJson)]
@@ -95,7 +100,14 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     {
         ArgumentNullException.ThrowIfNull(request);
         var shipment = await tracking.CreateAsync(request.TrackingNumber, request.ToCommand(), cancellationToken);
-        return CreatedAtAction(nameof(Get), new { trackingNumber = shipment.TrackingNumber }, shipment.ToResponse());
+
+        // The Location keeps the route the client called: /api/v1/... when versioned, else the Part B alias.
+        return RouteData.Values.TryGetValue(ApiRoutes.VersionRouteValue, out var version)
+            ? CreatedAtRoute(
+                ApiRoutes.GetShipmentV1,
+                new { version, trackingNumber = shipment.TrackingNumber },
+                shipment.ToResponse())
+            : CreatedAtAction(nameof(Get), new { trackingNumber = shipment.TrackingNumber }, shipment.ToResponse());
     }
 
     /// <summary>Replace a shipment</summary>
@@ -108,7 +120,8 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="409">The shipment is Delivered or Failed, or was changed by someone else.</response>
     /// <response code="415">The body is not application/json.</response>
     /// <response code="500">An unexpected server error.</response>
-    [HttpPut(ApiRoutes.TrackingNumber, Name = ApiRoutes.ReplaceShipment)]
+    [HttpPut(ApiRoutes.VersionedShipment, Name = ApiRoutes.ReplaceShipmentV1)]
+    [HttpPut(ApiRoutes.Shipment)]
     [EndpointSummary("Replace a shipment")]
     [EndpointDescription(
         "Replaces the recipient and weight of a shipment. The tracking number and status do not change; a " +
@@ -140,7 +153,8 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="409">The move is not forward, or the shipment was changed by someone else.</response>
     /// <response code="415">The body is not application/json.</response>
     /// <response code="500">An unexpected server error.</response>
-    [HttpPatch(ApiRoutes.TrackingNumber + "/status", Name = ApiRoutes.ChangeShipmentStatus)]
+    [HttpPatch(ApiRoutes.VersionedShipment + ApiRoutes.StatusSegment, Name = ApiRoutes.ChangeShipmentStatusV1)]
+    [HttpPatch(ApiRoutes.Shipment + ApiRoutes.StatusSegment)]
     [EndpointSummary("Change the status of a shipment")]
     [EndpointDescription(
         "Moves a shipment forward: Created → PickedUp → InTransit → OutForDelivery → Delivered | Failed. A move " +
@@ -172,7 +186,8 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="404">No shipment has this tracking number.</response>
     /// <response code="409">The shipment is no longer Created.</response>
     /// <response code="500">An unexpected server error.</response>
-    [HttpDelete(ApiRoutes.TrackingNumber, Name = ApiRoutes.DeleteShipment)]
+    [HttpDelete(ApiRoutes.VersionedShipment, Name = ApiRoutes.DeleteShipmentV1)]
+    [HttpDelete(ApiRoutes.Shipment)]
     [EndpointSummary("Delete a shipment")]
     [EndpointDescription(
         "Deletes a shipment that is still Created. Once a courier has picked it up the history must stay, so " +

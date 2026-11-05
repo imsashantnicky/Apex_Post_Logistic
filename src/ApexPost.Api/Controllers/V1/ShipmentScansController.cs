@@ -1,16 +1,17 @@
 using ApexPost.Api.Contracts.V1;
 using ApexPost.Application.Tracking;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using ScanUploadResult = ApexPost.Api.Contracts.V1.ScanUploadResult;
 
-namespace ApexPost.Api.Controllers;
+namespace ApexPost.Api.Controllers.V1;
 
 /// <summary>
-/// The scans of one shipment: an idempotent upload from the courier device and the scan history. Each action binds
+/// The scans of one shipment in the deprecated v1 contract, also on the /api/shipments alias: an idempotent upload from the courier device and the scan history. Each action binds
 /// the input, calls <see cref="IShipmentTrackingService"/> and returns the result.
 /// </summary>
 [ApiController]
-[Route(ApiRoutes.ShipmentScans)]
+[ApiVersion(ApiRoutes.Version1, Deprecated = true)]
 [Tags(ApiRoutes.ScansTag)]
 [ProducesJson]
 public sealed class ShipmentScansController(IShipmentTrackingService tracking) : ControllerBase
@@ -24,7 +25,8 @@ public sealed class ShipmentScansController(IShipmentTrackingService tracking) :
     /// <response code="404">No shipment has this tracking number.</response>
     /// <response code="415">The body is not application/json.</response>
     /// <response code="500">An unexpected server error.</response>
-    [HttpPost(Name = ApiRoutes.UploadScans)]
+    [HttpPost(ApiRoutes.VersionedShipmentScans, Name = ApiRoutes.UploadScansV1)]
+    [HttpPost(ApiRoutes.ShipmentScans)]
     [EndpointSummary("Upload scans of a shipment")]
     [EndpointDescription(
         "Stores a batch of 1 to 100 courier scans. The scanId (scan::{GUID}) is the idempotency key: a scan that " +
@@ -53,7 +55,8 @@ public sealed class ShipmentScansController(IShipmentTrackingService tracking) :
     /// <response code="200">The scans, oldest first; empty when none were uploaded yet.</response>
     /// <response code="404">No shipment has this tracking number.</response>
     /// <response code="500">An unexpected server error.</response>
-    [HttpGet(Name = ApiRoutes.GetScans)]
+    [HttpGet(ApiRoutes.VersionedShipmentScans, Name = ApiRoutes.GetScansV1)]
+    [HttpGet(ApiRoutes.ShipmentScans)]
     [EndpointSummary("Get the scans of a shipment")]
     [EndpointDescription("Returns the scan history of one shipment, oldest first by scannedAtUtc.")]
     [ProducesResponseType<IReadOnlyList<ScanResponse>>(StatusCodes.Status200OK)]
