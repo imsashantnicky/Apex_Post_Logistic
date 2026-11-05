@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Courier\ApexPost.Courier.Domain\ApexPost.Courier.Domain.csproj" />
+    <ProjectReference Include="..\..\..\src\Courier\ApexPost.Courier.Offline\ApexPost.Courier.Offline.csproj" />
   </ItemGroup>
 
   <ItemGroup>
