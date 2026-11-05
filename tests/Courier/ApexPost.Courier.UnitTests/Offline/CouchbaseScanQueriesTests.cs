@@ -87,6 +87,19 @@ public sealed class CouchbaseScanQueriesTests : IDisposable
     }
 
     [Fact]
+    public async Task GetFailed_returns_only_failed_scans_oldest_first()
+    {
+        var later = await AddAsync(minutes: 30, status: SyncStatus.Failed);
+        await AddAsync(minutes: 10);
+        await AddAsync(minutes: 20, status: SyncStatus.Synced);
+        var earlier = await AddAsync(minutes: 5, status: SyncStatus.Failed);
+
+        var failed = await _repository.GetFailedAsync(Ct);
+
+        Assert.Equal([earlier.Id, later.Id], failed.Select(s => s.Id));
+    }
+
+    [Fact]
     public async Task GetPending_restores_every_field_from_the_projection()
     {
         var scan = await AddAsync(type: ScanType.InTransit, courierId: "CR-102", minutes: 15);

@@ -185,6 +185,16 @@ public sealed class CouchbaseScanRepository : IScanRepository, IScanQueries
     }
 
     /// <inheritdoc />
+    /// <remarks>Uses the same indexed query as <see cref="GetPendingAsync"/> with <c>$syncStatus</c> = Failed.</remarks>
+    public Task<IReadOnlyList<ShipmentScan>> GetFailedAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var query = _database.CreateQuery(BySyncStatusQuery);
+        query.Parameters = new Parameters().SetString(SyncStatusParameter, nameof(SyncStatus.Failed));
+        return Task.FromResult<IReadOnlyList<ShipmentScan>>(ReadScans(query, ct));
+    }
+
+    /// <inheritdoc />
     /// <remarks>Scan types the courier never used are left out. Ordered by scan type name.</remarks>
     public Task<IReadOnlyList<ScanTypeCount>> CountByScanTypeAsync(string courierId, CancellationToken ct)
     {
