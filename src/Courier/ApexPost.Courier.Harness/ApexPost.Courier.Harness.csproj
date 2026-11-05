@@ -9,4 +9,8 @@
     <ProjectReference Include="..\ApexPost.Courier.Offline\ApexPost.Courier.Offline.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="ApexPost.Courier.UnitTests" />
+  </ItemGroup>
+
 </Project>
