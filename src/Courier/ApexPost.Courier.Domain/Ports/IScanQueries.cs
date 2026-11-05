@@ -11,6 +11,9 @@ public interface IScanQueries
     /// <summary>Returns the scans that still have to be uploaded.</summary>
     Task<IReadOnlyList<ShipmentScan>> GetPendingAsync(CancellationToken ct);
 
+    /// <summary>Returns the scans whose last upload attempt failed, so they can be retried.</summary>
+    Task<IReadOnlyList<ShipmentScan>> GetFailedAsync(CancellationToken ct);
+
     /// <summary>Returns how many scans of each type one courier has recorded.</summary>
     Task<IReadOnlyList<ScanTypeCount>> CountByScanTypeAsync(string courierId, CancellationToken ct);
 
