@@ -17,6 +17,16 @@ public sealed class ShipmentScanEndpointTests(ApiFactory factory) : IClassFixtur
 
     private static string ScansOf(string trackingNumber) => $"{Shipments}/{trackingNumber}/scans";
 
+    private static async Task<ScanUploadResult> UploadAsync(
+        HttpClient client,
+        string trackingNumber,
+        ScanUploadRequest request)
+    {
+        var response = await client.PostAsJsonAsync(ScansOf(trackingNumber), request, Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<ScanUploadResult>(Ct))!;
+    }
+
     [Fact]
     public async Task Upload_returns_200_with_counts_and_a_repeat_is_skipped_as_duplicates()
     {
@@ -55,22 +65,66 @@ public sealed class ShipmentScanEndpointTests(ApiFactory factory) : IClassFixtur
     }
 
     [Fact]
-    public async Task Upload_with_a_scan_of_another_shipment_returns_400_and_stores_nothing()
+    public async Task Upload_rejects_a_scan_of_another_shipment_and_stores_the_valid_one()
     {
         using var client = factory.CreateClient();
         var trackingNumber = await CreateShipmentAsync(client, Ct);
         var other = await CreateShipmentAsync(client, Ct);
+        var own = Scan(trackingNumber, ScanType.Pickup);
+        var foreign = Scan(other, ScanType.Pickup);
+        var request = new ScanUploadRequest { Scans = [own, foreign] };
+
+        var result = await UploadAsync(client, trackingNumber, request);
+
+        Assert.Equal((1, 0), (result.Accepted, result.DuplicatesSkipped));
+        Assert.Equal(foreign.ScanId, Assert.Single(result.Rejected).ScanId);
+        var stored = await client.GetFromJsonAsync<List<ScanResponse>>(ScansOf(trackingNumber), Ct);
+        Assert.Equal(own.ScanId, Assert.Single(stored!).ScanId);
+        Assert.Empty((await client.GetFromJsonAsync<List<ScanResponse>>(ScansOf(other), Ct))!);
+    }
+
+    [Fact]
+    public async Task Upload_of_a_mixed_batch_accepts_the_valid_scans_and_explains_each_rejection()
+    {
+        using var client = factory.CreateClient();
+        var trackingNumber = await CreateShipmentAsync(client, Ct);
+        var other = await CreateShipmentAsync(client, Ct);
+        var transit = Scan(trackingNumber, ScanType.InTransit, 50);
+        await UploadAsync(client, trackingNumber, new ScanUploadRequest { Scans = [transit] });
+        var backward = Scan(trackingNumber, ScanType.Pickup, 40);
+        var foreign = Scan(other, ScanType.Pickup, 30);
+        var delivered = Scan(trackingNumber, ScanType.Delivered, 20);
+        var request = new ScanUploadRequest { Scans = [transit, backward, foreign, delivered, delivered] };
+
+        var result = await UploadAsync(client, trackingNumber, request);
+
+        Assert.Equal((1, 2), (result.Accepted, result.DuplicatesSkipped));
+        Assert.Equal([backward.ScanId, foreign.ScanId], result.Rejected.Select(scan => scan.ScanId));
+        Assert.All(result.Rejected, scan => Assert.False(string.IsNullOrWhiteSpace(scan.Reason)));
+        var shipment = await client.GetFromJsonAsync<ShipmentResponse>($"{Shipments}/{trackingNumber}", Ct);
+        Assert.Equal(ShipmentStatus.Delivered, shipment!.Status);
+        var stored = await client.GetFromJsonAsync<List<ScanResponse>>(ScansOf(trackingNumber), Ct);
+        Assert.Equal([transit.ScanId, delivered.ScanId], stored!.Select(scan => scan.ScanId));
+    }
+
+    [Fact]
+    public async Task Parallel_uploads_of_the_same_batch_store_each_scan_once()
+    {
+        using var client = factory.CreateClient();
+        var trackingNumber = await CreateShipmentAsync(client, Ct);
         var request = new ScanUploadRequest
         {
-            Scans = [Scan(trackingNumber, ScanType.Pickup), Scan(other, ScanType.Pickup)],
+            Scans = [Scan(trackingNumber, ScanType.Pickup, 30), Scan(trackingNumber, ScanType.InTransit, 20)],
         };
 
-        var problem = await Problem.ReadAsync(
-            await client.PostAsJsonAsync(ScansOf(trackingNumber), request, Ct),
-            HttpStatusCode.BadRequest);
+        var results = await Task.WhenAll(
+            Enumerable.Range(0, 4).Select(_ => UploadAsync(client, trackingNumber, request)));
 
-        Assert.True(problem.Root.GetProperty("errors").TryGetProperty("scans[1].trackingNumber", out _));
-        Assert.Empty((await client.GetFromJsonAsync<List<ScanResponse>>(ScansOf(trackingNumber), Ct))!);
+        Assert.Equal(request.Scans.Count, results.Sum(result => result.Accepted));
+        Assert.All(results, result => Assert.Empty(result.Rejected));
+        Assert.All(results, result => Assert.Equal(request.Scans.Count, result.Accepted + result.DuplicatesSkipped));
+        var stored = await client.GetFromJsonAsync<List<ScanResponse>>(ScansOf(trackingNumber), Ct);
+        Assert.Equal(request.Scans.Count, stored!.Count);
     }
 
     [Fact]

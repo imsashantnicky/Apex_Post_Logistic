@@ -107,26 +107,10 @@ public sealed class ShipmentTrackingService(
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// A parallel upload of the same scans, or of scans of the same shipment, can commit first. The database then
-    /// refuses this commit (unique scan id or shipment version), and one fresh pass sees what the other one stored.
-    /// </summary>
-    public async Task<ScanUploadResult> UploadScansAsync(
+    public Task<ScanUploadResult> UploadScansAsync(
         IReadOnlyList<ScanUpload> scans,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(scans);
-        TrackingLimits.CheckUpload(scans.Count);
-        try
-        {
-            return await UploadOnceAsync(scans, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception exception) when (exception is DuplicateKeyException or ConcurrencyConflictException)
-        {
-            unitOfWork.DiscardChanges();
-            return await UploadOnceAsync(scans, cancellationToken).ConfigureAwait(false);
-        }
-    }
+        CancellationToken cancellationToken) =>
+        UploadAsync(scans, onlyShipment: null, cancellationToken);
 
     public async Task<ScanUploadResult> UploadShipmentScansAsync(
         string trackingNumber,
@@ -136,18 +120,7 @@ public sealed class ShipmentTrackingService(
         ArgumentNullException.ThrowIfNull(scans);
         TrackingLimits.CheckUpload(scans.Count);
         _ = await GetAsync(trackingNumber, cancellationToken).ConfigureAwait(false);
-        var foreign = scans
-            .Select((scan, index) => (scan.TrackingNumber, Index: index))
-            .Where(scan => !string.Equals(scan.TrackingNumber, trackingNumber, StringComparison.Ordinal))
-            .ToDictionary(
-                scan => $"scans[{scan.Index}].trackingNumber",
-                _ => new[] { $"Every scan must belong to shipment {trackingNumber}." });
-        if (foreign.Count > 0)
-        {
-            throw new ValidationFailedException(foreign);
-        }
-
-        return await UploadScansAsync(scans, cancellationToken).ConfigureAwait(false);
+        return await UploadAsync(scans, trackingNumber, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<ScanView>> GetScansAsync(
@@ -156,29 +129,50 @@ public sealed class ShipmentTrackingService(
         await queries.FindScansAsync(trackingNumber, cancellationToken).ConfigureAwait(false)
         ?? throw NotFound(trackingNumber);
 
-    // Oldest scan first, so a Pickup in the same batch is applied before the Delivered that follows it.
-    private async Task<ScanUploadResult> UploadOnceAsync(
+    /// <summary>
+    /// A parallel upload of the same scans, or of scans of the same shipment, can commit first. The database then
+    /// refuses this commit (unique scan id or shipment version), and one fresh pass counts what the other one stored
+    /// as duplicates.
+    /// </summary>
+    private async Task<ScanUploadResult> UploadAsync(
         IReadOnlyList<ScanUpload> scans,
+        string? onlyShipment,
         CancellationToken cancellationToken)
     {
-        var scanIds = scans.Select(scan => scan.ScanId).Distinct(StringComparer.Ordinal).ToList();
-        var stored = await shipments.FindStoredScanIdsAsync(scanIds, cancellationToken).ConfigureAwait(false);
-        var accepted = new HashSet<string>(StringComparer.Ordinal);
+        ArgumentNullException.ThrowIfNull(scans);
+        TrackingLimits.CheckUpload(scans.Count);
+        try
+        {
+            return await UploadOnceAsync(scans, onlyShipment, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is DuplicateKeyException or ConcurrencyConflictException)
+        {
+            unitOfWork.DiscardChanges();
+            return await UploadOnceAsync(scans, onlyShipment, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    // One query finds the scan ids already stored. A scan id repeated in the batch counts once: the first copy is
+    // handled and every later copy is a duplicate. Oldest scan first, so a Pickup in the same batch is applied
+    // before the Delivered that follows it.
+    private async Task<ScanUploadResult> UploadOnceAsync(
+        IReadOnlyList<ScanUpload> scans,
+        string? onlyShipment,
+        CancellationToken cancellationToken)
+    {
+        var unique = scans.DistinctBy(scan => scan.ScanId, StringComparer.Ordinal).ToList();
+        var stored = await shipments
+            .FindStoredScanIdsAsync(unique.ConvertAll(scan => scan.ScanId), cancellationToken)
+            .ConfigureAwait(false);
         var loaded = new Dictionary<string, TrackedShipment?>(StringComparer.Ordinal);
         var rejected = new List<RejectedScan>();
-        var duplicates = 0;
-        foreach (var scan in scans.OrderBy(scan => scan.ScannedAtUtc))
+        var accepted = 0;
+        foreach (var scan in unique.Where(scan => !stored.Contains(scan.ScanId)).OrderBy(scan => scan.ScannedAtUtc))
         {
-            if (stored.Contains(scan.ScanId) || accepted.Contains(scan.ScanId))
-            {
-                duplicates++;
-                continue;
-            }
-
-            var reason = await TryRecordAsync(scan, loaded, cancellationToken).ConfigureAwait(false);
+            var reason = await TryRecordAsync(scan, onlyShipment, loaded, cancellationToken).ConfigureAwait(false);
             if (reason is null)
             {
-                accepted.Add(scan.ScanId);
+                accepted++;
             }
             else
             {
@@ -186,25 +180,32 @@ public sealed class ShipmentTrackingService(
             }
         }
 
-        if (accepted.Count > 0)
+        if (accepted > 0)
         {
             await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return new ScanUploadResult(accepted.Count, duplicates, rejected);
+        return new ScanUploadResult(accepted, scans.Count - accepted - rejected.Count, rejected);
     }
 
     /// <summary>
-    /// Stages the scan, moves its shipment forward if it can, and returns the refusal reason or null.
+    /// Stages the scan and moves its shipment forward, or returns why the scan is refused. A scan may repeat the
+    /// current status (one InTransit scan per hub) but never ask for an earlier status or follow Delivered or Failed.
     /// </summary>
     private async Task<string?> TryRecordAsync(
         ScanUpload scan,
+        string? onlyShipment,
         Dictionary<string, TrackedShipment?> loaded,
         CancellationToken cancellationToken)
     {
         if (!TrackingFormats.IsTrackingNumber(scan.TrackingNumber))
         {
             return "Tracking number must be APX- followed by 8 digits.";
+        }
+
+        if (onlyShipment is not null && !string.Equals(scan.TrackingNumber, onlyShipment, StringComparison.Ordinal))
+        {
+            return $"The scan is for {scan.TrackingNumber}, not for shipment {onlyShipment}.";
         }
 
         if (!loaded.TryGetValue(scan.TrackingNumber, out var shipment))
@@ -218,6 +219,14 @@ public sealed class ShipmentTrackingService(
             return UnknownTrackingNumber;
         }
 
+        var target = ShipmentStatusRules.StatusFor(scan.ScanType);
+        var moves = ShipmentStatusRules.CanMove(shipment.Status, target);
+        if (!moves && (shipment.IsFinal || target != shipment.Status))
+        {
+            return $"A {scan.ScanType} scan cannot move shipment {shipment.TrackingNumber} "
+                + $"from {shipment.Status} to {target}.";
+        }
+
         try
         {
             shipments.AddScan(TrackingScan.Record(shipment, scan.Details, Now));
@@ -227,9 +236,7 @@ public sealed class ShipmentTrackingService(
             return exception.Message;
         }
 
-        // A scan that would move the shipment back, or keep it where it is, stays in the history only.
-        var target = ShipmentStatusRules.StatusFor(scan.ScanType);
-        if (ShipmentStatusRules.CanMove(shipment.Status, target))
+        if (moves)
         {
             shipment.MoveTo(target);
         }

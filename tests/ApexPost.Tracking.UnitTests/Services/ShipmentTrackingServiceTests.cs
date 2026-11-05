@@ -217,18 +217,69 @@ public sealed class ShipmentTrackingServiceTests
     }
 
     [Fact]
-    public async Task A_backward_scan_is_stored_as_history_but_does_not_move_the_status()
+    public async Task A_backward_scan_is_rejected_and_the_status_does_not_move()
     {
         var shipment = TestData.Shipment();
-        shipment.MoveTo(ShipmentStatus.Delivered);
+        shipment.MoveTo(ShipmentStatus.InTransit);
+        _store.Store(shipment);
+        var pickup = TestData.Scan(ScanType.Pickup);
+
+        var result = await _service.UploadScansAsync([pickup], Ct);
+
+        Assert.Equal((0, 0), (result.Accepted, result.DuplicatesSkipped));
+        var rejected = Assert.Single(result.Rejected);
+        Assert.Equal(pickup.ScanId, rejected.ScanId);
+        Assert.Contains("from InTransit to PickedUp", rejected.Reason, StringComparison.Ordinal);
+        Assert.Equal(ShipmentStatus.InTransit, shipment.Status);
+        Assert.Empty(_store.StoredScans);
+        Assert.Equal(0, _store.Saves);
+    }
+
+    [Theory]
+    [InlineData(ShipmentStatus.Delivered, ScanType.Delivered)]
+    [InlineData(ShipmentStatus.Delivered, ScanType.Failed)]
+    [InlineData(ShipmentStatus.Failed, ScanType.Delivered)]
+    [InlineData(ShipmentStatus.Failed, ScanType.InTransit)]
+    public async Task No_scan_is_accepted_after_Delivered_or_Failed(ShipmentStatus final, ScanType type)
+    {
+        var shipment = TestData.Shipment();
+        shipment.MoveTo(final);
+        _store.Store(shipment);
+
+        var result = await _service.UploadScansAsync([TestData.Scan(type)], Ct);
+
+        Assert.Equal(0, result.Accepted);
+        Assert.Single(result.Rejected);
+        Assert.Equal(final, shipment.Status);
+    }
+
+    [Fact]
+    public async Task A_second_InTransit_scan_is_stored_and_keeps_the_status()
+    {
+        var shipment = TestData.Shipment();
+        shipment.MoveTo(ShipmentStatus.InTransit);
         _store.Store(shipment);
 
         var result = await _service.UploadScansAsync([TestData.Scan(ScanType.InTransit)], Ct);
 
         Assert.Equal(1, result.Accepted);
         Assert.Empty(result.Rejected);
-        Assert.Equal(ShipmentStatus.Delivered, shipment.Status);
-        Assert.Single(await _service.GetScansAsync(TestData.TrackingNumber, Ct));
+        Assert.Equal(ShipmentStatus.InTransit, shipment.Status);
+        Assert.Single(_store.StoredScans);
+    }
+
+    [Fact]
+    public async Task A_scan_after_a_final_scan_in_the_same_batch_is_rejected()
+    {
+        _store.Store(TestData.Shipment());
+        var failed = TestData.Scan(ScanType.Failed, minutesAfterNow: 10);
+        var delivered = TestData.Scan(ScanType.Delivered, minutesAfterNow: 20);
+
+        var result = await _service.UploadScansAsync([delivered, failed], Ct);
+
+        Assert.Equal(1, result.Accepted);
+        Assert.Equal(delivered.ScanId, Assert.Single(result.Rejected).ScanId);
+        Assert.Equal(ShipmentStatus.Failed, _store.Stored(TestData.TrackingNumber)!.Status);
     }
 
     [Fact]
@@ -255,7 +306,18 @@ public sealed class ShipmentTrackingServiceTests
         var result = await _service.UploadScansAsync([scan, scan with { Location = "Elsewhere" }], Ct);
 
         Assert.Equal((1, 1), (result.Accepted, result.DuplicatesSkipped));
-        Assert.Single(_store.StoredScans);
+        Assert.Equal("Central Hub", Assert.Single(_store.StoredScans).Location);
+    }
+
+    [Fact]
+    public async Task A_rejected_scan_repeated_inside_one_batch_is_rejected_once()
+    {
+        var scan = TestData.Scan(ScanType.Pickup);
+
+        var result = await _service.UploadScansAsync([scan, scan, scan], Ct);
+
+        Assert.Equal((0, 2), (result.Accepted, result.DuplicatesSkipped));
+        Assert.Equal(scan.ScanId, Assert.Single(result.Rejected).ScanId);
     }
 
     [Fact]
