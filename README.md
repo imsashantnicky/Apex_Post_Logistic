@@ -352,6 +352,53 @@ plain `dotnet test -c Release` runs 982. Their numbers are in
 The same steps passed from a new clone: [docs/evidence/fresh-clone.txt](docs/evidence/fresh-clone.txt). The checks and
 what could not be verified are in the [checklist](docs/evidence/CHECKLIST.md).
 
+## Week 4 Part A – courier offline store
+
+A courier device saves shipment scans locally in Couchbase Lite (`apexpost_courier`) and uploads them later through
+an outbox. Part A uses a fake uploader; Part D replaces it with the real API. The design is in
+[OFFLINE-DESIGN.md](OFFLINE-DESIGN.md).
+
+| Project | Purpose |
+| --- | --- |
+| `src/Courier/ApexPost.Courier.Domain` | `ShipmentScan`, `ScanRules` (`APX-########`, `CR-###`), enums and ports; no NuGet packages |
+| `src/Courier/ApexPost.Courier.Offline` | `CourierDatabase`, key-value repository, parameterised SQL++ queries, outbox, change listener (`Couchbase.Lite` 3.4.2) |
+| `src/Courier/ApexPost.Courier.Harness` | Console menu that runs the offline workflow |
+| `tests/Courier/ApexPost.Courier.UnitTests`, `tests/ApexPost.Courier.Offline.Tests` | Unit and storage tests; each test opens its own temporary database folder |
+
+### Run the harness
+
+No SQL Server and no secrets are needed.
+
+```bash
+dotnet run --project src/Courier/ApexPost.Courier.Harness
+```
+
+The header shows the database name, its folder (`CouchbaseData/` under the build output) and the number of pending
+scans. Choose **10 Seed Fictional Demo Data** once, then try the menu:
+
+| Option | Action |
+| --- | --- |
+| 1 Add Scan | Saves a new scan as `Pending` |
+| 2 Find by Tracking Number | All scans of one shipment, oldest first (index `idx_scan_trackingNumber`) |
+| 3 List Pending | Scans waiting for upload (index `idx_scan_syncStatus`) |
+| 4 Simulate Sync | Runs the outbox; `APX-99999999` always fails and becomes `Failed` |
+| 5 Delete Scan | Deletes one scan by id |
+| 6 Exit | Removes the listener token and closes the database |
+| 7–11 | Scans per type for a courier, update notes, get by id, seed demo data, show query plans |
+
+Every change is also written by the change listener to the console and to `logs/listener.log` in the folder the harness
+was started from. `CouchbaseData/`, `*.cblite2/` and `logs/` are git-ignored.
+
+### Run the Part A tests
+
+```bash
+dotnet test tests/Courier/ApexPost.Courier.UnitTests -c Release
+dotnet test tests/ApexPost.Courier.Offline.Tests -c Release
+```
+
+Both projects are in `Apex_Post_Logistic.slnx`, so the solution-wide `dotnet test` and CI run them too. Screenshots of
+the harness are listed in [docs/screenshots/week4-partA/](docs/screenshots/week4-partA/README.md).
+
 ## Known limitations
 
 - The allowlists see the address of the direct connection. Behind a proxy that is the proxy, so all callers would
