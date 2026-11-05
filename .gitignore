@@ -16,7 +16,6 @@ src/ApexPost.Web/data/
 secrets.json
 
 # Local helpers, not part of the repository
-CLAUDE.md
 .claude/
 docs/lab/
 VIVA.md
@@ -34,3 +33,7 @@ VIVA.md
 *.key
 .env
 .env.*
+
+# Week 4 courier: local Couchbase Lite databases
+**/CouchbaseData/
+*.cblite2/
