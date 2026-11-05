@@ -1,0 +1,367 @@
+# ApexPost shipment tracking API (v1) - a success and a failure request for every endpoint.
+# Start the API first: dotnet run --project src/ApexPost.Api --launch-profile https
+# Development seeds APX-20000001 ... APX-20000010 (see API-NOTES.md for their statuses).
+# Run the requests top to bottom: later requests reuse the shipment created by "createShipment".
+# All data is fictional.
+
+@baseUrl = https://localhost:7310
+@json = application/json
+
+# Seeded shipments
+@createdShipment = APX-20000001
+@pickedUpShipment = APX-20000003
+@deliveredShipment = APX-20000008
+@unknownShipment = APX-29999999
+
+# A fixed scan id: the first run stores it, every later run reports it as a duplicate.
+@repeatedScanId = scan::0f8fad5b-d9cb-469f-a165-70867728950e
+
+###############################################################################
+# GET /api/shipments - list
+###############################################################################
+
+### 200 - first page, default page size 20
+GET {{baseUrl}}/api/shipments
+Accept: {{json}}
+
+### 200 - page 1 of 5, only InTransit shipments in Riverton
+GET {{baseUrl}}/api/shipments?page=1&pageSize=5&status=InTransit&city=riverton
+Accept: {{json}}
+
+### 400 - pageSize above the maximum of 50 (ValidationProblemDetails)
+GET {{baseUrl}}/api/shipments?pageSize=51
+Accept: {{json}}
+
+### 400 - unknown status value
+GET {{baseUrl}}/api/shipments?status=Lost
+Accept: {{json}}
+
+###############################################################################
+# POST /api/shipments - create
+###############################################################################
+
+### 201 - created; the Location header points at GET /api/shipments/{trackingNumber}
+# A random tracking number, so this request can run again.
+# @name createShipment
+POST {{baseUrl}}/api/shipments
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "trackingNumber": "APX-3{{$randomInt 1000000 9999999}}",
+  "recipientName": "Kim Example",
+  "recipientPhone": "+44 20 7946 0199",
+  "recipientAddress": "5 Example Street",
+  "recipientCity": "Harbour Point",
+  "weightKg": 2.5
+}
+
+### 400 - invalid tracking number, phone and weight (errors per field)
+POST {{baseUrl}}/api/shipments
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "trackingNumber": "APX-123",
+  "recipientName": "",
+  "recipientPhone": "call me",
+  "recipientAddress": "5 Example Street",
+  "recipientCity": "Harbour Point",
+  "weightKg": 31
+}
+
+### 409 - the tracking number already exists
+POST {{baseUrl}}/api/shipments
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "trackingNumber": "{{createdShipment}}",
+  "recipientName": "Kim Example",
+  "recipientPhone": "+44 20 7946 0199",
+  "recipientAddress": "5 Example Street",
+  "recipientCity": "Harbour Point",
+  "weightKg": 2.5
+}
+
+### 415 - the body is not application/json
+POST {{baseUrl}}/api/shipments
+Content-Type: text/plain
+Accept: {{json}}
+
+trackingNumber=APX-30000001
+
+###############################################################################
+# GET /api/shipments/{trackingNumber} - read one
+###############################################################################
+
+### 200 - the shipment just created
+GET {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}
+Accept: {{json}}
+
+### 404 - unknown tracking number
+GET {{baseUrl}}/api/shipments/{{unknownShipment}}
+Accept: {{json}}
+
+### 404 - not APX- + 8 digits, so the route constraint does not match
+GET {{baseUrl}}/api/shipments/ABC-1
+Accept: {{json}}
+
+###############################################################################
+# PUT /api/shipments/{trackingNumber} - replace recipient and weight
+###############################################################################
+
+### 200 - replaced
+PUT {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "recipientName": "Kim Example",
+  "recipientPhone": "+44 20 7946 0199",
+  "recipientAddress": "7 Example Street",
+  "recipientCity": "Northgate",
+  "weightKg": 3
+}
+
+### 400 - weight below 0.1 kg and name missing
+PUT {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "recipientPhone": "+44 20 7946 0199",
+  "recipientAddress": "7 Example Street",
+  "recipientCity": "Northgate",
+  "weightKg": 0
+}
+
+### 404 - unknown tracking number
+PUT {{baseUrl}}/api/shipments/{{unknownShipment}}
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "recipientName": "Kim Example",
+  "recipientPhone": "+44 20 7946 0199",
+  "recipientAddress": "7 Example Street",
+  "recipientCity": "Northgate",
+  "weightKg": 3
+}
+
+### 409 - a Delivered shipment can no longer change
+PUT {{baseUrl}}/api/shipments/{{deliveredShipment}}
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "recipientName": "Hal Specimen",
+  "recipientPhone": "+44 20 7946 0108",
+  "recipientAddress": "6 Hill Crescent",
+  "recipientCity": "Hillcrest",
+  "weightKg": 25
+}
+
+### 415 - wrong content type
+PUT {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}
+Content-Type: application/xml
+Accept: {{json}}
+
+<shipment />
+
+###############################################################################
+# PATCH /api/shipments/{trackingNumber}/status - move forward
+# v1 sends the status as a number: 1 Created, 2 PickedUp, 3 InTransit, 4 OutForDelivery, 5 Delivered, 6 Failed.
+###############################################################################
+
+### 400 - status missing
+PATCH {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}/status
+Content-Type: {{json}}
+Accept: {{json}}
+
+{}
+
+### 404 - unknown tracking number
+PATCH {{baseUrl}}/api/shipments/{{unknownShipment}}/status
+Content-Type: {{json}}
+Accept: {{json}}
+
+{ "status": 2 }
+
+### 409 - PickedUp cannot go back to Created
+PATCH {{baseUrl}}/api/shipments/{{pickedUpShipment}}/status
+Content-Type: {{json}}
+Accept: {{json}}
+
+{ "status": 1 }
+
+### 409 - Delivered is final
+PATCH {{baseUrl}}/api/shipments/{{deliveredShipment}}/status
+Content-Type: {{json}}
+Accept: {{json}}
+
+{ "status": 6 }
+
+### 415 - wrong content type
+PATCH {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}/status
+Content-Type: text/plain
+Accept: {{json}}
+
+status=2
+
+###############################################################################
+# POST /api/shipments/{trackingNumber}/scans - idempotent scan upload
+# Answer: { accepted, duplicatesSkipped, rejected: [{ scanId, reason }] }
+###############################################################################
+
+### 200 - first run: accepted 1 (Created -> PickedUp); later runs: duplicatesSkipped 1, status stays Created
+POST {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}/scans
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "scans": [
+    {
+      "scanId": "{{repeatedScanId}}",
+      "trackingNumber": "{{createShipment.response.body.$.trackingNumber}}",
+      "scanType": 1,
+      "courierId": "CR-101",
+      "location": "Harbour Point depot",
+      "scannedAtUtc": "2026-11-01T08:00:00Z",
+      "notes": "Collected at the counter"
+    }
+  ]
+}
+
+### 200 - mixed batch: 1 accepted (InTransit), 1 duplicate (repeated scan id), 2 rejected
+# (a scan of another shipment, and a later Pickup that would move the status back)
+POST {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}/scans
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "scans": [
+    {
+      "scanId": "scan::{{$guid}}",
+      "trackingNumber": "{{createShipment.response.body.$.trackingNumber}}",
+      "scanType": 2,
+      "courierId": "CR-101",
+      "location": "Central hub",
+      "scannedAtUtc": "2026-11-01T10:00:00Z"
+    },
+    {
+      "scanId": "{{repeatedScanId}}",
+      "trackingNumber": "{{createShipment.response.body.$.trackingNumber}}",
+      "scanType": 1,
+      "courierId": "CR-101",
+      "location": "Harbour Point depot",
+      "scannedAtUtc": "2026-11-01T08:00:00Z"
+    },
+    {
+      "scanId": "scan::{{$guid}}",
+      "trackingNumber": "{{createdShipment}}",
+      "scanType": 1,
+      "courierId": "CR-101",
+      "location": "Harbour Point depot",
+      "scannedAtUtc": "2026-11-01T10:30:00Z"
+    },
+    {
+      "scanId": "scan::{{$guid}}",
+      "trackingNumber": "{{createShipment.response.body.$.trackingNumber}}",
+      "scanType": 1,
+      "courierId": "CR-102",
+      "location": "Central hub",
+      "scannedAtUtc": "2026-11-01T11:00:00Z"
+    }
+  ]
+}
+
+### 400 - Delivered scan without recipientSignatureName, scan id not scan::{Guid}, courier id not CR-###
+POST {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}/scans
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "scans": [
+    {
+      "scanId": "123",
+      "trackingNumber": "{{createShipment.response.body.$.trackingNumber}}",
+      "scanType": 3,
+      "courierId": "COURIER-1",
+      "location": "Doorstep",
+      "scannedAtUtc": "2026-11-01T12:00:00Z"
+    }
+  ]
+}
+
+### 400 - empty batch (1 to 100 scans)
+POST {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}/scans
+Content-Type: {{json}}
+Accept: {{json}}
+
+{ "scans": [] }
+
+### 404 - unknown shipment
+POST {{baseUrl}}/api/shipments/{{unknownShipment}}/scans
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "scans": [
+    {
+      "scanId": "scan::{{$guid}}",
+      "trackingNumber": "{{unknownShipment}}",
+      "scanType": 1,
+      "courierId": "CR-101",
+      "location": "Harbour Point depot",
+      "scannedAtUtc": "2026-11-01T08:00:00Z"
+    }
+  ]
+}
+
+### 415 - wrong content type
+POST {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}/scans
+Content-Type: text/plain
+Accept: {{json}}
+
+scan
+
+###############################################################################
+# GET /api/shipments/{trackingNumber}/scans - scan history, oldest first
+###############################################################################
+
+### 200 - scans of the created shipment
+GET {{baseUrl}}/api/shipments/{{createShipment.response.body.$.trackingNumber}}/scans
+Accept: {{json}}
+
+### 404 - unknown shipment
+GET {{baseUrl}}/api/shipments/{{unknownShipment}}/scans
+Accept: {{json}}
+
+###############################################################################
+# DELETE /api/shipments/{trackingNumber} - only while Created
+###############################################################################
+
+### 409 - PickedUp shipments cannot be deleted
+DELETE {{baseUrl}}/api/shipments/{{pickedUpShipment}}
+
+### 404 - unknown tracking number
+DELETE {{baseUrl}}/api/shipments/{{unknownShipment}}
+
+### 204 - create a throw-away shipment, then delete it
+# @name throwAway
+POST {{baseUrl}}/api/shipments
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "trackingNumber": "APX-4{{$randomInt 1000000 9999999}}",
+  "recipientName": "Lee Example",
+  "recipientPhone": "+44 20 7946 0198",
+  "recipientAddress": "9 Example Road",
+  "recipientCity": "Westfield",
+  "weightKg": 1
+}
+
+###
+DELETE {{baseUrl}}/api/shipments/{{throwAway.response.body.$.trackingNumber}}

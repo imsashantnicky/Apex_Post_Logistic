@@ -413,30 +413,52 @@ Week 3 SQL persistence (`AddSqlPersistence`, `AddInfrastructureServices`) and th
 | `ForbiddenException` | 403 |
 | anything else | 500 with a generic detail |
 
-The stack trace (`stackTrace`) is added in Development only.
+The stack trace (`stackTrace`) is added in Development only. Endpoints, status codes, the status transition table and
+the idempotency rules of the scan upload are in [API-NOTES.md](API-NOTES.md).
 
-### Run the API
+### Set up the user-secrets
 
-The API shares the user-secrets store of `ApexPost.Web`, so a connection string set by `setup-secrets.bat` works for
-both. `appsettings.json` holds no connection string. To set it by hand:
+The API shares the user-secrets store of `ApexPost.Web` (same `UserSecretsId`), so a connection string set by
+`setup-secrets.bat` works for both. `appsettings.json` holds no connection string. To set it by hand:
 
 ```bash
 dotnet user-secrets set ConnectionStrings:ApexPostDb "Server=localhost;Database=ApexPostDb;Trusted_Connection=True;TrustServerCertificate=True" --project src/ApexPost.Api
-dotnet run --project src/ApexPost.Api
+dotnet user-secrets list --project src/ApexPost.Api
 ```
 
-In Development the API applies the tracking migrations (history table `__TrackingMigrationsHistory`, never the Week 3
-migrations) and adds ten fictional shipments, `APX-20000001` to `APX-20000010`, in ten cities and all six statuses.
-Existing shipments are left alone. Other environments neither migrate nor seed.
+### Run the API
+
+```bash
+dotnet run --project src/ApexPost.Api --launch-profile https
+```
+
+The API listens on `https://localhost:7310` and `http://localhost:5310`. In Development it applies the tracking
+migrations (history table `__TrackingMigrationsHistory`, never the Week 3 migrations) and adds ten fictional shipments,
+`APX-20000001` to `APX-20000010`, in ten cities and all six statuses. Existing shipments are left alone. Other
+environments neither migrate nor seed.
+
+Open [src/ApexPost.Api/ApexPost.Api.http](src/ApexPost.Api/ApexPost.Api.http) in Visual Studio or in VS Code with the
+REST Client extension and send the requests top to bottom. Every endpoint has at least one success request and its
+failure requests (400, 404, 409, 415). A quick check from the command line:
+
+```bash
+curl -k https://localhost:7310/api/shipments/APX-20000001
+curl -k -i https://localhost:7310/api/shipments/APX-29999999
+```
+
+The first returns 200 with the shipment, the second 404 ProblemDetails.
 
 ### Run the Part B tests
 
 ```bash
+dotnet test tests/ApexPost.Tracking.UnitTests -c Release
 dotnet test tests/ApexPost.Api.Tests -c Release
 ```
 
-The tests start the API with `WebApplicationFactory` on a throw-away SQL Server database (the CI container through
-`ConnectionStrings__ApexPostTestServer`, or else the user-secrets server) and drop it afterwards.
+The API tests start the API with `WebApplicationFactory` on a throw-away SQL Server database and drop it afterwards.
+The server comes from `ConnectionStrings__ApexPostTestServer` (the CI container) or else from the user-secrets
+connection string. Screenshots of the API are listed in
+[docs/screenshots/week4-partB/](docs/screenshots/week4-partB/README.md).
 
 ## Known limitations
 
