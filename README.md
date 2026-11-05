@@ -399,6 +399,45 @@ dotnet test tests/ApexPost.Courier.Offline.Tests -c Release
 Both projects are in `Apex_Post_Logistic.slnx`, so the solution-wide `dotnet test` and CI run them too. Screenshots of
 the harness are listed in [docs/screenshots/week4-partA/](docs/screenshots/week4-partA/README.md).
 
+## Week 4 Part B – shipment tracking API
+
+`src/ApexPost.Api` is an ASP.NET Core Web API with minimal hosting in `Program.cs` (no `Startup.cs`). It registers the
+Week 3 SQL persistence (`AddSqlPersistence`, `AddInfrastructureServices`) and the additive tracking module
+(`AddShipmentTracking`). Every error is ProblemDetails with a `traceId`, written by the global `ApiExceptionHandler`:
+
+| Exception | Status |
+| --- | --- |
+| `NotFoundException` | 404 |
+| `DuplicateKeyException`, `InvalidStatusTransitionException`, `ShipmentLockedException`, `ConcurrencyException` | 409 |
+| `ValidationFailedException` (with `errors` per field), `DomainException` | 400 |
+| `ForbiddenException` | 403 |
+| anything else | 500 with a generic detail |
+
+The stack trace (`stackTrace`) is added in Development only.
+
+### Run the API
+
+The API shares the user-secrets store of `ApexPost.Web`, so a connection string set by `setup-secrets.bat` works for
+both. `appsettings.json` holds no connection string. To set it by hand:
+
+```bash
+dotnet user-secrets set ConnectionStrings:ApexPostDb "Server=localhost;Database=ApexPostDb;Trusted_Connection=True;TrustServerCertificate=True" --project src/ApexPost.Api
+dotnet run --project src/ApexPost.Api
+```
+
+In Development the API applies the tracking migrations (history table `__TrackingMigrationsHistory`, never the Week 3
+migrations) and adds ten fictional shipments, `APX-20000001` to `APX-20000010`, in ten cities and all six statuses.
+Existing shipments are left alone. Other environments neither migrate nor seed.
+
+### Run the Part B tests
+
+```bash
+dotnet test tests/ApexPost.Api.Tests -c Release
+```
+
+The tests start the API with `WebApplicationFactory` on a throw-away SQL Server database (the CI container through
+`ConnectionStrings__ApexPostTestServer`, or else the user-secrets server) and drop it afterwards.
+
 ## Known limitations
 
 - The allowlists see the address of the direct connection. Behind a proxy that is the proxy, so all callers would

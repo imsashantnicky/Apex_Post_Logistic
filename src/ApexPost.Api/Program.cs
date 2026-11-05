@@ -1,0 +1,38 @@
+using ApexPost.Api.Composition;
+using ApexPost.Infrastructure;
+using ApexPost.Infrastructure.Tracking;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateScopes = true;
+    options.ValidateOnBuild = true;
+});
+
+// Week 3 SQL Server persistence and the shared infrastructure (clock, hashing, simulated partners), unchanged.
+builder.Services.AddSqlPersistence(builder.Configuration);
+builder.Services.AddInfrastructureServices(builder.Configuration);
+
+// Week 4 shipment tracking: its own context, migrations, ports and service on the same database.
+builder.Services.AddShipmentTracking(builder.Configuration);
+
+builder.Services.AddApexApi(builder.Configuration);
+
+var app = builder.Build();
+
+// Only a developer's database is migrated and seeded by the host; other environments deploy migrations on purpose.
+if (app.Environment.IsDevelopment())
+{
+    await app.PrepareDevelopmentDatabaseAsync();
+}
+
+// Exceptions become ProblemDetails through ApiExceptionHandler; it sits above everything that can throw.
+app.UseExceptionHandler();
+
+// Empty error responses (unknown route, wrong method, wrong content type) get a ProblemDetails body as well.
+app.UseStatusCodePages();
+
+app.MapControllers();
+
+await app.RunAsync();
