@@ -58,6 +58,17 @@ public sealed partial class CourierDatabase : IDisposable
         }
     }
 
+    /// <summary>Creates a SQL++ query. Values must be passed through <see cref="IQuery.Parameters"/>.</summary>
+    /// <exception cref="ObjectDisposedException">The database was disposed.</exception>
+    internal IQuery CreateQuery(string sql)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _database.CreateQuery(sql);
+        }
+    }
+
     /// <summary>Returns the names of the indexes on the default collection.</summary>
     /// <exception cref="ObjectDisposedException">The database was disposed.</exception>
     public IReadOnlyList<string> GetIndexNames() => [.. GetDefaultCollection().GetIndexes()];
