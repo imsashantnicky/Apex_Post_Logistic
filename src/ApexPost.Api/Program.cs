@@ -1,4 +1,5 @@
 using ApexPost.Api.Composition;
+using ApexPost.Api.OpenApi;
 using ApexPost.Infrastructure;
 using ApexPost.Infrastructure.Tracking;
 
@@ -19,6 +20,9 @@ builder.Services.AddShipmentTracking(builder.Configuration);
 
 builder.Services.AddApexApi(builder.Configuration);
 
+// The built-in .NET OpenAPI generator; ApexDocumentTransformer fills title, description, version and contact.
+builder.Services.AddApexOpenApi();
+
 var app = builder.Build();
 
 // Only a developer's database is migrated and seeded by the host; other environments deploy migrations on purpose.
@@ -32,6 +36,9 @@ app.UseExceptionHandler();
 
 // Empty error responses (unknown route, wrong method, wrong content type) get a ProblemDetails body as well.
 app.UseStatusCodePages();
+
+// /openapi/v1.json and Swagger UI at /swagger exist in Development only; elsewhere both answer 404.
+app.MapApexDocumentationInDevelopment();
 
 app.MapControllers();
 
