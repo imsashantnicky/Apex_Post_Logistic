@@ -15,9 +15,17 @@ public static class ApiDocumentation
     /// <summary>The route prefix of Swagger UI (/swagger).</summary>
     public const string SwaggerUiPrefix = "swagger";
 
-    /// <summary>Registers the built-in OpenAPI generator with <see cref="ApexDocumentTransformer"/>.</summary>
+    /// <summary>
+    /// Registers the built-in OpenAPI generator with <see cref="ApexDocumentTransformer"/> (info block) and
+    /// <see cref="SchemaLessContentTransformer"/> (no empty media types). The XML comments of the project are read
+    /// by the generator itself because GenerateDocumentationFile is on.
+    /// </summary>
     public static IServiceCollection AddApexOpenApi(this IServiceCollection services) =>
-        services.AddOpenApi(V1, options => options.AddDocumentTransformer<ApexDocumentTransformer>());
+        services.AddOpenApi(V1, options =>
+        {
+            options.AddDocumentTransformer<ApexDocumentTransformer>();
+            options.AddOperationTransformer<SchemaLessContentTransformer>();
+        });
 
     /// <summary>
     /// Maps /openapi/v1.json and Swagger UI at /swagger, in Development only. Swagger UI only renders the document

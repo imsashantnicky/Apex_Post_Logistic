@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <!-- The same user-secrets store as ApexPost.Web: ConnectionStrings:ApexPostDb is set once for both hosts. -->
+    <!-- XML comments feed the OpenAPI document; with warnings as errors every public member must be documented. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <UserSecretsId>8ee05317-5b65-4866-a83b-e9e701628c18</UserSecretsId>
   </PropertyGroup>
 

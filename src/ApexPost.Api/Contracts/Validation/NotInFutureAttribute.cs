@@ -13,12 +13,16 @@ public sealed class NotInFutureAttribute : ValidationAttribute
     /// <summary>How far a time may lie ahead of the server clock.</summary>
     public const int ClockSkewMinutes = 2;
 
+    /// <summary>Creates the rule with a message that names the field and the allowed clock difference.</summary>
     public NotInFutureAttribute()
         : base($"{{0}} must not be in the future (a clock difference of {ClockSkewMinutes} minutes is allowed).")
     {
     }
 
-    // IsValid(object) passes no context; the system clock and the name "Value" are used then.
+    /// <summary>
+    /// Checks the value against now plus the clock skew. IsValid(object) passes no context; the system clock and the
+    /// name "Value" are used then.
+    /// </summary>
     protected override ValidationResult? IsValid(object? value, ValidationContext? validationContext)
     {
         var time = validationContext?.GetService(typeof(TimeProvider)) as TimeProvider ?? TimeProvider.System;

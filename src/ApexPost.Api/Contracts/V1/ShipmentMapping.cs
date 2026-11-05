@@ -10,6 +10,7 @@ namespace ApexPost.Api.Contracts.V1;
 /// </summary>
 public static class ShipmentMapping
 {
+    /// <summary>A create request as the command of the tracking service.</summary>
     public static ShipmentCommand ToCommand(this CreateShipmentRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -21,6 +22,7 @@ public static class ShipmentMapping
             request.WeightKg);
     }
 
+    /// <summary>A replace request as the command of the tracking service.</summary>
     public static ShipmentCommand ToCommand(this UpdateShipmentRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -32,12 +34,14 @@ public static class ShipmentMapping
             request.WeightKg);
     }
 
+    /// <summary>The scans of an upload request as service uploads, in the order sent.</summary>
     public static IReadOnlyList<ScanUpload> ToUploads(this ScanUploadRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         return [.. request.Scans.Select(ToUpload)];
     }
 
+    /// <summary>One scan of an upload request as a service upload.</summary>
     public static ScanUpload ToUpload(this ScanItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -51,6 +55,7 @@ public static class ShipmentMapping
             item.Notes);
     }
 
+    /// <summary>A shipment view as the v1 response.</summary>
     public static ShipmentResponse ToResponse(this ShipmentView view)
     {
         ArgumentNullException.ThrowIfNull(view);
@@ -66,6 +71,7 @@ public static class ShipmentMapping
             view.Version);
     }
 
+    /// <summary>A stored scan as the v1 response.</summary>
     public static ScanResponse ToResponse(this ScanView view)
     {
         ArgumentNullException.ThrowIfNull(view);
@@ -80,6 +86,7 @@ public static class ShipmentMapping
             view.ReceivedAtUtc);
     }
 
+    /// <summary>A page of shipment views as the v1 page.</summary>
     public static PagedResponse<ShipmentResponse> ToResponse(this PagedResult<ShipmentView> page)
     {
         ArgumentNullException.ThrowIfNull(page);
@@ -92,6 +99,7 @@ public static class ShipmentMapping
             page.HasNext);
     }
 
+    /// <summary>The outcome of a scan upload as the v1 response.</summary>
     public static ScanUploadResult ToResponse(this UploadResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
