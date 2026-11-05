@@ -460,6 +460,31 @@ The server comes from `ConnectionStrings__ApexPostTestServer` (the CI container)
 connection string. Screenshots of the API are listed in
 [docs/screenshots/week4-partB/](docs/screenshots/week4-partB/README.md).
 
+## Week 4 Part C – API documentation
+
+### OpenAPI, the built-in generator and Swagger UI
+
+Three different things are often all called "Swagger":
+
+| Name | What it is | In this repository |
+| --- | --- | --- |
+| OpenAPI specification | A vendor-neutral standard (JSON or YAML) that describes an HTTP API: paths, verbs, parameters, request and response bodies, status codes. Tools read it to show documentation or generate clients. | The document at `/openapi/v1.json` |
+| Built-in .NET OpenAPI generator | The `Microsoft.AspNetCore.OpenApi` package. `AddOpenApi()` reads the controllers, routes and response types at runtime and writes an OpenAPI document; `MapOpenApi()` serves it. Document transformers change the result. | `AddApexOpenApi()` and `ApexDocumentTransformer` (title, description, version, contact) in `src/ApexPost.Api/OpenApi` |
+| Swagger UI | A web page that only renders an existing OpenAPI document and offers "Try it out". It generates nothing. | `Swashbuckle.AspNetCore.SwaggerUi` at `/swagger`, pointed at `/openapi/v1.json`. The full `Swashbuckle.AspNetCore` package and `AddSwaggerGen` are not used. |
+
+Run the API in Development (`dotnet run --project src/ApexPost.Api --launch-profile https`) and open:
+
+- `https://localhost:7310/openapi/v1.json` – the OpenAPI document
+- `https://localhost:7310/swagger` – Swagger UI on that document
+
+### Development only, and why that is not security
+
+`MapApexDocumentationInDevelopment()` maps both only when the environment is Development. In every other environment
+`/openapi/v1.json` and `/swagger` answer 404; `ProductionDocumentationTests` proves this. Leaving the documentation out
+of Production keeps the surface small and avoids publishing internal details, but it is **not** a security measure:
+anyone can still call the endpoints, guess routes or read a copy of the contract. The endpoints must protect themselves
+with authentication and authorization (Part D adds JWT roles and a partner API key).
+
 ## Known limitations
 
 - The allowlists see the address of the direct connection. Behind a proxy that is the proxy, so all callers would
