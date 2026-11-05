@@ -26,6 +26,7 @@ public sealed partial class ApiExceptionHandler(
     /// <summary>The detail of a 500, which never shows the exception message.</summary>
     public const string UnexpectedDetail = "An unexpected error occurred. Quote the trace id when reporting it.";
 
+    /// <summary>Writes the exception as ProblemDetails; a request the client cancelled gets 499, no body.</summary>
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,

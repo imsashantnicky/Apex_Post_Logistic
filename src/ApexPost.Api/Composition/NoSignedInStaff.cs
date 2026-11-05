@@ -13,9 +13,12 @@ public sealed class NoSignedInStaff : ICurrentUser
 {
     private const string Message = "The API has no signed-in staff member.";
 
+    /// <summary>Always throws <see cref="ForbiddenException"/>: there is no signed-in staff member.</summary>
     public Guid StaffId => throw new ForbiddenException(Message);
 
+    /// <summary>Always throws <see cref="ForbiddenException"/>: there is no signed-in staff member.</summary>
     public StaffRole Role => throw new ForbiddenException(Message);
 
+    /// <summary>Always throws <see cref="ForbiddenException"/>: there is no signed-in staff member.</summary>
     public BranchCode Branch => throw new ForbiddenException(Message);
 }
