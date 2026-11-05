@@ -11,6 +11,7 @@
     <Project Path="src/Courier/ApexPost.Courier.Offline/ApexPost.Courier.Offline.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ApexPost.Courier.Offline.Tests/ApexPost.Courier.Offline.Tests.csproj" />
     <Project Path="tests/ApexPost.IntegrationTests/ApexPost.IntegrationTests.csproj" />
     <Project Path="tests/ApexPost.UnitTests/ApexPost.UnitTests.csproj" />
   </Folder>
