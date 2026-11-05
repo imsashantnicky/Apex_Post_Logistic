@@ -1,0 +1,38 @@
+-- EF Core command log of one run of the real application, read back by correlation ID.
+-- Environment Development, Microsoft.EntityFrameworkCore.Database.Command at Information, SQL Server 2025,
+-- a fresh database seeded by DevelopmentSeeder (252 transactions). Measured 2026-11-02.
+-- The Dashboard, DailySales and Catalogue/Adjust rows were measured again after usp_DailyBranchSales, usp_LowStockReport
+-- and usp_AdjustStock replaced their queries; CommandCountTests holds these numbers.
+-- Counts cover the whole request: the user revalidation, the page header and any audit insert.
+
+Request                                              Executed DbCommand
+---------------------------------------------------- ------------------
+GET /Dashboard (Branch Manager)                      4
+GET /Dashboard (Auditor, all branches)               4
+GET /Catalogue                                       2
+GET /Catalogue?search=pkg                            2
+GET /Transactions (Branch Manager)                   5
+GET /Transactions (Auditor, all branches)            6
+GET /Reports/DailySales (one branch)                 3
+GET /Reports/DailySales (all branches)               3
+GET /Reports/LowStock                                3
+GET /Reports/ShippingVolume                          3
+GET /Reports/MoneyOrders (one branch)                7
+GET /Reports/MoneyOrders (all branches)              7
+GET /Audit (audited)                                 5
+GET /Audit/Export (audited)                          4
+GET /Staff                                           3
+GET /Branches                                        3
+GET /Notifications                                   2
+POST /Transactions/Create                            4
+POST /Transactions/AddRetail                         8
+POST /Transactions/AddShipping                       7
+POST /Transactions/AddMoneyOrder                     7
+POST /Transactions/VerifyIdentity                    7
+GET /Transactions/Details (open basket, 3 lines)     6
+POST /Transactions/Pay                               8
+GET /Transactions/Details (paid)                     4
+GET /Transactions/Label                              6
+POST /Transactions/Refund                            7
+POST /Catalogue/Adjust                               4
+POST /Transactions/Void as a clerk (403)             2

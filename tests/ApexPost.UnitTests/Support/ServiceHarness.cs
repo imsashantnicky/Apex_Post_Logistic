@@ -57,6 +57,8 @@ internal sealed class ServiceHarness : IDisposable
 
     public StockSettings StockSettings { get; } = new();
 
+    public UnitOfWorkSpy UnitOfWork { get; } = new();
+
     public FakeCurrentUser User { get; } = new();
 
     public FixedClock Clock { get; } = new();
@@ -115,25 +117,47 @@ internal sealed class ServiceHarness : IDisposable
         return this;
     }
 
-    public CheckoutService Checkout() =>
-        new(
-            Access(),
-            Branches,
+    /// <summary>Like a request, every service gets a unit of work of its own.</summary>
+    public CheckoutService Checkout()
+    {
+        var unitOfWork = new FakeUnitOfWork(UnitOfWork);
+        var branches = new InMemoryBranches(Branches, unitOfWork);
+        return new(
+            Access(unitOfWork),
+            branches,
+            branches,
             Catalog,
             new ShippingPricer(Catalog, Options.Create(new ShippingSettings())),
             Verifier,
-            new StockLedger(Stock),
+            new InMemoryTransactions(Transactions, unitOfWork),
+            new InMemoryStock(Stock, unitOfWork),
+            unitOfWork,
             Gate,
             Events,
             Rules,
             Validator,
             new RepositoryTransactionQueries(Transactions, Tax),
             Clock);
+    }
 
-    public ReversalService Reversal() => new(Access(), new StockLedger(Stock), Gate, Events, Validator, Clock);
+    public ReversalService Reversal()
+    {
+        var unitOfWork = new FakeUnitOfWork(UnitOfWork);
+        var stock = new InMemoryStock(Stock, unitOfWork);
+        return new(Access(unitOfWork), stock, unitOfWork, Gate, Events, Validator, Clock);
+    }
 
-    public StockService StockAdjustments() =>
-        new(User, Catalog, new StockLedger(Stock), Gate, Events, Rules, Validator, Clock);
+    public StockService StockAdjustments() => StockAdjustments(new FakeUnitOfWork(UnitOfWork));
+
+    public StockService StockAdjustments(InMemoryStock stock, FakeUnitOfWork unitOfWork) =>
+        new(User, Catalog, stock, Gate, Events, Rules, Validator, Clock);
+
+    public InMemoryStock StockRecords(FakeUnitOfWork unitOfWork) => new(Stock, unitOfWork);
+
+    public PriceRevisionService Prices() => Prices(new FakeUnitOfWork(UnitOfWork));
+
+    public PriceRevisionService Prices(FakeUnitOfWork unitOfWork) =>
+        new(User, Catalog, Catalog, unitOfWork, Validator, Clock);
 
     public ReportService Reports() =>
         new(
@@ -143,14 +167,37 @@ internal sealed class ServiceHarness : IDisposable
             Clock,
             Options.Create(StockSettings));
 
-    public StaffService StaffAdmin() =>
-        new(User, StaffMembers, Branches, Credentials, Hasher, Validator, Options.Create(new PasswordSettings()));
+    public StaffService StaffAdmin()
+    {
+        var unitOfWork = new FakeUnitOfWork(UnitOfWork);
+        var staff = new InMemoryStaff(StaffMembers, unitOfWork);
+        return new(
+            User,
+            staff,
+            staff,
+            new InMemoryBranches(Branches, unitOfWork),
+            Credentials,
+            unitOfWork,
+            Hasher,
+            Validator,
+            Options.Create(new PasswordSettings()));
+    }
 
-    public LoginService Login() => new(StaffMembers, Credentials, Hasher);
+    public LoginService Login() =>
+        new(
+            new InMemoryStaff(StaffMembers, new FakeUnitOfWork(UnitOfWork)),
+            Credentials,
+            Hasher,
+            new DummyPasswordHash(Hasher));
 
-    public CatalogueService Catalogue() => new(User, Catalog, Stock, Rules);
+    public CatalogueService Catalogue() => new(User, new InMemoryCatalogueQueries(Catalog, Stock), Rules);
 
-    public BranchService BranchAdmin() => new(User, Branches, Transactions);
+    public BranchService BranchAdmin()
+    {
+        var unitOfWork = new FakeUnitOfWork(UnitOfWork);
+        var branches = new InMemoryBranches(Branches, unitOfWork);
+        return new(User, branches, branches, new InMemoryTransactions(Transactions, unitOfWork), unitOfWork);
+    }
 
     public async Task<int> StockOfAsync(string sku, string branch = TestData.HomeBranch) =>
         (await Stock.GetAsync(new StockKey(new BranchCode(branch), new Sku(sku)), CancellationToken.None))
@@ -175,5 +222,14 @@ internal sealed class ServiceHarness : IDisposable
         Stock.Seed(TestData.CreateStock(sku, InitialStock));
     }
 
-    private TransactionAccess Access() => new(User, StaffMembers, Branches, Transactions);
+    private StockService StockAdjustments(FakeUnitOfWork unitOfWork) =>
+        StockAdjustments(StockRecords(unitOfWork), unitOfWork);
+
+    private TransactionAccess Access(FakeUnitOfWork unitOfWork) =>
+        new(
+            User,
+            new InMemoryStaff(StaffMembers, unitOfWork),
+            new InMemoryBranches(Branches, unitOfWork),
+            new InMemoryTransactions(Transactions, unitOfWork),
+            new RepositoryTransactionQueries(Transactions, Tax));
 }

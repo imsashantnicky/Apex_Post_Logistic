@@ -1,0 +1,33 @@
+Variant|Calls|CpuMs|ElapsedMs|MicrosecondsPerCall
+-------|-----|-----|---------|-------------------
+perf_LowStock_CatchAll|5000|4941|4958|991
+perf_LowStock_Recompile|5000|25742|25923|5184
+usp_LowStockReport|5000|3867|3867|773
+BranchCode|Sku|Name|Quantity
+----------|---|----|--------
+BR001|OFF-0001|Printer paper 500 sheets|2
+BR001|OFF-0010|Prepaid return envelope|2
+BR001|PKG-0005|Large parcel box|2
+BR001|STA-0002|Writing pad A4|2
+Table 'Products'. Scan count 0, logical reads 8, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'BranchStock'. Scan count 1, logical reads 4, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+BranchCode|Sku|Name|Quantity
+----------|---|----|--------
+BR001|OFF-0001|Printer paper 500 sheets|2
+BR001|OFF-0010|Prepaid return envelope|2
+BR001|PKG-0005|Large parcel box|2
+BR001|STA-0002|Writing pad A4|2
+Table 'Products'. Scan count 0, logical reads 8, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'BranchStock'. Scan count 1, logical reads 2, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'Branches'. Scan count 0, logical reads 2, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+BranchCode|Sku|Product|Quantity
+----------|---|-------|--------
+BR001|OFF-0001|Printer paper 500 sheets|2
+BR001|OFF-0010|Prepaid return envelope|2
+BR001|PKG-0005|Large parcel box|2
+BR001|STA-0002|Writing pad A4|2
+Table 'Products'. Scan count 0, logical reads 8, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'BranchStock'. Scan count 1, logical reads 2, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.

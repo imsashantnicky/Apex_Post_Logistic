@@ -2,25 +2,35 @@
 @{
     ViewData["Title"] = "Sign in";
 }
-<div class="centre-card card">
-    <h1 class="brand-title">ApexPost Counter</h1>
-    <p class="muted">Sign in with your staff account.</p>
-    <form asp-action="Login" asp-route-returnUrl="@ViewData["returnUrl"]" method="post" class="form">
-        <div asp-validation-summary="ModelOnly" class="alert alert-bad" role="alert"></div>
-        <div class="field">
-            <label asp-for="Email"></label>
-            <input asp-for="Email" type="email" autocomplete="username" required />
-        </div>
-        <div class="field">
-            <label asp-for="Password"></label>
-            <input asp-for="Password" type="password" autocomplete="current-password" required />
-        </div>
-        <button type="submit" class="button">Sign in</button>
-    </form>
-    <environment include="Development">
-        <p class="hint">
-            Demo accounts: clerk1.br001@@apexpost.test, manager.br001@@apexpost.test, auditor1@@apexpost.test,
-            admin1@@apexpost.test. The password is the one you stored in user-secrets.
-        </p>
-    </environment>
+<div class="login">
+    <div class="login-brand">
+        <p class="login-claim">One counter for <span>parcels, retail and money orders.</span></p>
+        <ul class="login-points">
+            <li><partial name="_Icon" model='"truck"' />Parcels and letters with priced service levels</li>
+            <li><partial name="_Icon" model='"box"' />Packaging and office supplies from branch stock</li>
+            <li><partial name="_Icon" model='"id"' />Money orders with masked identity checks</li>
+        </ul>
+    </div>
+    <div class="login-form">
+        <h1>Sign in</h1>
+        <p class="muted">Sign in with your staff account.</p>
+        <form asp-action="Login" asp-route-returnUrl="@ViewData["returnUrl"]" method="post" class="form">
+            <div asp-validation-summary="ModelOnly" class="alert alert-bad" role="alert"></div>
+            <div class="field">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" type="email" autocomplete="username" required />
+            </div>
+            <div class="field">
+                <label asp-for="Password"></label>
+                <input asp-for="Password" type="password" autocomplete="current-password" required />
+            </div>
+            <button type="submit" class="button">Sign in</button>
+        </form>
+        <environment include="Development">
+            <p class="hint">
+                Demo accounts: clerk1.br001@@apexpost.test, manager.br001@@apexpost.test, auditor1@@apexpost.test,
+                admin1@@apexpost.test. The password is the one you stored in user-secrets.
+            </p>
+        </environment>
+    </div>
 </div>

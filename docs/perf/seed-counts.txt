@@ -1,0 +1,51 @@
+-- sqlcmd output: ApexPostDb after DevelopmentSeeder, confirmed by a later application start that wrote nothing.
+
+DatabaseName MeasuredAtUtc
+------------ -------------
+ApexPostDb 2026-11-01 17:47:31.4448528
+TableName RowTotal
+--------- --------
+Branches 6
+Counters 13
+Roles 4
+Staff 26
+ProductCategories 3
+Products 32
+BranchStock 192
+ShippingZones 10
+ShippingRates 10
+CounterTransactions 252
+TransactionLines 220
+Shipments 103
+MoneyOrders 99
+Payments 250
+IdentityVerifications 48
+Role StaffTotal
+---- ----------
+Administrator 2
+Auditor 2
+BranchManager 6
+CounterClerk 16
+Status Transactions
+------ ------------
+Paid 205
+Refunded 24
+Voided 23
+HistorySpanDays FirstOpenedAt LastOpenedAt
+--------------- ------------- ------------
+60 2026-09-02 09:27:00.0000000 2026-11-01 08:00:46.6915954
+Code IsActive SalesToday
+---- -------- ----------
+BR001 1 3
+BR002 1 3
+BR003 1 3
+BR004 1 3
+BR005 1 0
+BR006 0 0
+Result Checks MinLength MaxLength
+------ ------ --------- ---------
+Failed 8 4 4
+Passed 40 4 4
+BranchProductPairsWithoutStock
+------------------------------
+0

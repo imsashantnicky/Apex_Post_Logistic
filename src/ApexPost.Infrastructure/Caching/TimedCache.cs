@@ -31,6 +31,9 @@ public sealed class TimedCache<T>(
         return new ValueTask<IReadOnlyList<T>>(LoadAsync(cancellationToken));
     }
 
+    /// <summary>Forgets the list, so that the next read loads it again.</summary>
+    public void Clear() => _snapshot = null;
+
     public void Dispose() => _loadLock.Dispose();
 
     private async Task<IReadOnlyList<T>> LoadAsync(CancellationToken cancellationToken)

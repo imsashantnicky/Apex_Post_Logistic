@@ -7,23 +7,40 @@ namespace ApexPost.Domain.Shipping;
 /// What the customer sends: letter or parcel, service level, measures and recipient.
 /// A shipment over the weight limit of its type and service level cannot be created.
 /// </summary>
-public sealed record Shipment(
-    ShipmentType Type,
-    ServiceLevel Level,
-    Weight Weight,
-    Dimensions Dimensions,
-    Address Recipient)
+public sealed record Shipment
 {
-    public ShipmentType Type { get; } = Guard.Defined(Type, nameof(Type));
+    public Shipment(ShipmentType type, ServiceLevel level, Weight weight, Dimensions dimensions, Address recipient)
+        : this(type, level, weight)
+    {
+        Dimensions = Guard.Required(dimensions, nameof(Dimensions));
+        Recipient = Guard.Required(recipient, nameof(Recipient));
+    }
 
-    public ServiceLevel Level { get; } = Guard.Defined(Level, nameof(Level));
+    // Used by EF Core: dimensions and recipient are owned types and are attached after the scalar values.
+    private Shipment(ShipmentType type, ServiceLevel level, Weight weight)
+    {
+        Type = Guard.Defined(type, nameof(Type));
+        Level = Guard.Defined(level, nameof(Level));
+        Weight = WeightLimitRule.Ensure(Type, Level, Guard.Required(weight, nameof(Weight)));
+        Dimensions = null!;
+        Recipient = null!;
+    }
 
-    public Weight Weight { get; } = WeightLimitRule.Ensure(Type, Level, Guard.Required(Weight, nameof(Weight)));
+    public ShipmentType Type { get; }
 
-    public Dimensions Dimensions { get; } = Guard.Required(Dimensions, nameof(Dimensions));
+    public ServiceLevel Level { get; }
 
-    public Address Recipient { get; } = Guard.Required(Recipient, nameof(Recipient));
+    public Weight Weight { get; }
+
+    public Dimensions Dimensions { get; }
+
+    public Address Recipient { get; }
 
     /// <summary>The heavier of the actual and the volumetric weight, in kilograms.</summary>
-    public decimal ChargeableKg => Math.Max(Weight.Kilograms, Dimensions.VolumetricKg);
+    public decimal ChargeableKg => ChargeableKgOf(Weight, Dimensions);
+
+    public static decimal ChargeableKgOf(Weight weight, Dimensions dimensions) =>
+        Math.Max(
+            Guard.Required(weight, nameof(weight)).Kilograms,
+            Guard.Required(dimensions, nameof(dimensions)).VolumetricKg);
 }

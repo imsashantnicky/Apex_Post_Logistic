@@ -10,7 +10,7 @@ builder.Host.UseDefaultServiceProvider(options =>
     options.ValidateOnBuild = true;
 });
 
-builder.Services.AddJsonPersistence(builder.Configuration);
+builder.Services.AddSqlPersistence(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApexApplication(builder.Configuration);
 builder.Services.AddApexWeb();

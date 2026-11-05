@@ -1,0 +1,39 @@
+﻿-- sqlcmd output of sql/perf/seed-checks.sql on ApexPostDb_Perf, 2026-11-02 04:49 UTC, after sql/perf/volume-seed.sql (24 s).
+-- The demo data, the volume data and the one sale left by sql/transactions/sale-transaction.sql.
+TableName|RowTotal
+---------|--------
+Payments|200251
+CounterTransactions|200253
+TransactionLines|600222
+Shipments|50103
+MoneyOrders|20099
+IdentityVerifications|4048
+BranchStock|192
+BranchCode|Transactions|Voided|Refunded|ActiveDays
+----------|------------|------|--------|----------
+BR001|66892|3360|3368|366
+BR002|53195|2609|2646|365
+BR003|40086|1944|2039|365
+BR004|26673|1331|1363|365
+BR005|13407|655|643|365
+BranchCode|MoneyOrders|Reversed|ActiveDays
+----------|-----------|--------|----------
+BR001|6575|632|365
+BR002|5327|536|365
+BR003|4072|413|365
+BR004|2703|272|365
+BR005|1422|149|355
+FewestBranchesOnADay|MostBranchesOnADay|QuietestDay|BusiestDay
+--------------------|------------------|-----------|----------
+5|5|487|603
+CheckName|Violations
+---------|----------
+Transactions without payment|0
+Transactions without retail lines|0
+Money orders over 300 without passed check|0
+Fee differs from max(2, 2 percent)|0
+Letters over 2 kg|0
+Parcels over the level limit|0
+Clerk not at home branch|0
+Counter of another branch|0
+Volume rows dated today or later|0

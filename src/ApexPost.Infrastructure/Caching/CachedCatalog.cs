@@ -1,6 +1,7 @@
 using ApexPost.Application.Abstractions;
 using ApexPost.Application.Settings;
 using ApexPost.Domain.Catalogue;
+using ApexPost.Domain.Common;
 using ApexPost.Domain.Shipping;
 using Microsoft.Extensions.Options;
 
@@ -20,13 +21,25 @@ public sealed class CachedCatalog : IProductCatalog, IZoneCatalog, IDisposable
         IRepository<ShippingZone, string> zones,
         IClock clock,
         IOptions<CatalogSettings> settings)
+        : this(RequiredLoader(products), RequiredLoader(zones), clock, settings)
     {
-        ArgumentNullException.ThrowIfNull(products);
-        ArgumentNullException.ThrowIfNull(zones);
+    }
+
+    public CachedCatalog(SqlCatalogLoader loader, IClock clock, IOptions<CatalogSettings> settings)
+        : this(RequiredLoader(loader).ProductsAsync, loader.ZonesAsync, clock, settings)
+    {
+    }
+
+    private CachedCatalog(
+        Func<CancellationToken, Task<IReadOnlyList<Product>>> products,
+        Func<CancellationToken, Task<IReadOnlyList<ShippingZone>>> zones,
+        IClock clock,
+        IOptions<CatalogSettings> settings)
+    {
         ArgumentNullException.ThrowIfNull(settings);
         var timeToLive = TimeSpan.FromSeconds(settings.Value.CacheSeconds);
-        _products = new TimedCache<Product>(products.ListAsync, clock, timeToLive);
-        _zones = new TimedCache<ShippingZone>(zones.ListAsync, clock, timeToLive);
+        _products = new TimedCache<Product>(products, clock, timeToLive);
+        _zones = new TimedCache<ShippingZone>(zones, clock, timeToLive);
     }
 
     /// <summary>How often a list came from memory, for the measurements in DESIGN.md.</summary>
@@ -44,6 +57,8 @@ public sealed class CachedCatalog : IProductCatalog, IZoneCatalog, IDisposable
     ValueTask<IReadOnlyList<Product>> IProductCatalog.ListAsync(CancellationToken cancellationToken) =>
         _products.GetAsync(cancellationToken);
 
+    public void Refresh() => _products.Clear();
+
     public async ValueTask<ShippingZone?> FindAsync(string zoneCode, CancellationToken cancellationToken)
     {
         var all = await _zones.GetAsync(cancellationToken).ConfigureAwait(false);
@@ -57,5 +72,20 @@ public sealed class CachedCatalog : IProductCatalog, IZoneCatalog, IDisposable
     {
         _products.Dispose();
         _zones.Dispose();
+    }
+
+    private static Func<CancellationToken, Task<IReadOnlyList<TEntity>>> RequiredLoader<TEntity, TId>(
+        IRepository<TEntity, TId> repository)
+        where TEntity : Entity<TId>
+        where TId : notnull
+    {
+        ArgumentNullException.ThrowIfNull(repository);
+        return repository.ListAsync;
+    }
+
+    private static SqlCatalogLoader RequiredLoader(SqlCatalogLoader loader)
+    {
+        ArgumentNullException.ThrowIfNull(loader);
+        return loader;
     }
 }

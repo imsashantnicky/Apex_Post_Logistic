@@ -2,9 +2,11 @@
 @{
     var transaction = Model.Transaction;
 }
-<section class="card">
-    <h2>Take payment</h2>
-    <dl class="totals">
+<section class="card card-accent">
+    <div class="card-head">
+        <h2><partial name="_Icon" model='"card"' />Take payment</h2>
+    </div>
+    <dl class="totals pay-amounts">
         <dt>Card</dt>
         <dd><partial name="_Money" model="transaction.Total" /></dd>
         <dt>Cash (nearest 0.05)</dt>
@@ -15,6 +17,6 @@
             <label for="method">Payment method</label>
             <select id="method" name="method" asp-items="EnumText.Options<PaymentMethod>()"></select>
         </div>
-        <button type="submit" class="button">Take payment</button>
+        <button type="submit" class="button button-block">Take payment</button>
     </form>
 </section>

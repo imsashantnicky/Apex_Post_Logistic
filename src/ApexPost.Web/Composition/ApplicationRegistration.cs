@@ -27,13 +27,14 @@ public static class ApplicationRegistration
         services.AddSingleton<TaxCalculator>();
         services.AddSingleton<CheckoutRules>();
         services.AddSingleton<ShippingPricer>();
-        services.AddSingleton<LoginService>();
+        services.AddSingleton<DummyPasswordHash>();
 
-        services.AddScoped<StockLedger>();
+        services.AddScoped<LoginService>();
         services.AddScoped<TransactionAccess>();
         services.AddScoped<CheckoutService>();
         services.AddScoped<ReversalService>();
         services.AddScoped<StockService>();
+        services.AddScoped<PriceRevisionService>();
         services.AddScoped<CatalogueService>();
         services.AddScoped<BranchService>();
         services.AddScoped<StaffService>();

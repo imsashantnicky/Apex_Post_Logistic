@@ -1,5 +1,5 @@
 using ApexPost.Application.Services;
-using ApexPost.Infrastructure.Seeding;
+using ApexPost.Infrastructure.Persistence.Seeding;
 
 namespace ApexPost.Web.Composition;
 
@@ -11,7 +11,10 @@ public static class ApplicationStartup
     /// </summary>
     public static async Task PrepareAsync(this WebApplication app)
     {
+        var stopping = app.Lifetime.ApplicationStopping;
         _ = app.Services.GetRequiredService<NotificationSubscriber>();
-        await app.Services.GetRequiredService<DemoDataSeeder>().SeedIfAllowedAsync(app.Lifetime.ApplicationStopping);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<DevelopmentSeeder>().SeedIfAllowedAsync(stopping);
     }
 }

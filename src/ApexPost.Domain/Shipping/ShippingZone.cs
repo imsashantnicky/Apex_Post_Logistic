@@ -17,6 +17,14 @@ public sealed class ShippingZone : Entity<string>
         }
     }
 
+    // Only for persistence frameworks; they fill the properties from stored values.
+    private ShippingZone()
+    {
+        Name = null!;
+        BaseRate = null!;
+        PerKgRate = null!;
+    }
+
     public string Code => Id;
 
     public string Name { get; }

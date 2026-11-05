@@ -4,7 +4,6 @@ using ApexPost.Application.DTOs;
 using ApexPost.Application.Exceptions;
 using ApexPost.Application.Extensions;
 using ApexPost.Application.Validation;
-using ApexPost.Domain.Branches;
 using ApexPost.Domain.Catalogue;
 using ApexPost.Domain.Common;
 using ApexPost.Domain.Personnel;
@@ -20,11 +19,14 @@ namespace ApexPost.Application.Services;
 /// </summary>
 public sealed class CheckoutService(
     TransactionAccess access,
-    IRepository<Branch, BranchCode> branches,
+    IBranchRepository branches,
+    IBranchQueries branchQueries,
     IProductCatalog products,
     ShippingPricer pricer,
     IIdentityVerificationService verifier,
-    StockLedger ledger,
+    IIdentityVerificationRepository verifications,
+    IStockRepository stockItems,
+    IUnitOfWork unitOfWork,
     StockGate gate,
     CounterEvents events,
     CheckoutRules rules,
@@ -46,7 +48,8 @@ public sealed class CheckoutService(
             ?? throw new NotFoundException($"Branch {branch.Code} has no such counter.");
 
         var transaction = CounterTransaction.Open(branch, counter, clerk, clock.UtcNow);
-        await access.AddAsync(transaction, cancellationToken).ConfigureAwait(false);
+        access.Add(transaction);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return transaction.Id;
     }
 
@@ -123,13 +126,15 @@ public sealed class CheckoutService(
             result,
             clock.UtcNow);
         transaction.RecordVerification(clerk, verification);
-        await access.SaveAsync(transaction, cancellationToken).ConfigureAwait(false);
+        verifications.Add(transaction.Id, verification);
+        access.Update(transaction);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return result;
     }
 
     /// <summary>
-    /// Takes payment and removes the sold goods from branch stock. The transaction is saved before the stock,
-    /// so a concurrent change of the same basket fails with a conflict before any stock moves.
+    /// Takes payment and removes the sold goods from branch stock in one commit. The gate lets one sale per branch
+    /// run at a time on this server, so a short item gives a clear message; between servers the row versions decide.
     /// </summary>
     public Task PayAsync(Guid id, PaymentMethod method, CancellationToken cancellationToken) =>
         gate.RunAsync(
@@ -139,10 +144,12 @@ public sealed class CheckoutService(
                 var (transaction, clerk) = await access.ForCounterWorkAsync(id, cancellationToken)
                     .ConfigureAwait(false);
                 var skus = transaction.Lines.OfType<RetailLineItem>().Select(line => line.Sku);
-                var stock = await ledger.LoadAsync(transaction.Branch, skus, cancellationToken).ConfigureAwait(false);
+                var stock = await stockItems.GetManyAsync(transaction.Branch, skus, cancellationToken)
+                    .ConfigureAwait(false);
                 transaction.Pay(clerk, method, rules.Payment, stock, clock.UtcNow);
-                await access.SaveAsync(transaction, cancellationToken).ConfigureAwait(false);
-                await ledger.SaveAsync(stock, cancellationToken).ConfigureAwait(false);
+                access.Update(transaction);
+                stockItems.Update(stock);
+                await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 events.Publish(transaction.TakeEvents());
             },
             cancellationToken);
@@ -156,7 +163,7 @@ public sealed class CheckoutService(
             throw new NotFoundException($"Transaction {id} has no such shipping line.");
         }
 
-        var branch = await branches.GetAsync(transaction.Branch, cancellationToken).ConfigureAwait(false)
+        var branch = await branchQueries.FindAsync(transaction.Branch, cancellationToken).ConfigureAwait(false)
             ?? throw new NotFoundException($"Branch {transaction.Branch} does not exist.");
         var shipment = line.Shipment;
         return new ShippingLabel(
@@ -181,7 +188,8 @@ public sealed class CheckoutService(
     {
         var (transaction, clerk) = await access.ForCounterWorkAsync(id, cancellationToken).ConfigureAwait(false);
         transaction.AddLine(clerk, line);
-        await access.SaveAsync(transaction, cancellationToken).ConfigureAwait(false);
+        access.Update(transaction);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return line.Id;
     }
 }

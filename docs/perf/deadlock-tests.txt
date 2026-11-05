@@ -1,0 +1,8 @@
+# dotnet test -c Release --filter WriteOrderTests|DeadlockTests, 2026-11-02 13:12 UTC, SQL Server 2025 RTM, Windows 11.
+# Each test class runs on its own disposable database ApexPostTests_<guid>. Deadlock detection by SQL Server takes up to about 5 s.
+Passed ApexPost.IntegrationTests.Sql.DeadlockTests.One_order_makes_the_second_session_wait_instead [7 s]
+Passed ApexPost.IntegrationTests.Sql.DeadlockTests.The_application_retries_transient_failures [99 ms]
+Passed ApexPost.IntegrationTests.Sql.DeadlockTests.Opposite_order_deadlocks_with_an_error_the_strategy_retries [1 s]
+Passed ApexPost.IntegrationTests.Sql.WriteOrderTests.A_void_returns_stock_in_key_order_before_it_changes_the_header [9 s]
+Passed ApexPost.IntegrationTests.Sql.WriteOrderTests.A_sale_writes_header_lines_stock_and_payment_in_that_order [600 ms]
+Total tests: 5

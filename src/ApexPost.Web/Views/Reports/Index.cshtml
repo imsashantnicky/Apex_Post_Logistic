@@ -5,20 +5,32 @@
 <partial name="_PageHeader" model="header" />
 
 <div class="report-grid">
-    <section class="card">
-        <h2><a asp-action="DailySales">Daily sales</a></h2>
-        <p>Paid sales per day and branch, split into retail and services.</p>
+    <section class="card report-card">
+        <partial name="_Icon" model='"chart"' />
+        <div>
+            <h2><a asp-action="DailySales">Daily sales</a></h2>
+            <p>Paid sales per day and branch, split into retail and services.</p>
+        </div>
     </section>
-    <section class="card">
-        <h2><a asp-action="LowStock">Low stock</a></h2>
-        <p>Items at or below the low-stock threshold right now.</p>
+    <section class="card report-card">
+        <partial name="_Icon" model='"box"' />
+        <div>
+            <h2><a asp-action="LowStock">Low stock</a></h2>
+            <p>Items at or below the low-stock threshold right now.</p>
+        </div>
     </section>
-    <section class="card">
-        <h2><a asp-action="ShippingVolume">Shipping volume</a></h2>
-        <p>Paid shipments by destination zone and service level.</p>
+    <section class="card report-card">
+        <partial name="_Icon" model='"truck"' />
+        <div>
+            <h2><a asp-action="ShippingVolume">Shipping volume</a></h2>
+            <p>Paid shipments by destination zone and service level.</p>
+        </div>
     </section>
-    <section class="card">
-        <h2><a asp-action="MoneyOrders">Money orders and identity checks</a></h2>
-        <p>Money orders and identity verifications per branch.</p>
+    <section class="card report-card">
+        <partial name="_Icon" model='"banknote"' />
+        <div>
+            <h2><a asp-action="MoneyOrders">Money orders and identity checks</a></h2>
+            <p>Money orders and identity verifications per branch.</p>
+        </div>
     </section>
 </div>

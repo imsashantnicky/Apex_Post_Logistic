@@ -1,5 +1,5 @@
 @model KpiCard
-<div class="card kpi">
+<div class="card kpi@(Model.IsTotal ? " kpi-total" : null)">
     <span class="kpi-label">@Model.Label</span>
     <span class="kpi-value">@Model.Value</span>
     @if (Model.Unit is not null)

@@ -1,0 +1,19 @@
+-- sql/transactions/rowversion-conflict.sql on ApexPostDb_FreshClone, 2026-11-02
+Step|Quantity|RowVersion
+----|--------|----------
+Both sessions read|1|0x00000000000009bd
+Step|RowsChanged
+----|-----------
+Session A sold the last unit|1
+Step|RowsChanged
+----|-----------
+Session B used the old RowVersion|0
+Meaning
+-------
+Zero rows is what EF Core reports as DbUpdateConcurrencyException, answered with 409
+Step|Quantity|RowVersion
+----|--------|----------
+After both|0|0x00000000000009be
+Step|ErrorNumber|ErrorText
+----|-----------|---------
+Going below zero, even without a version check|547|The UPDATE statement conflicted with the CHECK constraint "CK_BranchStock_Quantity". The conflict occurred in database "ApexPostDb_FreshClone", table "dbo.BranchStock", column 'Quantity'.

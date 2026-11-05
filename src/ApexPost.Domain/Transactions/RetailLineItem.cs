@@ -4,29 +4,31 @@ using ApexPost.Domain.Common;
 namespace ApexPost.Domain.Transactions;
 
 /// <summary>A quantity of a catalogue product; name, price and tax category are copied at the time of sale.</summary>
-public sealed record RetailLineItem(
-    Guid Id,
-    Sku Sku,
-    string Name,
-    Money UnitPrice,
-    int Quantity,
-    TaxCategory TaxCategory) : ILineItem
+public sealed record RetailLineItem : TransactionLine
 {
-    public Guid Id { get; } = Guard.NotEmpty(Id, "Line id");
+    public RetailLineItem(Guid id, Sku sku, string name, Money unitPrice, int quantity, TaxCategory taxCategory)
+        : base(id)
+    {
+        Sku = Guard.Required(sku, nameof(Sku));
+        Name = Guard.NotBlank(name, nameof(Name), TextLimits.Name);
+        UnitPrice = Guard.Required(unitPrice, "Unit price");
+        Quantity = Guard.Positive(quantity, nameof(Quantity));
+        TaxCategory = Guard.Defined(taxCategory, nameof(TaxCategory));
+    }
 
-    public Sku Sku { get; } = Guard.Required(Sku, nameof(Sku));
+    public Sku Sku { get; }
 
-    public string Name { get; } = Guard.NotBlank(Name, nameof(Name), TextLimits.Name);
+    public string Name { get; }
 
-    public Money UnitPrice { get; } = Guard.Required(UnitPrice, "Unit price");
+    public Money UnitPrice { get; }
 
-    public int Quantity { get; } = Guard.Positive(Quantity, nameof(Quantity));
+    public int Quantity { get; }
 
-    public TaxCategory TaxCategory { get; } = Guard.Defined(TaxCategory, nameof(TaxCategory));
+    public override TaxCategory TaxCategory { get; }
 
-    public string Description => Name;
+    public override string Description => Name;
 
-    public Money Total => UnitPrice * Quantity;
+    public override Money Total => UnitPrice * Quantity;
 
     public static RetailLineItem For(Product product, int quantity) =>
         new(Guid.CreateVersion7(), product.Sku, product.Name, product.UnitPrice, quantity, product.TaxCategory);

@@ -5,9 +5,7 @@ using ApexPost.Domain.Catalogue;
 using ApexPost.Domain.Common;
 using ApexPost.Domain.Inventory;
 using ApexPost.Domain.Personnel;
-using ApexPost.Domain.Rules;
 using ApexPost.Domain.Shipping;
-using ApexPost.Domain.Transactions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -22,10 +20,7 @@ namespace ApexPost.Infrastructure.Seeding;
 public sealed partial class DemoDataSeeder(
     IHostEnvironment environment,
     IOptions<SeedSettings> seed,
-    IOptions<TaxSettings> tax,
-    IOptions<MoneyOrderSettings> moneyOrders,
-    IOptions<StockSettings> stockSettings,
-    IOptions<ShippingSettings> shipping,
+    SeedRules rules,
     SeedTargets targets,
     IClock clock,
     ILogger<DemoDataSeeder> logger)
@@ -48,17 +43,11 @@ public sealed partial class DemoDataSeeder(
             ? throw new InvalidOperationException(
                 "Seed:DemoPassword is not set. Run setup-secrets.bat or set it with dotnet user-secrets.")
             : seed.Value.DemoPassword;
-        var data = DemoDataSet.Create(clock.UtcNow, PaymentRules(), shipping.Value.ToMultipliers());
+        var data = DemoDataSet.Create(clock.UtcNow, rules.Payment, rules.Multipliers);
         await SaveAsync(data, targets.Hasher.Hash(password), cancellationToken).ConfigureAwait(false);
         LogSeeded(logger, data.Branches.Count, data.Staff.Count, data.Products.Count, data.Transactions.Count);
         return true;
     }
-
-    private PaymentRules PaymentRules() =>
-        new(
-            new Money(moneyOrders.Value.IdentityVerificationThreshold),
-            TaxRule.From(tax.Value.ToRates()),
-            LowStockRule.AtOrBelow(stockSettings.Value.LowStockThreshold));
 
     private async Task SaveAsync(DemoDataSet data, string passwordHash, CancellationToken cancellationToken)
     {

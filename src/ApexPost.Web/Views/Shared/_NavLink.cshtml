@@ -1,0 +1,8 @@
+@model NavLink
+<li>
+    <a class="nav-link" asp-controller="@Model.Controller" asp-action="@Model.Action"
+       aria-current="@(Model.IsCurrent ? "page" : null)">
+        <partial name="_Icon" model="Model.Icon" />
+        <span>@Model.Label</span>
+    </a>
+</li>

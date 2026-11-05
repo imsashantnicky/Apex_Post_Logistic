@@ -25,7 +25,7 @@ public static class WebRegistration
             options.Filters.AddService<BranchAccessFilter>(FilterOrder.BranchAccess);
             options.Filters.AddService<DomainExceptionFilter>(FilterOrder.DomainException);
         });
-        services.AddSingleton<AuditActionFilter>();
+        services.AddScoped<AuditActionFilter>();
         services.AddSingleton<PerformanceFilter>();
         services.AddSingleton<ValidationFilter>();
         services.AddSingleton<DomainExceptionFilter>();

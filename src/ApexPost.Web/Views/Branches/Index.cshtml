@@ -29,13 +29,19 @@
                     @foreach (var branch in Model)
                     {
                         <tr>
-                            <td>@branch.Code</td>
-                            <td>@branch.Name</td>
+                            <td class="code">@branch.Code</td>
+                            <td class="cell-strong">@branch.Name</td>
                             <td>@branch.Region</td>
-                            <td>@branch.OpensAt.ToString("HH:mm")–@branch.ClosesAt.ToString("HH:mm")</td>
+                            <td class="nowrap">
+                                @branch.OpensAt.ToString("HH:mm")–@branch.ClosesAt.ToString("HH:mm")
+                            </td>
                             <td class="num">@branch.Counters.Count</td>
                             <td><partial name="_StatusPill" model='branch.IsActive ? "Open" : "Closed"' /></td>
-                            <td><a asp-action="Details" asp-route-id="@branch.Code.Value">Open</a></td>
+                            <td class="num">
+                                <a class="row-link" asp-action="Details" asp-route-id="@branch.Code.Value">
+                                    Open<partial name="_Icon" model='"arrow"' />
+                                </a>
+                            </td>
                         </tr>
                     }
                 </tbody>

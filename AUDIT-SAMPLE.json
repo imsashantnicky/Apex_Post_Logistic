@@ -1,0 +1,350 @@
+[
+  {
+    "at": "2026-11-01T12:25:50.756281+00:00",
+    "event": "Login",
+    "staffId": null,
+    "role": null,
+    "branch": null,
+    "controller": "Account",
+    "action": "Login",
+    "routeValues": {},
+    "statusCode": 401,
+    "durationMs": 169,
+    "correlationId": "cebe6da4a169404a96d2d3cae005e9aa"
+  },
+  {
+    "at": "2026-11-01T12:25:50.968307+00:00",
+    "event": "Login",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Account",
+    "action": "Login",
+    "routeValues": {},
+    "statusCode": 302,
+    "durationMs": 153,
+    "correlationId": "9077360880434b55a17c08145bc0efe8"
+  },
+  {
+    "at": "2026-11-01T12:25:51.096531+00:00",
+    "event": "TransactionOpened",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "Create",
+    "routeValues": {
+      "counterId": "01a19712-b89d-7a64-9636-bc1d64432715",
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638"
+    },
+    "statusCode": 302,
+    "durationMs": 6,
+    "correlationId": "e438184f2dc54a6d9920d1707d3ae902"
+  },
+  {
+    "at": "2026-11-01T12:25:51.247425+00:00",
+    "event": "RetailItemAdded",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "AddRetail",
+    "routeValues": {
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638"
+    },
+    "statusCode": 302,
+    "durationMs": 9,
+    "correlationId": "a6848db81ce34864bff27140e424cb3c"
+  },
+  {
+    "at": "2026-11-01T12:25:51.309286+00:00",
+    "event": "ShipmentAdded",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "AddShipping",
+    "routeValues": {
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638"
+    },
+    "statusCode": 302,
+    "durationMs": 6,
+    "correlationId": "6b4a6211cc6a492da3d8925d516a612d"
+  },
+  {
+    "at": "2026-11-01T12:25:51.359795+00:00",
+    "event": "MoneyOrderAdded",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "AddMoneyOrder",
+    "routeValues": {
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638"
+    },
+    "statusCode": 302,
+    "durationMs": 4,
+    "correlationId": "0d2a6cedf2934398bbeec9d00612bd6f"
+  },
+  {
+    "at": "2026-11-01T12:25:51.411498+00:00",
+    "event": "Payment",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "Pay",
+    "routeValues": {
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638",
+      "method": "Card"
+    },
+    "statusCode": 400,
+    "durationMs": 8,
+    "correlationId": "ead02edec90d4e6f80dfb2f57166404d"
+  },
+  {
+    "at": "2026-11-01T12:25:51.465265+00:00",
+    "event": "IdentityVerification",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "VerifyIdentity",
+    "routeValues": {
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638"
+    },
+    "statusCode": 302,
+    "durationMs": 6,
+    "correlationId": "77cc666b0c1745cbb0b3c6974423f395"
+  },
+  {
+    "at": "2026-11-01T12:25:51.51626+00:00",
+    "event": "Payment",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "Pay",
+    "routeValues": {
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638",
+      "method": "Card"
+    },
+    "statusCode": 302,
+    "durationMs": 7,
+    "correlationId": "ebb942e7012e45a8b939a644b971f77b"
+  },
+  {
+    "at": "2026-11-01T12:25:51.594206+00:00",
+    "event": "AccessDenied",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "Void",
+    "routeValues": {
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638"
+    },
+    "statusCode": 403,
+    "durationMs": 0,
+    "correlationId": "aec1b78cf0fc45e0bdf658532809f651"
+  },
+  {
+    "at": "2026-11-01T12:25:51.638932+00:00",
+    "event": "AccessDenied",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "Refund",
+    "routeValues": {
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638"
+    },
+    "statusCode": 403,
+    "durationMs": 0,
+    "correlationId": "b45fa6d9da974cf781c4a5863d64a7b3"
+  },
+  {
+    "at": "2026-11-01T12:25:51.659216+00:00",
+    "event": "AccessDenied",
+    "staffId": "01a19712-b89f-746b-9ca1-4615d3a4536a",
+    "role": "CounterClerk",
+    "branch": "BR001",
+    "controller": "Staff",
+    "action": "Index",
+    "routeValues": {},
+    "statusCode": 403,
+    "durationMs": 0,
+    "correlationId": "b2e19fbe0a704f958739a483ffeb5432"
+  },
+  {
+    "at": "2026-11-01T12:25:51.852619+00:00",
+    "event": "Login",
+    "staffId": "01a19712-b89f-78f0-aa8b-6da517489516",
+    "role": "BranchManager",
+    "branch": "BR001",
+    "controller": "Account",
+    "action": "Login",
+    "routeValues": {},
+    "statusCode": 302,
+    "durationMs": 155,
+    "correlationId": "3c5811639aca45e9b0b19d3f933807fc"
+  },
+  {
+    "at": "2026-11-01T12:25:51.913408+00:00",
+    "event": "Refund",
+    "staffId": "01a19712-b89f-78f0-aa8b-6da517489516",
+    "role": "BranchManager",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "Refund",
+    "routeValues": {
+      "id": "01a19712-c0f4-7b4f-a1c7-cd4cd5fe7638"
+    },
+    "statusCode": 302,
+    "durationMs": 10,
+    "correlationId": "a8e58344f5cd4b73abf78ebb4dc41139"
+  },
+  {
+    "at": "2026-11-01T12:25:51.970997+00:00",
+    "event": "TransactionOpened",
+    "staffId": "01a19712-b89f-78f0-aa8b-6da517489516",
+    "role": "BranchManager",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "Create",
+    "routeValues": {
+      "counterId": "01a19712-b89d-7a64-9636-bc1d64432715",
+      "id": "01a19712-c45e-72fd-bbb8-a49e25c3d021"
+    },
+    "statusCode": 302,
+    "durationMs": 4,
+    "correlationId": "8114df18e54e49088cb9d96c244b769b"
+  },
+  {
+    "at": "2026-11-01T12:25:52.016205+00:00",
+    "event": "RetailItemAdded",
+    "staffId": "01a19712-b89f-78f0-aa8b-6da517489516",
+    "role": "BranchManager",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "AddRetail",
+    "routeValues": {
+      "id": "01a19712-c45e-72fd-bbb8-a49e25c3d021"
+    },
+    "statusCode": 302,
+    "durationMs": 5,
+    "correlationId": "b10e61b17ba44819952de4d826e3766e"
+  },
+  {
+    "at": "2026-11-01T12:25:52.06773+00:00",
+    "event": "Void",
+    "staffId": "01a19712-b89f-78f0-aa8b-6da517489516",
+    "role": "BranchManager",
+    "branch": "BR001",
+    "controller": "Transactions",
+    "action": "Void",
+    "routeValues": {
+      "id": "01a19712-c45e-72fd-bbb8-a49e25c3d021"
+    },
+    "statusCode": 302,
+    "durationMs": 6,
+    "correlationId": "a7f157f8c02541299c823bbd77b635f4"
+  },
+  {
+    "at": "2026-11-01T12:25:52.138132+00:00",
+    "event": "StockAdjustment",
+    "staffId": "01a19712-b89f-78f0-aa8b-6da517489516",
+    "role": "BranchManager",
+    "branch": "BR001",
+    "controller": "Catalogue",
+    "action": "Adjust",
+    "routeValues": {},
+    "statusCode": 302,
+    "durationMs": 7,
+    "correlationId": "770a6a40910f429eb125c5c1f719a1fb"
+  },
+  {
+    "at": "2026-11-01T12:25:52.32337+00:00",
+    "event": "Login",
+    "staffId": "01a19712-b89e-7063-83b7-6cabbf970153",
+    "role": "Administrator",
+    "branch": "BR001",
+    "controller": "Account",
+    "action": "Login",
+    "routeValues": {},
+    "statusCode": 302,
+    "durationMs": 151,
+    "correlationId": "92ab67d4b7b744359b39c8ffec93df21"
+  },
+  {
+    "at": "2026-11-01T12:25:52.41953+00:00",
+    "event": "BranchClosed",
+    "staffId": "01a19712-b89e-7063-83b7-6cabbf970153",
+    "role": "Administrator",
+    "branch": "BR001",
+    "controller": "Branches",
+    "action": "Close",
+    "routeValues": {
+      "id": "BR005",
+      "version": "1"
+    },
+    "statusCode": 302,
+    "durationMs": 3,
+    "correlationId": "aa158efb86284acda1ad7512898ae2cb"
+  },
+  {
+    "at": "2026-11-01T12:25:52.478679+00:00",
+    "event": "BranchReopened",
+    "staffId": "01a19712-b89e-7063-83b7-6cabbf970153",
+    "role": "Administrator",
+    "branch": "BR001",
+    "controller": "Branches",
+    "action": "Reopen",
+    "routeValues": {
+      "id": "BR005",
+      "version": "2"
+    },
+    "statusCode": 302,
+    "durationMs": 1,
+    "correlationId": "db3cb41cf3d34d05ae31422b70000606"
+  },
+  {
+    "at": "2026-11-01T12:25:52.664881+00:00",
+    "event": "Login",
+    "staffId": "01a19712-b89f-7da4-bc15-0c88d3975afb",
+    "role": "Auditor",
+    "branch": "BR001",
+    "controller": "Account",
+    "action": "Login",
+    "routeValues": {},
+    "statusCode": 302,
+    "durationMs": 152,
+    "correlationId": "73bf7d1d6d784f49a590c8f33b36d800"
+  },
+  {
+    "at": "2026-11-01T12:25:52.706353+00:00",
+    "event": "AuditViewed",
+    "staffId": "01a19712-b89f-7da4-bc15-0c88d3975afb",
+    "role": "Auditor",
+    "branch": "BR001",
+    "controller": "Audit",
+    "action": "Index",
+    "routeValues": {},
+    "statusCode": 200,
+    "durationMs": 11,
+    "correlationId": "1566102d67a1473f98ac5e8f009a3255"
+  },
+  {
+    "at": "2026-11-01T12:25:52.748374+00:00",
+    "event": "AuditExported",
+    "staffId": "01a19712-b89f-7da4-bc15-0c88d3975afb",
+    "role": "Auditor",
+    "branch": "BR001",
+    "controller": "Audit",
+    "action": "Export",
+    "routeValues": {},
+    "statusCode": 200,
+    "durationMs": 1,
+    "correlationId": "366ee044d9fd46e69264b6db56282e2b"
+  }
+]

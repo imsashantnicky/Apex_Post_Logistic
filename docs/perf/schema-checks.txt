@@ -1,0 +1,79 @@
+﻿-- sqlcmd output of sql/perf/schema-checks.sql on ApexPostDb_Perf, 2026-11-02 04:51 UTC.
+ApplicationTables
+-----------------
+17
+OnDelete|ForeignKeys
+--------|-----------
+CASCADE|5
+NO_ACTION|16
+Child|Parent|ForeignKey|OnDelete
+-----|------|----------|--------
+MoneyOrders|CounterTransactions|FK_MoneyOrders_CounterTransactions_TransactionId|CASCADE
+Payments|CounterTransactions|FK_Payments_CounterTransactions_TransactionId|CASCADE
+Shipments|CounterTransactions|FK_Shipments_CounterTransactions_TransactionId|CASCADE
+ShippingRates|ShippingZones|FK_ShippingRates_ShippingZones_ZoneCode|CASCADE
+TransactionLines|CounterTransactions|FK_TransactionLines_CounterTransactions_TransactionId|CASCADE
+BranchStock|Branches|FK_BranchStock_Branches_BranchCode|NO_ACTION
+BranchStock|Products|FK_BranchStock_Products_Sku|NO_ACTION
+Counters|Branches|FK_Counters_Branches_BranchCode|NO_ACTION
+CounterTransactions|Branches|FK_CounterTransactions_Branches_BranchCode|NO_ACTION
+CounterTransactions|Counters|FK_CounterTransactions_Counters_CounterId|NO_ACTION
+CounterTransactions|Staff|FK_CounterTransactions_Staff_ClerkId|NO_ACTION
+CounterTransactions|Staff|FK_CounterTransactions_Staff_ReversalManagerId|NO_ACTION
+IdentityVerifications|CounterTransactions|FK_IdentityVerifications_CounterTransactions_TransactionId|NO_ACTION
+Products|ProductCategories|FK_Products_ProductCategories_Category|NO_ACTION
+Shipments|ShippingRates|FK_Shipments_ShippingRates_ZoneCode|NO_ACTION
+Staff|Branches|FK_Staff_Branches_HomeBranch|NO_ACTION
+Staff|Roles|FK_Staff_Roles_Role|NO_ACTION
+StockAdjustments|Branches|FK_StockAdjustments_Branches_BranchCode|NO_ACTION
+StockAdjustments|Products|FK_StockAdjustments_Products_Sku|NO_ACTION
+StockAdjustments|Staff|FK_StockAdjustments_Staff_StaffId|NO_ACTION
+TransactionLines|Products|FK_TransactionLines_Products_Sku|NO_ACTION
+CheckConstraints
+----------------
+28
+UniqueIndexesOutsidePrimaryKeys
+-------------------------------
+2
+TableName|IndexName|IsUnique|KeyColumns|IncludedColumns|Filter
+---------|---------|--------|----------|---------------|------
+BranchStock|IX_BranchStock_Sku|0|Sku|-|-
+Counters|UX_Counters_Branch_Number|1|BranchCode, Number|-|([BranchCode] IS NOT NULL)
+CounterTransactions|IX_CounterTransactions_BranchCode_OpenedAt|0|BranchCode, OpenedAt|Status|-
+CounterTransactions|IX_CounterTransactions_ClerkId|0|ClerkId|-|-
+CounterTransactions|IX_CounterTransactions_CounterId|0|CounterId|-|-
+CounterTransactions|IX_CounterTransactions_OpenedAt|0|OpenedAt|BranchCode, Status|-
+CounterTransactions|IX_CounterTransactions_ReversalManagerId|0|ReversalManagerId|-|-
+IdentityVerifications|IX_IdentityVerifications_TransactionId|0|TransactionId|-|-
+MoneyOrders|IX_MoneyOrders_TransactionId|0|TransactionId|-|-
+Payments|IX_Payments_PaidAt|0|PaidAt|Tax|-
+Products|IX_Products_Category|0|Category|-|-
+Shipments|IX_Shipments_TransactionId|0|TransactionId|-|-
+Shipments|IX_Shipments_ZoneCode|0|ZoneCode|-|-
+Staff|IX_Staff_HomeBranch|0|HomeBranch|-|-
+Staff|IX_Staff_Role|0|Role|-|-
+Staff|UX_Staff_Email|1|Email|-|-
+StockAdjustments|IX_StockAdjustments_BranchCode|0|BranchCode|-|-
+StockAdjustments|IX_StockAdjustments_Sku|0|Sku|-|-
+StockAdjustments|IX_StockAdjustments_StaffId|0|StaffId|-|-
+TransactionLines|IX_TransactionLines_Sku|0|Sku|-|-
+TransactionLines|IX_TransactionLines_TransactionId|0|TransactionId|-|-
+-- Restrict: a branch with history cannot be deleted
+547: The DELETE statement conflicted with the REFERENCE constraint "FK_Counters_Branches_BranchCode". The conflict 
+-- Restrict: a product that was sold cannot be deleted
+547: The DELETE statement conflicted with the REFERENCE constraint "FK_TransactionLines_Products_Sku". The conflict
+-- Restrict: a clerk with transactions cannot be deleted
+547: The DELETE statement conflicted with the REFERENCE constraint "FK_CounterTransactions_Staff_ClerkId". The conf
+-- Cascade: deleting a transaction takes its own lines and payment, nothing else
+LinesBefore|ShipmentsBefore|PaymentsBefore
+-----------|---------------|--------------
+4|1|1
+LinesAfter|ShipmentsAfter|PaymentsAfter
+----------|--------------|-------------
+0|0|0
+-- Restrict: a transaction with an identity check keeps it, so it cannot be deleted
+547: The DELETE statement conflicted with the REFERENCE constraint "FK_IdentityVerifications_CounterTransactions_Tr
+-- CHECK constraints refuse what the domain would never send
+547: The UPDATE statement conflicted with the CHECK constraint "CK_BranchStock_Quantity". The conflict occurred in 
+547: The UPDATE statement conflicted with the CHECK constraint "CK_CounterTransactions_Status". The conflict occurr
+547: The UPDATE statement conflicted with the CHECK constraint "CK_IdentityVerifications_Last4". The conflict occur

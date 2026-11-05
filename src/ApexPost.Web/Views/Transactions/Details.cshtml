@@ -3,47 +3,76 @@
     ViewData["Title"] = "Transaction";
     var transaction = Model.Transaction;
     var opened = $"{transaction.Id} · {transaction.Branch} · opened {transaction.OpenedAt:yyyy-MM-dd HH:mm}";
+    var canBuild = !Model.BranchClosed && Model.CanWork;
+    var showIdentity = transaction.Status != TransactionStatus.Open && transaction.Verification is not null;
+    var hasRecord = showIdentity || transaction.ReversalReason is not null;
+    var hasSide = canBuild || hasRecord || Model.CanVoid || Model.CanRefund;
 }
 <partial name="_PageHeader" model='new PageHeader("Transaction", opened, Model.Help, transaction.Status.ToString())' />
-
-<partial name="_Basket" model="Model" />
 
 @if (Model.BranchClosed)
 {
     <p class="alert alert-warn">This branch is closed. The basket takes no more work; a manager can void it.</p>
 }
-else if (Model.CanWork)
-{
-    <div class="three-up">
-        <partial name="_AddRetailForm" model="Model" />
-        <partial name="_AddShippingForm" model="Model" />
-        <partial name="_AddMoneyOrderForm" model="Model" />
-    </div>
-    <div class="split">
-        <partial name="_VerifyIdentityForm" model="Model" />
-        <partial name="_PaymentForm" model="Model" />
-    </div>
-}
 
-@if (transaction.Status != TransactionStatus.Open && transaction.Verification is not null)
-{
-    <p class="fact">Identity: @transaction.Verification</p>
-}
-@if (transaction.ReversalReason is not null)
-{
-    <p class="fact">Reversal reason: @transaction.ReversalReason</p>
-}
+<div class="counter@(hasSide ? null : " counter-solo")">
+    <div class="counter-main">
+        <partial name="_Basket" model="Model" />
 
-@if (Model.CanVoid || Model.CanRefund)
-{
-    <div class="split">
-        @if (Model.CanVoid)
+        @if (canBuild)
         {
-            <partial name="_ReversalForm" model='new ReversalForm("Void", "Void transaction", transaction.Id)' />
-        }
-        @if (Model.CanRefund)
-        {
-            <partial name="_ReversalForm" model='new ReversalForm("Refund", "Refund transaction", transaction.Id)' />
+            <h2 class="section-title">Add to the basket</h2>
+            <div class="split">
+                <div>
+                    <partial name="_AddRetailForm" model="Model" />
+                    <partial name="_AddMoneyOrderForm" model="Model" />
+                </div>
+                <partial name="_AddShippingForm" model="Model" />
+            </div>
         }
     </div>
-}
+
+    @if (hasSide)
+    {
+        <div class="counter-side">
+            @if (hasRecord)
+            {
+                <section class="card card-accent">
+                    <h2>Record</h2>
+                    @if (showIdentity)
+                    {
+                        <p class="fact">Identity: @transaction.Verification</p>
+                    }
+                    @if (transaction.ReversalReason is not null)
+                    {
+                        <p class="fact">Reversal reason: @transaction.ReversalReason</p>
+                    }
+                </section>
+            }
+            @if (canBuild)
+            {
+                <partial name="_VerifyIdentityForm" model="Model" />
+                <partial name="_PaymentForm" model="Model" />
+            }
+            @if (Model.CanVoid || Model.CanRefund)
+            {
+                <section class="card">
+                    <div class="card-head">
+                        <h2><partial name="_Icon" model='"undo"' />Manager actions</h2>
+                    </div>
+                    <p class="help">A void or refund needs a reason and cannot be undone.</p>
+                    @if (Model.CanVoid)
+                    {
+                        <partial name="_ReversalForm"
+                                 model='new ReversalForm("Void", "Void transaction", transaction.Id)' />
+                    }
+                    @if (Model.CanRefund)
+                    {
+                        <partial name="_ReversalForm"
+                                 model='new ReversalForm("Refund", "Refund transaction", transaction.Id)' />
+                    }
+                </section>
+            }
+        </div>
+    }
+</div>

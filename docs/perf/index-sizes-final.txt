@@ -1,0 +1,24 @@
+-- sqlcmd output of sql/perf/index-sizes.sql, with the indexes of the AddWorkloadIndexes migration. Rows over 1000 only.
+TableName|IndexName|Kind|RowTotal|Pages|SizeMb
+---------|---------|----|--------|-----|------
+CounterTransactions|PK_CounterTransactions|CLUSTERED|200252|5737|44.82
+CounterTransactions|IX_CounterTransactions_BranchCode_OpenedAt|NONCLUSTERED|200252|1141|8.91
+CounterTransactions|IX_CounterTransactions_ClerkId|NONCLUSTERED|200252|1418|11.08
+CounterTransactions|IX_CounterTransactions_CounterId|NONCLUSTERED|200252|1401|10.95
+CounterTransactions|IX_CounterTransactions_ReversalManagerId|NONCLUSTERED|200252|1377|10.76
+CounterTransactions|IX_CounterTransactions_OpenedAt|NONCLUSTERED|200252|1139|8.90
+IdentityVerifications|PK_IdentityVerifications|CLUSTERED|4048|88|.69
+IdentityVerifications|IX_IdentityVerifications_TransactionId|NONCLUSTERED|4048|28|.22
+MoneyOrders|PK_MoneyOrders|CLUSTERED|20099|554|4.33
+MoneyOrders|IX_MoneyOrders_TransactionId|NONCLUSTERED|20099|97|.76
+Payments|PK_Payments|CLUSTERED|200250|3964|30.97
+Payments|IX_Payments_PaidAt|NONCLUSTERED|200250|979|7.65
+Shipments|PK_Shipments|CLUSTERED|50103|2120|16.56
+Shipments|IX_Shipments_TransactionId|NONCLUSTERED|50103|240|1.88
+Shipments|IX_Shipments_ZoneCode|NONCLUSTERED|50103|269|2.10
+TransactionLines|PK_TransactionLines|CLUSTERED|600221|15632|122.13
+TransactionLines|IX_TransactionLines_Sku|NONCLUSTERED|600221|3705|28.95
+TransactionLines|IX_TransactionLines_TransactionId|NONCLUSTERED|600221|2842|22.20
+TableMb|NonclusteredIndexMb
+-------|-------------------
+219.66|114.44

@@ -1,0 +1,28 @@
+-- sql/migrations/idempotent-migrations.sql, run twice on a new, empty database with sqlcmd -I (2026-11-02 13:07 UTC)
+first run exit code: 0
+second run exit code: 0
+rows written by the second run: 0 statements reporting rows
+MigrationId|ProductVersion
+-----------|--------------
+20261101171629_InitialCreate|10.0.14
+20261101172625_AddStaffPasswordHash|10.0.14
+20261101183620_AddBranchAndStaffVersion|10.0.14
+20261102042018_AddStoredProcedures|10.0.14
+20261102043309_AddWorkloadIndexes|10.0.14
+20261102052538_RequireCounterBranch|10.0.14
+20261102130524_MatchBriefProcedureSignatures|10.0.14
+Tables_
+-------
+17
+Procedures_
+-----------
+4
+NamedIndexes
+------------
+27
+ForeignKeys
+-----------
+21
+CheckConstraints
+----------------
+28

@@ -18,7 +18,7 @@ public sealed class AuditRedactionTests(ApexFactory factory) : IClassFixture<Ape
         using var verified = await counter.VerifyAsync(DocumentNumber);
 
         await AuditTrail.EntryForAsync(factory, verified, AuditEvents.IdentityVerification);
-        Assert.DoesNotContain(DocumentNumber, await AuditTrail.RawFileAsync(factory), StringComparison.Ordinal);
+        Assert.DoesNotContain(DocumentNumber, await AuditTrail.RawRowsAsync(factory), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class AuditRedactionTests(ApexFactory factory) : IClassFixture<Ape
             CounterBrowser.Login(DemoAccounts.Clerk, password));
 
         await AuditTrail.EntryForAsync(factory, failed, AuditEvents.Login);
-        Assert.DoesNotContain(password, await AuditTrail.RawFileAsync(factory), StringComparison.Ordinal);
+        Assert.DoesNotContain(password, await AuditTrail.RawRowsAsync(factory), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class AuditRedactionTests(ApexFactory factory) : IClassFixture<Ape
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var entry = await AuditTrail.EntryForAsync(factory, response, AuditEvents.IdentityVerification);
         Assert.Equal("****6543", entry.RouteValues["id"]);
-        Assert.DoesNotContain(DocumentNumber, await AuditTrail.RawFileAsync(factory), StringComparison.Ordinal);
+        Assert.DoesNotContain(DocumentNumber, await AuditTrail.RawRowsAsync(factory), StringComparison.Ordinal);
     }
 
     [Fact]

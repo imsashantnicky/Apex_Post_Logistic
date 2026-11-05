@@ -14,7 +14,7 @@ namespace ApexPost.Application.Services;
 public sealed class StockService(
     ICurrentUser user,
     IProductCatalog products,
-    StockLedger ledger,
+    IStockAdjuster adjuster,
     StockGate gate,
     CounterEvents events,
     CheckoutRules rules,
@@ -34,40 +34,24 @@ public sealed class StockService(
         _ = await products.FindAsync(sku, cancellationToken).ConfigureAwait(false)
             ?? throw new NotFoundException($"Product {sku} does not exist.");
 
-        var item = await gate.RunAsync(
+        var reason = command.Reason.Trim();
+        var quantity = await gate.RunAsync(
             user.Branch,
-            () => ApplyAsync(sku, command.Change, cancellationToken),
+            () => adjuster.AdjustAsync(
+                user.Branch,
+                sku,
+                command.Change,
+                reason,
+                user.StaffId,
+                clock.UtcNow,
+                cancellationToken),
             cancellationToken).ConfigureAwait(false);
+        var item = new StockItem(user.Branch, sku, quantity);
         if (command.Change < 0 && rules.IsLowStock(item))
         {
             events.Publish([new StockLow(item.Branch, item.Sku, item.Quantity, clock.UtcNow)]);
         }
 
-        return new StockAdjustment(item.Branch, item.Sku, command.Change, item.Quantity, command.Reason.Trim());
-    }
-
-    private async Task<StockItem> ApplyAsync(Sku sku, int change, CancellationToken cancellationToken)
-    {
-        var existing = await ledger.LoadAsync(user.Branch, [sku], cancellationToken).ConfigureAwait(false);
-        if (existing is not [var item])
-        {
-            var created = change > 0
-                ? new StockItem(user.Branch, sku, change)
-                : throw new InsufficientStockException(sku, -change, 0);
-            await ledger.AddAsync(created, cancellationToken).ConfigureAwait(false);
-            return created;
-        }
-
-        if (change > 0)
-        {
-            item.Add(change);
-        }
-        else
-        {
-            item.Remove(-change);
-        }
-
-        await ledger.SaveAsync([item], cancellationToken).ConfigureAwait(false);
-        return item;
+        return new StockAdjustment(item.Branch, item.Sku, command.Change, item.Quantity, reason);
     }
 }

@@ -15,6 +15,7 @@ namespace ApexPost.Web.Controllers;
 public sealed class CatalogueController(
     CatalogueService catalogue,
     StockService stock,
+    PriceRevisionService prices,
     BranchService branches,
     ICurrentUser user) : ApexController
 {
@@ -41,7 +42,8 @@ public sealed class CatalogueController(
             search,
             category,
             new BranchFilter(choices, selected, AllowAll: false),
-            user.Role == StaffRole.BranchManager));
+            user.Role == StaffRole.BranchManager,
+            user.Role == StaffRole.Administrator));
     }
 
     [Authorize(Policy = ApexPolicies.BranchManagerOnly)]
@@ -62,6 +64,30 @@ public sealed class CatalogueController(
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>Plain arguments, so that the audit entry keeps the category, the percent and the reason.</summary>
+    [Authorize(Policy = ApexPolicies.AdministratorOnly)]
+    [IpRestricted(IpAllowlist.Admin)]
+    [Audit(AuditEvents.PriceRevision)]
+    [HttpPost]
+    public async Task<IActionResult> RevisePrices(
+        ProductCategory? category,
+        decimal percent,
+        string? reason,
+        CancellationToken cancellationToken)
+    {
+        var command = new PriceRevisionCommand
+        {
+            Category = category,
+            Percent = percent,
+            Reason = reason ?? string.Empty,
+        };
+        var changed = await prices.ReviseAsync(command, cancellationToken);
+        FlashSuccess($"{changed} prices changed. Open baskets keep the prices they were built with.");
+        return RedirectToAction(nameof(Index));
+    }
+
     protected internal override IActionResult AfterFormError() =>
-        RedirectToAction(nameof(Adjust), new { sku = Request.Form[SkuField].ToString() });
+        Request.Form.ContainsKey(SkuField)
+            ? RedirectToAction(nameof(Adjust), new { sku = Request.Form[SkuField].ToString() })
+            : RedirectToAction(nameof(Index));
 }

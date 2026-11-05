@@ -1,6 +1,8 @@
 @model CounterPage
 <section class="card">
-    <h2>Add retail item</h2>
+    <div class="card-head">
+        <h2><partial name="_Icon" model='"box"' />Add retail item</h2>
+    </div>
     <form asp-action="AddRetail" asp-route-id="@Model.Transaction.Id" method="post" class="form">
         <div class="field">
             <label for="Sku">Product</label>

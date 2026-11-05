@@ -11,5 +11,10 @@ public sealed class Counter : Entity<Guid>
         Number = Guard.Positive(number, "Counter number");
     }
 
+    // Only for persistence frameworks; they fill the properties from stored values.
+    private Counter()
+    {
+    }
+
     public int Number { get; }
 }

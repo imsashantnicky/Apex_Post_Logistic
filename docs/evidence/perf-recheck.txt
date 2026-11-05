@@ -1,0 +1,23 @@
+-- Three workloads measured again on ApexPostDb_Perf on 2026-11-02, on the same 200,253 transactions and 600,222 lines.
+-- Each statement ran once before the measured run. Output of SET STATISTICS IO and TIME, reduced to the lines that matter.
+-- W2a: first page of a branch
+Table 'Payments'. Scan count 0, logical reads 63
+Table 'CounterTransactions'. Scan count 1, logical reads 9
+-- W6b: usp_LowStockReport, one branch
+Table 'Branches'. Scan count 0, logical reads 2
+Table 'Products'. Scan count 0, logical reads 8
+Table 'Worktable'. Scan count 0, logical reads 0
+Table 'BranchStock'. Scan count 1, logical reads 2
+-- W1c: usp_DailyBranchSales, one branch, one day
+Table 'Branches'. Scan count 0, logical reads 2
+Table '#Paid'. Scan count 0, logical reads 316
+Table 'Workfile'. Scan count 0, logical reads 0
+Table 'Worktable'. Scan count 0, logical reads 0
+Table 'CounterTransactions'. Scan count 1, logical reads 1138
+Table 'Payments'. Scan count 1, logical reads 7
+Table 'Worktable'. Scan count 0, logical reads 0
+Table '#Paid'. Scan count 4, logical reads 8
+Table 'Workfile'. Scan count 0, logical reads 0
+Table 'MoneyOrders'. Scan count 1, logical reads 554
+Table 'Shipments'. Scan count 158, logical reads 664
+Table 'TransactionLines'. Scan count 158, logical reads 1991

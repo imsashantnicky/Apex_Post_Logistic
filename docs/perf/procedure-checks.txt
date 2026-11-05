@@ -1,0 +1,34 @@
+-- sqlcmd output of sql/perf/procedure-checks.sql on ApexPostDb_Perf, 2026-11-02 13:07 UTC.
+-- usp_DailyBranchSales (brief signature), one branch, one day
+SalesDay|BranchCode|Transactions|Retail|Services|Tax
+--------|----------|------------|------|--------|---
+2026-10-31|BR001|190|4521.05|12316.24|1014.31
+-- usp_DailyBranchSalesRange, the same branch over three days (what the reports call)
+SalesDay|BranchCode|Transactions|Retail|Services|Tax
+--------|----------|------------|------|--------|---
+2026-10-30|BR001|169|3792.55|2354.50|978.42
+2026-10-31|BR001|190|4521.05|12316.24|1014.31
+2026-11-01|BR001|162|3708.25|6251.92|862.36
+-- usp_LowStockReport, one branch
+BranchCode|Sku|Product|Quantity
+----------|---|-------|--------
+BR002|OFF-0001|Printer paper 500 sheets|3
+BR002|OFF-0010|Prepaid return envelope|3
+BR002|PKG-0005|Large parcel box|3
+BR002|STA-0002|Writing pad A4|3
+-- usp_AdjustStock, rolled back by the caller
+NewQuantity|NewHistoryRows
+-----------|--------------
+4|1
+-- parameter validation and THROW
+51004: usp_DailyBranchSales: @Date is required.
+51001: usp_DailyBranchSalesRange: @From and @To are required.
+51002: usp_DailyBranchSalesRange: @To must not be before @From.
+51003: usp_DailyBranchSalesRange: the branch does not exist.
+51011: usp_LowStockReport: @Threshold must be zero or more.
+51012: usp_LowStockReport: the branch does not exist.
+51021: usp_AdjustStock: @Delta must not be zero.
+51021: usp_AdjustStock: a reason is required.
+51022: usp_AdjustStock: the branch does not exist.
+51023: usp_AdjustStock: the product does not exist.
+51024: usp_AdjustStock: not enough stock.

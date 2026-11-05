@@ -1,0 +1,27 @@
+# Final verification on 2026-11-02, at commit c743345, after deleting every bin and obj folder.
+# Windows 11, .NET SDK 10.0.402, SQL Server 2025 RTM. The test run includes the 8 measurement tests.
+
+$ dotnet restore
+  Restored <repo>\src\ApexPost.Domain\ApexPost.Domain.csproj (in 119 ms).
+  Restored <repo>\src\ApexPost.Application\ApexPost.Application.csproj (in 345 ms).
+  Restored <repo>\src\ApexPost.Web\ApexPost.Web.csproj (in 432 ms).
+  Restored <repo>\tests\ApexPost.UnitTests\ApexPost.UnitTests.csproj (in 467 ms).
+  Restored <repo>\tests\ApexPost.IntegrationTests\ApexPost.IntegrationTests.csproj (in 303 ms).
+  Restored <repo>\src\ApexPost.Infrastructure\ApexPost.Infrastructure.csproj (in 303 ms).
+
+$ dotnet build -c Release
+  ApexPost.Domain -> <repo>\src\ApexPost.Domain\bin\Release\net10.0\ApexPost.Domain.dll
+  ApexPost.Application -> <repo>\src\ApexPost.Application\bin\Release\net10.0\ApexPost.Application.d
+  ApexPost.Infrastructure -> <repo>\src\ApexPost.Infrastructure\bin\Release\net10.0\ApexPost.Infrast
+  ApexPost.UnitTests -> <repo>\tests\ApexPost.UnitTests\bin\Release\net10.0\ApexPost.UnitTests.dll
+  ApexPost.Web -> <repo>\src\ApexPost.Web\bin\Release\net10.0\ApexPost.Web.dll
+  ApexPost.IntegrationTests -> <repo>\tests\ApexPost.IntegrationTests\bin\Release\net10.0\ApexPost.I
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:23.49
+
+$ dotnet test -c Release
+Passed!  - Failed:     0, Passed:   542, Skipped:     0, Total:   542, Duration: 35 s - ApexPost.UnitTests.dll (net10.0)
+Passed!  - Failed:     0, Passed:   430, Skipped:     0, Total:   430, Duration: 56 s - ApexPost.IntegrationTests.dll (net10.0)

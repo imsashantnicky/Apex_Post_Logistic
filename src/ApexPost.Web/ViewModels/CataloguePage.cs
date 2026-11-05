@@ -8,4 +8,5 @@ public sealed record CataloguePage(
     string? Search,
     ProductCategory? Category,
     BranchFilter Filter,
-    bool CanAdjust);
+    bool CanAdjust,
+    bool CanRevisePrices);
