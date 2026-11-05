@@ -37,3 +37,6 @@ VIVA.md
 # Week 4 courier: local Couchbase Lite databases
 **/CouchbaseData/
 *.cblite2/
+
+# Week 4 courier: change listener log (logs/listener.log)
+**/logs/
