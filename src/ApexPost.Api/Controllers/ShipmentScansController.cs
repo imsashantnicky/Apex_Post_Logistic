@@ -15,11 +15,12 @@ namespace ApexPost.Api.Controllers;
 public sealed class ShipmentScansController(IShipmentTrackingService tracking) : ControllerBase
 {
     /// <summary>
-    /// Stores a batch of scans of this shipment. A scan id that is already stored is counted as a duplicate, so the
-    /// same batch can be sent again safely; scans the server refuses are listed with a reason.
+    /// Stores a batch of scans of this shipment. A scan id that is already stored, or repeated in the batch, is
+    /// counted once as a duplicate, so the same batch can be sent again safely. A scan of another shipment or one
+    /// that would move the status backwards is listed under rejected with a reason; the valid scans are still stored.
     /// </summary>
     /// <param name="trackingNumber">APX- followed by 8 digits.</param>
-    /// <param name="request">1 to 100 scans, each of this shipment.</param>
+    /// <param name="request">1 to 100 scans.</param>
     /// <param name="cancellationToken">Cancelled when the client goes away.</param>
     [HttpPost(Name = ApiRoutes.UploadScans)]
     [Consumes(ApiRoutes.Json)]

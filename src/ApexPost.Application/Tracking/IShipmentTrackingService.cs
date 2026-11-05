@@ -47,14 +47,15 @@ public interface IShipmentTrackingService
 
     /// <summary>
     /// Stores a batch of device scans. A scan id already stored, or repeated in the batch, is skipped as a duplicate,
-    /// so the same upload can be sent again safely. Each stored scan moves its shipment forward when it can.
+    /// so the same upload can be sent again safely. Each stored scan moves its shipment forward; a scan that would
+    /// move it back or past Delivered/Failed is rejected with a reason, and the valid scans are still stored.
+    /// Accepted + duplicates + rejected always equals the number of scans sent.
     /// </summary>
     Task<ScanUploadResult> UploadScansAsync(IReadOnlyList<ScanUpload> scans, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Stores a batch of scans of one shipment, with the same duplicate handling as <see cref="UploadScansAsync"/>.
-    /// An unknown tracking number throws NotFoundException; a scan of another shipment throws
-    /// ValidationFailedException and nothing is stored.
+    /// Stores a batch of scans of one shipment, with the same rules as <see cref="UploadScansAsync"/>. An unknown
+    /// tracking number throws NotFoundException; a scan of another shipment is rejected with a reason.
     /// </summary>
     Task<ScanUploadResult> UploadShipmentScansAsync(
         string trackingNumber,

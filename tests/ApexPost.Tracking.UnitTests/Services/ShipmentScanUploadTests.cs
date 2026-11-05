@@ -41,22 +41,42 @@ public sealed class ShipmentScanUploadTests
     }
 
     [Fact]
-    public async Task A_scan_of_another_shipment_is_a_validation_error_naming_its_index()
+    public async Task A_scan_of_another_shipment_is_rejected_and_the_valid_scan_is_still_stored()
     {
         _store.Store(TestData.Shipment());
         _store.Store(TestData.Shipment(TestData.OtherTrackingNumber));
-        ScanUpload[] batch =
-        [
-            TestData.Scan(ScanType.Pickup),
-            TestData.Scan(ScanType.Pickup, trackingNumber: TestData.OtherTrackingNumber),
-        ];
+        var own = TestData.Scan(ScanType.Pickup);
+        var foreign = TestData.Scan(ScanType.Pickup, trackingNumber: TestData.OtherTrackingNumber);
 
-        var error = await Assert.ThrowsAsync<ValidationFailedException>(() =>
-            _service.UploadShipmentScansAsync(TestData.TrackingNumber, batch, Ct));
+        var result = await _service.UploadShipmentScansAsync(TestData.TrackingNumber, [own, foreign], Ct);
 
-        Assert.Equal(["scans[1].trackingNumber"], error.Errors.Keys);
-        Assert.Equal(0, _store.Saves);
-        Assert.Empty(_store.StoredScans);
+        Assert.Equal((1, 0), (result.Accepted, result.DuplicatesSkipped));
+        var rejected = Assert.Single(result.Rejected);
+        Assert.Equal(foreign.ScanId, rejected.ScanId);
+        Assert.Contains(TestData.TrackingNumber, rejected.Reason, StringComparison.Ordinal);
+        Assert.Equal(own.ScanId, Assert.Single(_store.StoredScans).ScanId);
+        Assert.Equal(ShipmentStatus.Created, _store.Stored(TestData.OtherTrackingNumber)!.Status);
+    }
+
+    [Fact]
+    public async Task A_mixed_batch_counts_every_scan_exactly_once()
+    {
+        _store.Store(TestData.Shipment());
+        _store.Store(TestData.Shipment(TestData.OtherTrackingNumber));
+        var earlier = TestData.Scan(ScanType.InTransit, minutesAfterNow: 10);
+        await _service.UploadShipmentScansAsync(TestData.TrackingNumber, [earlier], Ct);
+        var pickup = TestData.Scan(ScanType.Pickup, minutesAfterNow: 20);
+        var foreign = TestData.Scan(ScanType.InTransit, trackingNumber: TestData.OtherTrackingNumber);
+        var delivered = TestData.Scan(ScanType.Delivered, minutesAfterNow: 30);
+        ScanUpload[] batch = [earlier, pickup, foreign, delivered, delivered];
+
+        var result = await _service.UploadShipmentScansAsync(TestData.TrackingNumber, batch, Ct);
+
+        Assert.Equal((1, 2), (result.Accepted, result.DuplicatesSkipped));
+        Assert.Equal([foreign.ScanId, pickup.ScanId], result.Rejected.Select(scan => scan.ScanId));
+        Assert.Equal(batch.Length, result.Accepted + result.DuplicatesSkipped + result.Rejected.Count);
+        Assert.Equal(ShipmentStatus.Delivered, _store.Stored(TestData.TrackingNumber)!.Status);
+        Assert.Equal([earlier.ScanId, delivered.ScanId], _store.StoredScans.Select(scan => scan.ScanId));
     }
 
     [Theory]
