@@ -76,7 +76,7 @@ internal static class ScanDocumentMapper
         values.GetString(field) ?? throw new FormatException($"The field '{field}' is missing.");
 
     // Only the enum names are accepted; Enum.TryParse alone would also accept numbers such as "2".
-    private static T ParseEnum<T>(IDictionaryObject values, string field)
+    internal static T ParseEnum<T>(IDictionaryObject values, string field)
         where T : struct, Enum
     {
         var text = Required(values, field);
