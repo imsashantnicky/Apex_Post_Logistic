@@ -37,9 +37,40 @@ implicit usings and `TreatWarningsAsErrors` from the root `Directory.Build.props
 - The local Couchbase database folder (`CouchbaseData/`, `*.cblite2/`) is git-ignored and never committed.
 - Fictional data only. Secrets and connection strings live in `dotnet user-secrets`, never in committed files.
 
+## Decision: additive tracking module (Part B)
+
+Week 3 has no shipment a courier can track: `ShippingLineItem` is a counter basket line with an `AP` + 10 hex
+reference, no status and no recipient phone. The API needs `APX-########` numbers, a status lifecycle and scans.
+The brief forbids changing the Week 3 data layer except by adding service methods, so tracking is a separate module
+that only adds files:
+
+| Layer | Folder | Contents |
+| --- | --- | --- |
+| Domain | `src/ApexPost.Domain/Tracking` | `TrackedShipment` (aggregate), `Recipient`, `TrackingScan`, `ShipmentStatus`, `ScanType`, `ShipmentStatusRules`, `TrackingFormats` |
+| Application | `src/ApexPost.Application/Tracking` | `IShipmentTrackingService` + `ShipmentTrackingService` (all business rules), ports `ITrackedShipmentRepository`, `ITrackingQueries`, `ITrackingUnitOfWork`, views, `InvalidStatusTransitionException`, `ShipmentLockedException` |
+| Infrastructure | `src/ApexPost.Infrastructure/Tracking` | `TrackingDbContext`, configurations, repository, queries, unit of work, design-time factory, `Migrations/`, `AddShipmentTracking(services, configuration)` |
+| Tests | `tests/ApexPost.Tracking.UnitTests` | Rules, domain, service (in-memory fakes), model and SQL Server tests |
+
+- `TrackingDbContext` uses the same `ConnectionStrings:ApexPostDb` user-secret but owns only the tables
+  `TrackedShipments` and `TrackingScans`, its own migrations and the history table `__TrackingMigrationsHistory`.
+  `ApexPostDbContext`, its migrations and `__EFMigrationsHistory` are not touched; a test checks the two models
+  share no table.
+- Unique indexes: `IX_TrackedShipments_TrackingNumber` and `IX_TrackingScans_ScanId`. The scan id index makes a
+  repeated upload a duplicate even when two uploads race.
+- Lifecycle: Created → PickedUp → InTransit → OutForDelivery → Delivered | Failed. Moves go forward only and may skip
+  a stage, because couriers have no OutForDelivery scan and a Delivered scan must still apply after InTransit.
+  Delivered and Failed are final. A scan that is not a forward move is stored as history without changing the status.
+- The Week 3 Domain references no other assembly, so it cannot use `ScanRules` from Courier.Domain.
+  `TrackingFormats` repeats the patterns, and `TrackingFormatsTests` fails if the two copies drift apart.
+- Errors for Part B to map: `NotFoundException` 404; `DuplicateKeyException`, `InvalidStatusTransitionException`,
+  `ShipmentLockedException` (delete after Created, edit after a final status) and `ConcurrencyConflictException` 409;
+  `ValidationFailedException` (page size over 50, empty upload) and `DomainException` (bad input) 400.
+
 ## Git workflow
 
 - `main` is the base branch. It contains all Week 3 work (merged from `chore/setup` in PR #20).
+- Part A was merged into `chore/setup` (PR #35), which is also the default branch on GitHub, not into `main`.
+  `week4-partB` was therefore created from `chore/setup` (agreed with the user) so it contains Part A.
 - Each part has an integration branch `week4-partX` created from `main`.
 - Every step runs on its own branch `week4-partX-NN-name` created from the integration branch. Git cannot hold both
   `week4-partA` and `week4-partA/NN-name`, so step branches use a hyphen, never a slash.
@@ -64,3 +95,4 @@ implicit usings and `TreatWarningsAsErrors` from the root `Directory.Build.props
 | 2026-11-05 | A | Step 07 – harness done: `ApexPost.Courier.Harness` opens `CourierDatabase`, wires `CouchbaseScanRepository`, `OutboxService(FakeShipmentUploader)` and `ScanChangeMonitor.Start()`. Header shows the database name, path and pending count; menu 1 Add Scan, 2 Find by Tracking Number, 3 List Pending, 4 Simulate Sync, 5 Delete Scan, 6 Exit, plus 7 Scans per Type for Courier, 8 Update Scan Notes, 9 Get Scan by ID, 10 Seed Fictional Demo Data (CR-101/CR-102, APX-10000001…06, APX-99999999), 11 Show Query Plans. Aligned tables, validated input, errors return to the menu; Ctrl+C and Exit dispose cleanly ("Listener token removed", "Database closed"). 13 new tests (91 courier tests). |
 | 2026-11-05 | A | Step 08 – tests done: new project `tests/ApexPost.Courier.Offline.Tests` (xUnit v3, in the `.slnx`), every test class opens its own temp database folder. 38 tests: `scan::{Guid}` ids, new scans Pending, wrong APX/CR formats rejected, key-value CRUD round trip and reopen, tracking-number ordering, pending query, per-type counts, injection-style input → 0 rows, both indexes via `GetIndexes` and `Explain`, outbox Synced/Failed, no listener callback after dispose, Courier.Domain references no Couchbase assembly. |
 | 2026-11-05 | A | Step 09 – docs done: `OFFLINE-DESIGN.md` (save locally first with an ASCII outbox diagram, server decides with append-only scans and idempotent `scan::{Guid}` ids, one owner process for the embedded database, the extra `type` field, Part D swaps the uploader), screenshot list in `docs/screenshots/week4-partA/README.md`, and a "Week 4 Part A" section in `README.md` on running the harness and tests. |
+| 2026-11-05 | B | Step 01 – tracking model done: additive tracking module (see the decision above). `TrackedShipment` with `Recipient`, `ShipmentStatusRules.CanMove` (forward only, Delivered/Failed final), `TrackingScan` (`scan::{Guid}`); `ShipmentTrackingService` with List (page size 1–50, status, city), Get, Create, Replace, ChangeStatus, Delete (only Created), UploadScans (duplicates skipped, oldest first, one retry after a parallel commit) and GetScans; `TrackingDbContext` + migration `AddShipmentTracking` with `__TrackingMigrationsHistory`; `AddShipmentTracking` registration. New project `tests/ApexPost.Tracking.UnitTests`: 113 tests, including SQL Server round trip, unique index and version conflict tests. |
