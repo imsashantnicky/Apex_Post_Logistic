@@ -3,7 +3,7 @@ using ApexPost.Application.Tracking;
 
 namespace ApexPost.Api.Contracts.V1;
 
-/// <summary>The body of POST /api/v1/scans: a batch of device scans, which may safely be sent again.</summary>
+/// <summary>The body of POST /api/shipments/{trackingNumber}/scans: a batch of device scans, safe to send again.</summary>
 public sealed class ScanUploadRequest
 {
     /// <summary>1 to 100 scans.</summary>
