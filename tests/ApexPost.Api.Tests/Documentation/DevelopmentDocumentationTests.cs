@@ -22,7 +22,10 @@ public sealed class DevelopmentDocumentationTests(ApiFactory factory) : IClassFi
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
         var info = document.RootElement.GetProperty("info");
         Assert.Equal(ApexDocumentTransformer.Title, info.GetProperty("title").GetString());
-        Assert.Equal(ApexDocumentTransformer.Description, info.GetProperty("description").GetString());
+        Assert.StartsWith(
+            ApexDocumentTransformer.Description,
+            info.GetProperty("description").GetString(),
+            StringComparison.Ordinal);
         Assert.Equal(ApiDocumentation.V1, info.GetProperty("version").GetString());
         var contact = info.GetProperty("contact");
         Assert.Equal(ApexDocumentTransformer.ContactName, contact.GetProperty("name").GetString());

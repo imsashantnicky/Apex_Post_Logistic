@@ -20,6 +20,9 @@ public static class ApiDocumentation
     /// <summary>The URL of the v1 document written by <c>MapOpenApi</c> (pattern /openapi/{documentName}.json).</summary>
     public const string V1DocumentUrl = "/openapi/" + V1 + ".json";
 
+    /// <summary>The Swagger UI drop-down entry of the v1 document.</summary>
+    public const string V1DeprecatedLabel = V1 + " (deprecated)";
+
     /// <summary>The URL of the v2 document.</summary>
     public const string V2DocumentUrl = "/openapi/" + V2 + ".json";
 
@@ -30,7 +33,9 @@ public static class ApiDocumentation
     public const string SwaggerUiPrefix = "swagger";
 
     /// <summary>
-    /// Registers the built-in OpenAPI generator through API Versioning, which adds one document per API version.
+    /// Registers the built-in OpenAPI generator through API Versioning: it calls <c>AddOpenApi("v1")</c> and
+    /// <c>AddOpenApi("v2")</c> itself, one document per API Explorer group name. A direct <c>services.AddOpenApi</c>
+    /// is rejected by the Asp.Versioning analyzer AV0029.
     /// Each document gets <see cref="ApexDocumentTransformer"/> (info block) and
     /// <see cref="SchemaLessContentTransformer"/> (no empty media types), and lists only its own versioned routes.
     /// The XML comments (GenerateDocumentationFile is on) are read by API Versioning; <see cref="XmlExampleTransformer"/>
@@ -78,8 +83,8 @@ public static class ApiDocumentation
         app.UseSwaggerUI(options =>
         {
             options.RoutePrefix = SwaggerUiPrefix;
-            options.SwaggerEndpoint(V2DocumentUrl, $"{ApexDocumentTransformer.Title} {V2}");
-            options.SwaggerEndpoint(V1DocumentUrl, $"{ApexDocumentTransformer.Title} {V1} (deprecated)");
+            options.SwaggerEndpoint(V2DocumentUrl, V2);
+            options.SwaggerEndpoint(V1DocumentUrl, V1DeprecatedLabel);
             options.DocumentTitle = ApexDocumentTransformer.Title;
         });
         return app;
