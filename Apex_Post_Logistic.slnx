@@ -13,6 +13,9 @@
     <Project Path="src/Courier/ApexPost.Courier.Harness/ApexPost.Courier.Harness.csproj" />
     <Project Path="src/Courier/ApexPost.Courier.Offline/ApexPost.Courier.Offline.csproj" />
   </Folder>
+  <Folder Name="/src/Mobile/">
+    <Project Path="src/Mobile/ApexPost.Courier.ApiClient/ApexPost.Courier.ApiClient.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ApexPost.Api.Tests/ApexPost.Api.Tests.csproj" />
     <Project Path="tests/ApexPost.Courier.Offline.Tests/ApexPost.Courier.Offline.Tests.csproj" />
@@ -22,5 +25,8 @@
   </Folder>
   <Folder Name="/tests/Courier/">
     <Project Path="tests/Courier/ApexPost.Courier.UnitTests/ApexPost.Courier.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Mobile/">
+    <Project Path="tests/Mobile/ApexPost.Courier.ApiClient.Tests/ApexPost.Courier.ApiClient.Tests.csproj" />
   </Folder>
 </Solution>
