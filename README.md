@@ -590,6 +590,26 @@ controller is not registered, so the route answers 404. `ApexPost.Api.http` star
 The tests in `tests/ApexPost.Api.Tests/Security` cover 401 (missing, expired, bad signature, wrong issuer or audience,
 malformed), 403 (wrong role, other courierId, no courierId claim), success for each role and `/dev/token`.
 
+### Partner API key, HTTPS and HSTS
+
+Partners track parcels at `GET /api/v2/partner/shipments/{trackingNumber}` (v2 only, read-only). They send a key in
+the `X-Api-Key` header instead of a user token. `[PartnerApiKey]` runs `Security/PartnerApiKeyFilter.cs`, which
+looks the key up in the `PartnerKeys` configuration section (`PartnerKeys:<PartnerName> = <key>`, user-secrets or
+environment variables only). The comparison is constant time (SHA-256 + `CryptographicOperations.FixedTimeEquals`
+against every configured key). A missing or unknown key gets 401 ProblemDetails with `WWW-Authenticate: ApiKey`. Only
+the partner name is logged, never the key. The answer holds status, destination city and the latest scan, never the
+recipient's name, phone or address.
+
+```bash
+dotnet user-secrets set "PartnerKeys:ParcelTrackDemo" "<a long random value>" --project src/ApexPost.Api
+```
+
+`UseHttpsRedirection()` runs in every environment, and `UseHsts()` (one year, subdomains included) runs outside
+Development. Both OpenAPI documents declare the `Bearer` scheme; v2 also declares `ApiKey` (header `X-Api-Key`), and
+the partner operation requires only that one. In Swagger UI, **Authorize** therefore offers a token field and, in v2,
+a key field. [SECURITY.md](SECURITY.md) explains the design, the OAuth 2.0 flows a real identity provider would use,
+why API keys are weaker, HTTPS/HSTS and the Debug-only localhost certificate exception of the courier app.
+
 ## Known limitations
 
 - The allowlists see the address of the direct connection. Behind a proxy that is the proxy, so all callers would

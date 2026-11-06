@@ -10,6 +10,76 @@
     "version": "v2"
   },
   "paths": {
+    "/api/v2/partner/shipments/{trackingNumber}": {
+      "get": {
+        "tags": [
+          "Partner"
+        ],
+        "summary": "Track a shipment as a partner",
+        "description": "Returns the status, destination city and latest scan of one shipment, without the recipient's name, phone or address. Authenticate with a partner key in the X-Api-Key header (security scheme ApiKey).",
+        "operationId": "GetPartnerShipment",
+        "parameters": [
+          {
+            "name": "trackingNumber",
+            "in": "path",
+            "description": "APX- followed by 8 digits.",
+            "required": true,
+            "schema": {
+              "pattern": "^APX-\\d{8}$",
+              "type": "string"
+            },
+            "example": "APX-20000005"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status, destination city and latest scan of the shipment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerShipmentResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The X-Api-Key header is missing or holds an unknown key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No shipment has this tracking number, or it is not APX- followed by 8 digits.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ]
+      }
+    },
     "/api/v2/shipments/{trackingNumber}/scans": {
       "post": {
         "tags": [
@@ -923,6 +993,52 @@
         },
         "description": "One page of a list, with what a client needs to ask for the next one."
       },
+      "PartnerShipmentResponse": {
+        "required": [
+          "trackingNumber",
+          "status",
+          "destinationCity",
+          "latestScan"
+        ],
+        "type": "object",
+        "properties": {
+          "trackingNumber": {
+            "examples": [
+              "APX-20000005",
+              "APX-20000005"
+            ],
+            "type": "string",
+            "description": "The tracking number, APX- followed by 8 digits."
+          },
+          "status": {
+            "description": "The current status: Created, PickedUp, InTransit, OutForDelivery, Delivered or Failed.",
+            "examples": [
+              "InTransit"
+            ],
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "destinationCity": {
+            "examples": [
+              "Riverton",
+              "Riverton"
+            ],
+            "type": "string",
+            "description": "The city of the recipient."
+          },
+          "latestScan": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LatestScanResponse"
+              }
+            ],
+            "description": "The most recent scan by scannedAtUtc; null when no scan was uploaded yet."
+          }
+        },
+        "description": "What a partner sees of a shipment: status, destination city and the latest scan. The name, phone and address of\nthe recipient are left out, because a partner only needs to track the parcel."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -1534,6 +1650,12 @@
       }
     },
     "securitySchemes": {
+      "ApiKey": {
+        "type": "apiKey",
+        "description": "A partner key, issued per partner and kept in configuration (PartnerKeys section).",
+        "name": "X-Api-Key",
+        "in": "header"
+      },
       "Bearer": {
         "type": "http",
         "description": "A JWT from dotnet user-jwts or, in Development, POST /dev/token. Roles: Courier, Admin.",
@@ -1548,6 +1670,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "Partner"
+    },
     {
       "name": "Scans"
     },

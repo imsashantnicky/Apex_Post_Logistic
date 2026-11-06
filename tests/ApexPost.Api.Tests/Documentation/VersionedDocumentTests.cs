@@ -15,6 +15,7 @@ public sealed class VersionedDocumentTests(ApiFactory factory) : IClassFixture<A
     [
         ApiRoutes.ListShipments, ApiRoutes.GetShipment, ApiRoutes.CreateShipment, ApiRoutes.ReplaceShipment,
         ApiRoutes.ChangeShipmentStatus, ApiRoutes.DeleteShipment, ApiRoutes.UploadScans, ApiRoutes.GetScans,
+        ApiRoutes.GetPartnerShipment,
     ];
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -32,7 +33,7 @@ public sealed class VersionedDocumentTests(ApiFactory factory) : IClassFixture<A
             operations.Select(operation => operation.Id).Order(StringComparer.Ordinal));
         Assert.All(operations, operation =>
         {
-            Assert.StartsWith("/api/v2/shipments", operation.Path, StringComparison.Ordinal);
+            Assert.StartsWith("/api/v2/", operation.Path, StringComparison.Ordinal);
             Assert.False(operation.Deprecated, operation.Id);
         });
     }
