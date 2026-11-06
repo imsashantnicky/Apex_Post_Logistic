@@ -92,6 +92,19 @@ public sealed class V2ContractTests(ApiFactory factory) : IClassFixture<ApiFacto
     }
 
     [Fact]
+    public async Task Status_given_as_a_v1_number_is_still_accepted_and_answered_by_name()
+    {
+        using var client = factory.CreateClient();
+        var trackingNumber = await CreateV2Async(client);
+
+        var moved = await client.PatchAsJsonAsync($"{V2Shipments}/{trackingNumber}/status", new { status = 2 }, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, moved.StatusCode);
+        using var body = JsonDocument.Parse(await moved.Content.ReadAsStringAsync(Ct));
+        Assert.Equal("PickedUp", body.RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
     public async Task Missing_or_invalid_nested_recipient_is_400_validation_problem()
     {
         using var client = factory.CreateClient();

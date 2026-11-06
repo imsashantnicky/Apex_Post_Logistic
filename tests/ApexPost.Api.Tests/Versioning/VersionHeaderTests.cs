@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Net;
+using ApexPost.Api.Composition;
 using ApexPost.Api.Tests.Support;
 using static ApexPost.Api.Tests.Support.ApiClient;
 
@@ -32,6 +34,37 @@ public sealed class VersionHeaderTests(ApiFactory factory) : IClassFixture<ApiFa
         Assert.Equal("1.0", Assert.Single(response.Headers.GetValues(Deprecated)));
     }
 
+    [Theory]
+    [InlineData(Shipments + Seeded)]
+    [InlineData(V1Shipments + Seeded)]
+    [InlineData(V1Shipments)]
+    public async Task V1_answer_carries_Deprecation_Sunset_and_the_migration_Link(string route)
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(route, Ct);
+
+        var deprecatedAt = DateTimeOffset.FromUnixTimeSeconds(
+            long.Parse(Header(response, "Deprecation").TrimStart('@'), CultureInfo.InvariantCulture));
+        var sunsetAt = DateTimeOffset.Parse(Header(response, "Sunset"), CultureInfo.InvariantCulture);
+        Assert.Equal(VersionLifecycle.AtMidnightUtc(VersionLifecycle.V1DeprecatedOn), deprecatedAt);
+        Assert.Equal(VersionLifecycle.AtMidnightUtc(VersionLifecycle.V1SunsetOn), sunsetAt);
+        var links = response.Headers.GetValues("Link").ToList();
+        Assert.Contains($"<{VersionLifecycle.MigrationGuideUrl}>; rel=\"deprecation\"", links);
+        Assert.Contains($"<{VersionLifecycle.MigrationGuideUrl}>; rel=\"sunset\"", links);
+    }
+
+    [Fact]
+    public async Task V2_answer_has_no_Deprecation_or_Sunset()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(V2Shipments + Seeded, Ct);
+
+        Assert.False(response.Headers.Contains("Deprecation"));
+        Assert.False(response.Headers.Contains("Sunset"));
+    }
+
     [Fact]
     public async Task Request_without_a_version_is_served_by_v1()
     {
@@ -42,6 +75,9 @@ public sealed class VersionHeaderTests(ApiFactory factory) : IClassFixture<ApiFa
 
         Assert.Equal(v1, alias);
     }
+
+    private static string Header(HttpResponseMessage response, string name) =>
+        Assert.Single(response.Headers.GetValues(name));
 
     [Fact]
     public async Task Unknown_version_is_404_problem_details()

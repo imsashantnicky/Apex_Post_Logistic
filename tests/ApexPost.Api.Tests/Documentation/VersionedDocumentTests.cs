@@ -38,6 +38,48 @@ public sealed class VersionedDocumentTests(ApiFactory factory) : IClassFixture<A
     }
 
     [Fact]
+    public async Task Only_the_v1_description_carries_the_deprecation_notice_with_the_sunset_date()
+    {
+        using var v1 = await ReadAsync(ApiDocumentation.V1DocumentUrl);
+        using var v2 = await ReadAsync(ApiDocumentation.V2DocumentUrl);
+
+        var v1Description = Description(v1.RootElement);
+
+        Assert.StartsWith(ApexDocumentTransformer.Description, v1Description, StringComparison.Ordinal);
+        Assert.Contains("**Deprecated:** v1 is deprecated", v1Description, StringComparison.Ordinal);
+        Assert.Contains("2027-05-31", v1Description, StringComparison.Ordinal);
+        Assert.Equal(ApexDocumentTransformer.Description, Description(v2.RootElement));
+    }
+
+    [Theory]
+    [InlineData(ApiDocumentation.V1DocumentUrl)]
+    [InlineData(ApiDocumentation.V2DocumentUrl)]
+    public async Task Document_lists_no_servers_so_the_contract_is_the_same_on_every_machine(string url)
+    {
+        using var document = await ReadAsync(url);
+
+        Assert.False(
+            document.RootElement.TryGetProperty("servers", out var servers) && servers.GetArrayLength() > 0);
+    }
+
+    [Fact]
+    public async Task Swagger_ui_offers_v2_and_v1_deprecated()
+    {
+        using var client = factory.CreateClient();
+
+        var initializer = await client.GetStringAsync("/swagger/index.js", Ct);
+
+        Assert.Contains(
+            $"\"url\":\"{ApiDocumentation.V2DocumentUrl}\",\"name\":\"v2\"",
+            initializer,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            $"\"url\":\"{ApiDocumentation.V1DocumentUrl}\",\"name\":\"v1 (deprecated)\"",
+            initializer,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task V1_document_marks_every_operation_deprecated()
     {
         using var document = await ReadAsync(ApiDocumentation.V1DocumentUrl);
@@ -78,6 +120,9 @@ public sealed class VersionedDocumentTests(ApiFactory factory) : IClassFixture<A
         Assert.Equal("integer", v1Status.GetProperty("type").GetString());
         Assert.Equal(["Created", "PickedUp", "InTransit", "OutForDelivery", "Delivered", "Failed"], v2Names);
     }
+
+    private static string? Description(JsonElement root) =>
+        root.GetProperty("info").GetProperty("description").GetString();
 
     private static JsonElement StatusSchema(JsonElement root) =>
         root.GetProperty("components").GetProperty("schemas").GetProperty("ShipmentStatus");

@@ -468,14 +468,35 @@ Three different things are often all called "Swagger":
 
 | Name | What it is | In this repository |
 | --- | --- | --- |
-| OpenAPI specification | A vendor-neutral standard (JSON or YAML) that describes an HTTP API: paths, verbs, parameters, request and response bodies, status codes. Tools read it to show documentation or generate clients. | The document at `/openapi/v1.json` |
-| Built-in .NET OpenAPI generator | The `Microsoft.AspNetCore.OpenApi` package. `AddOpenApi()` reads the controllers, routes and response types at runtime and writes an OpenAPI document; `MapOpenApi()` serves it. Document transformers change the result. | `AddApexOpenApi()` and `ApexDocumentTransformer` (title, description, version, contact) in `src/ApexPost.Api/OpenApi` |
-| Swagger UI | A web page that only renders an existing OpenAPI document and offers "Try it out". It generates nothing. | `Swashbuckle.AspNetCore.SwaggerUi` at `/swagger`, pointed at `/openapi/v1.json`. The full `Swashbuckle.AspNetCore` package and `AddSwaggerGen` are not used. |
+| OpenAPI specification | A vendor-neutral standard (JSON or YAML) that describes an HTTP API: paths, verbs, parameters, request and response bodies, status codes. Tools read it to show documentation or generate clients. | One document per version: `/openapi/v1.json` (deprecated) and `/openapi/v2.json`, committed as `contracts/v1.json` and `contracts/v2.json` |
+| Built-in .NET OpenAPI generator | The `Microsoft.AspNetCore.OpenApi` package. `AddOpenApi("v1")` and `AddOpenApi("v2")` (called for each API Explorer group by `Asp.Versioning.OpenApi`) read the controllers, routes and response types at runtime and write an OpenAPI document; `MapOpenApi()` serves it. Document transformers change the result. | `AddApexOpenApi()` and `ApexDocumentTransformer` (title, description with the v1 deprecation notice, version, contact) in `src/ApexPost.Api/OpenApi` |
+| Swagger UI | A web page that only renders an existing OpenAPI document and offers "Try it out". It generates nothing. | `Swashbuckle.AspNetCore.SwaggerUi` at `/swagger`; the drop-down offers "v2" (`/openapi/v2.json`) and "v1 (deprecated)" (`/openapi/v1.json`). The full `Swashbuckle.AspNetCore` package and `AddSwaggerGen` are not used. |
 
 Run the API in Development (`dotnet run --project src/ApexPost.Api --launch-profile https`) and open:
 
-- `https://localhost:7310/openapi/v1.json` – the OpenAPI document
-- `https://localhost:7310/swagger` – Swagger UI on that document
+- `https://localhost:7310/openapi/v2.json` and `https://localhost:7310/openapi/v1.json` – the OpenAPI documents
+- `https://localhost:7310/swagger` – Swagger UI on both documents
+
+### Versions and contract tracking
+
+`/api/v2/shipments` is the current contract. `/api/v1/shipments` and the Part B alias `/api/shipments` are deprecated
+and answer with `Deprecation`, `Sunset` and `Link` headers. [VERSIONING.md](VERSIONING.md) lists every v1 → v2 change,
+the deprecation policy and the sunset plan.
+
+`contracts/v1.json` and `contracts/v2.json` are the published contracts. `ContractTrackingTests` fails when the live
+documents differ from them, so every contract change shows up as a reviewed diff. After an intended change, export
+them again. The API starts in Development, so the user-secret connection string is needed:
+
+```bash
+./scripts/export-contracts.sh      # Linux, macOS, Git Bash
+```
+
+```powershell
+./scripts/export-contracts.ps1     # Windows PowerShell
+```
+
+Both scripts build the API, start it on `http://127.0.0.1:5199`, download both documents, pretty-print them with
+`scripts/format-json.cs` (the same bytes on every OS) and stop the API.
 
 ### Development only, and why that is not security
 
