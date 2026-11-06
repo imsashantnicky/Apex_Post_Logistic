@@ -529,8 +529,13 @@ its `appsettings.json` (default `http://localhost:5310/`, the API's `http` launc
 reads it back, uploads two scans with new `scan::{Guid}` ids (Pickup, then InTransit), and asks for the unknown
 `APX-00000000`: the client throws `ApiException` with `StatusCode` 404, and the consumer prints a friendly message.
 
+Since Part D the API needs a bearer token. The demo creates shipments and uploads CR-101 scans, so give it a token
+with both roles through the environment variable `ApexPostApi__AccessToken` (never in `appsettings.json`):
+
 ```bash
 dotnet run --project src/ApexPost.Api --launch-profile http        # terminal 1
+export ApexPostApi__AccessToken=$(dotnet user-jwts create --project src/ApexPost.Api \
+  --role Admin --role Courier --claim courierId=CR-101 --output token)
 dotnet run --project src/ApexPost.Client.Consumer                  # terminal 2
 dotnet run --project src/ApexPost.Client.Consumer -- --ApexPostApi:BaseUrl=http://localhost:5199/
 ```
@@ -545,6 +550,45 @@ operation in `contracts/v2.json`.
 of Production keeps the surface small and avoids publishing internal details, but it is **not** a security measure:
 anyone can still call the endpoints, guess routes or read a copy of the contract. The endpoints must protect themselves
 with authentication and authorization (Part D adds JWT roles and a partner API key).
+
+## Week 4 Part D – security and the courier app
+
+### JWT bearer authentication and roles
+
+`ApexPost.Api` accepts only requests with a valid JWT (`AddAuthentication().AddJwtBearer()` in
+`Composition/ApiSecurityRegistration.cs`). Issuer, audience, lifetime (30 seconds clock skew) and signing key are all
+validated. Issuer and audiences are read from `Authentication:Schemes:Bearer` in `appsettings.json` (Development:
+`appsettings.Development.json`, issuer `dotnet-user-jwts`). The signing key is only in user-secrets, where
+`dotnet user-jwts` creates and keeps it; it is never in a committed file.
+
+| Endpoint (v1, v1 alias and v2) | Who may call it |
+| --- | --- |
+| `GET` shipments, one shipment, scans | any valid token |
+| `POST .../scans` (upload) | role `Courier`, and only scans whose `courierId` equals the token's `courierId` claim |
+| `PATCH .../status` | role `Courier` |
+| `POST` shipments, `PUT` shipment, `DELETE` shipment | role `Admin` |
+
+401 (no token, expired, bad signature, wrong issuer or audience) and 403 (wrong role) are ProblemDetails with a
+`traceId`, written by `Security/BearerProblemEvents.cs`. The courierId rule is checked in
+`ShipmentTrackingService` (through the `ICurrentCourier` port), not in the controller: a batch with a scan of
+another courier is refused as a whole with 403 and nothing is stored. The OpenAPI documents declare the Bearer scheme,
+so Swagger UI shows an **Authorize** button.
+
+Create tokens for local testing (the first run also creates the signing key in user-secrets):
+
+```bash
+dotnet user-jwts create --project src/ApexPost.Api --role Courier --claim courierId=CR-101
+dotnet user-jwts create --project src/ApexPost.Api --role Admin
+dotnet user-jwts list --project src/ApexPost.Api
+```
+
+In Development, `POST /dev/token` with `{ "courierId": "CR-101" }` (or `CR-102`) returns a one-hour Courier token,
+signed with the same key, for the MAUI login. It is not part of the OpenAPI documents, and outside Development the
+controller is not registered, so the route answers 404. `ApexPost.Api.http` starts with these requests and sends
+`{{courierToken}}` or `{{adminToken}}` with every call.
+
+The tests in `tests/ApexPost.Api.Tests/Security` cover 401 (missing, expired, bad signature, wrong issuer or audience,
+malformed), 403 (wrong role, other courierId, no courierId claim), success for each role and `/dev/token`.
 
 ## Known limitations
 

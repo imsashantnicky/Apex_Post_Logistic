@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using ApexPost.Api.Contracts.V1;
+using ApexPost.Api.Security;
 using ApexPost.Application.Tracking;
 using ApexPost.Domain.Tracking;
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ApexPost.Api.Controllers.V1;
@@ -18,6 +20,7 @@ namespace ApexPost.Api.Controllers.V1;
 /// the action can answer, errors as application/problem+json. Every action answers on /api/v1/shipments and on the
 /// unversioned /api/shipments alias; only the versioned route is named and documented.
 /// </remarks>
+[Authorize]
 [ApiController]
 [ApiVersion(ApiRoutes.Version1, Deprecated = true)]
 [Tags(ApiRoutes.ShipmentsTag)]
@@ -32,6 +35,7 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <param name="cancellationToken">Cancelled when the client goes away.</param>
     /// <response code="200">One page of shipments, ordered by tracking number.</response>
     /// <response code="400">page or pageSize out of range, or an unknown status.</response>
+    /// <response code="401">No valid bearer token: missing, expired or not signed with the API's key.</response>
     /// <response code="500">An unexpected server error.</response>
     [HttpGet(ApiRoutes.VersionedShipments, Name = ApiRoutes.ListShipmentsV1)]
     [HttpGet(ApiRoutes.Shipments)]
@@ -41,6 +45,7 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
         "20); a larger value is answered with 400, never silently cut.")]
     [ProducesResponseType<PagedResponse<ShipmentResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, ApiRoutes.ProblemJson)]
     public async Task<ActionResult<PagedResponse<ShipmentResponse>>> List(
         [FromQuery, Range(1, int.MaxValue)] int page = 1,
@@ -58,6 +63,7 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <param name="cancellationToken">Cancelled when the client goes away.</param>
     /// <response code="200">The shipment.</response>
     /// <response code="404">No shipment has this tracking number, or it is not APX- followed by 8 digits.</response>
+    /// <response code="401">No valid bearer token: missing, expired or not signed with the API's key.</response>
     /// <response code="500">An unexpected server error.</response>
     [HttpGet(ApiRoutes.VersionedShipment, Name = ApiRoutes.GetShipmentV1)]
     [HttpGet(ApiRoutes.Shipment)]
@@ -67,6 +73,7 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
         "the route and is answered with 404 as well.")]
     [ProducesResponseType<ShipmentResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, ApiRoutes.ProblemJson)]
     public async Task<ActionResult<ShipmentResponse>> Get(string trackingNumber, CancellationToken cancellationToken)
     {
@@ -81,9 +88,12 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="400">A field is missing or invalid.</response>
     /// <response code="409">A shipment with this tracking number already exists.</response>
     /// <response code="415">The body is not application/json.</response>
+    /// <response code="401">No valid bearer token: missing, expired or not signed with the API's key.</response>
+    /// <response code="403">The token does not have the Admin role.</response>
     /// <response code="500">An unexpected server error.</response>
     [HttpPost(ApiRoutes.VersionedShipments, Name = ApiRoutes.CreateShipmentV1)]
     [HttpPost(ApiRoutes.Shipments)]
+    [Authorize(Roles = ApiRoles.Admin)]
     [EndpointSummary("Create a shipment")]
     [EndpointDescription(
         "Registers a new shipment, which starts as Created. Answers 201 with the shipment and a Location header " +
@@ -93,6 +103,8 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status415UnsupportedMediaType, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, ApiRoutes.ProblemJson)]
     public async Task<ActionResult<ShipmentResponse>> Create(
         CreateShipmentRequest request,
@@ -119,9 +131,12 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="404">No shipment has this tracking number.</response>
     /// <response code="409">The shipment is Delivered or Failed, or was changed by someone else.</response>
     /// <response code="415">The body is not application/json.</response>
+    /// <response code="401">No valid bearer token: missing, expired or not signed with the API's key.</response>
+    /// <response code="403">The token does not have the Admin role.</response>
     /// <response code="500">An unexpected server error.</response>
     [HttpPut(ApiRoutes.VersionedShipment, Name = ApiRoutes.ReplaceShipmentV1)]
     [HttpPut(ApiRoutes.Shipment)]
+    [Authorize(Roles = ApiRoles.Admin)]
     [EndpointSummary("Replace a shipment")]
     [EndpointDescription(
         "Replaces the recipient and weight of a shipment. The tracking number and status do not change; a " +
@@ -132,6 +147,8 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status415UnsupportedMediaType, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, ApiRoutes.ProblemJson)]
     public async Task<ActionResult<ShipmentResponse>> Update(
         string trackingNumber,
@@ -152,9 +169,12 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="404">No shipment has this tracking number.</response>
     /// <response code="409">The move is not forward, or the shipment was changed by someone else.</response>
     /// <response code="415">The body is not application/json.</response>
+    /// <response code="401">No valid bearer token: missing, expired or not signed with the API's key.</response>
+    /// <response code="403">The token does not have the Courier role.</response>
     /// <response code="500">An unexpected server error.</response>
     [HttpPatch(ApiRoutes.VersionedShipment + ApiRoutes.StatusSegment, Name = ApiRoutes.ChangeShipmentStatusV1)]
     [HttpPatch(ApiRoutes.Shipment + ApiRoutes.StatusSegment)]
+    [Authorize(Roles = ApiRoles.Courier)]
     [EndpointSummary("Change the status of a shipment")]
     [EndpointDescription(
         "Moves a shipment forward: Created → PickedUp → InTransit → OutForDelivery → Delivered | Failed. A move " +
@@ -165,6 +185,8 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status415UnsupportedMediaType, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, ApiRoutes.ProblemJson)]
     public async Task<ActionResult<ShipmentResponse>> UpdateStatus(
         string trackingNumber,
@@ -185,9 +207,12 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     /// <response code="204">The shipment was deleted.</response>
     /// <response code="404">No shipment has this tracking number.</response>
     /// <response code="409">The shipment is no longer Created.</response>
+    /// <response code="401">No valid bearer token: missing, expired or not signed with the API's key.</response>
+    /// <response code="403">The token does not have the Admin role.</response>
     /// <response code="500">An unexpected server error.</response>
     [HttpDelete(ApiRoutes.VersionedShipment, Name = ApiRoutes.DeleteShipmentV1)]
     [HttpDelete(ApiRoutes.Shipment)]
+    [Authorize(Roles = ApiRoles.Admin)]
     [EndpointSummary("Delete a shipment")]
     [EndpointDescription(
         "Deletes a shipment that is still Created. Once a courier has picked it up the history must stay, so " +
@@ -195,6 +220,8 @@ public sealed class ShipmentsController(IShipmentTrackingService tracking) : Con
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, ApiRoutes.ProblemJson)]
     public async Task<IActionResult> Delete(string trackingNumber, CancellationToken cancellationToken)
     {

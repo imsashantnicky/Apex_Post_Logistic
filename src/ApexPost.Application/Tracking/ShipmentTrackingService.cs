@@ -7,15 +7,18 @@ namespace ApexPost.Application.Tracking;
 
 /// <summary>
 /// The tracking use cases. Reads go through <see cref="ITrackingQueries"/>; every write loads the shipment through
-/// the repository, applies the domain rules and commits once through <see cref="ITrackingUnitOfWork"/>.
+/// the repository, applies the domain rules and commits once through <see cref="ITrackingUnitOfWork"/>. A scan
+/// upload is accepted only from the courier who recorded every scan in it (<see cref="ICurrentCourier"/>).
 /// </summary>
 public sealed class ShipmentTrackingService(
     ITrackedShipmentRepository shipments,
     ITrackingQueries queries,
     ITrackingUnitOfWork unitOfWork,
+    ICurrentCourier courier,
     TimeProvider time) : IShipmentTrackingService
 {
     private const string UnknownTrackingNumber = "Unknown tracking number.";
+    private const string NotACourier = "Only a signed-in courier can upload scans.";
 
     public Task<PagedResult<ShipmentView>> ListAsync(
         int page,
@@ -109,16 +112,18 @@ public sealed class ShipmentTrackingService(
 
     public Task<ScanUploadResult> UploadScansAsync(
         IReadOnlyList<ScanUpload> scans,
-        CancellationToken cancellationToken) =>
-        UploadAsync(scans, onlyShipment: null, cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        CheckBatch(scans);
+        return UploadAsync(scans, onlyShipment: null, cancellationToken);
+    }
 
     public async Task<ScanUploadResult> UploadShipmentScansAsync(
         string trackingNumber,
         IReadOnlyList<ScanUpload> scans,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(scans);
-        TrackingLimits.CheckUpload(scans.Count);
+        CheckBatch(scans);
         _ = await GetAsync(trackingNumber, cancellationToken).ConfigureAwait(false);
         return await UploadAsync(scans, trackingNumber, cancellationToken).ConfigureAwait(false);
     }
@@ -139,8 +144,6 @@ public sealed class ShipmentTrackingService(
         string? onlyShipment,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(scans);
-        TrackingLimits.CheckUpload(scans.Count);
         try
         {
             return await UploadOnceAsync(scans, onlyShipment, cancellationToken).ConfigureAwait(false);
@@ -242,6 +245,31 @@ public sealed class ShipmentTrackingService(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The size limits, then ownership: the caller must be a courier, and every scan with a well-formed courier id
+    /// must carry the caller's id, or the whole batch is refused with <see cref="ForbiddenException"/> (403) before
+    /// anything is read or stored. A malformed courier id claims no owner; that scan is rejected later with a reason,
+    /// like any other invalid scan.
+    /// </summary>
+    private void CheckBatch(IReadOnlyList<ScanUpload> scans)
+    {
+        ArgumentNullException.ThrowIfNull(scans);
+        TrackingLimits.CheckUpload(scans.Count);
+        var caller = courier.CourierId;
+        if (!TrackingFormats.IsCourierId(caller))
+        {
+            throw new ForbiddenException(NotACourier);
+        }
+
+        var foreign = scans.FirstOrDefault(scan => TrackingFormats.IsCourierId(scan.CourierId)
+            && !string.Equals(scan.CourierId, caller, StringComparison.Ordinal));
+        if (foreign is not null)
+        {
+            throw new ForbiddenException(
+                $"Courier {caller} cannot upload scan {foreign.ScanId}, which was recorded by {foreign.CourierId}.");
+        }
     }
 
     private async Task<TrackedShipment> LoadAsync(string trackingNumber, CancellationToken cancellationToken) =>
