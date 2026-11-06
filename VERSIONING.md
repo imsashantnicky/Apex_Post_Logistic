@@ -115,3 +115,8 @@ Both scripts build `ApexPost.Api`, start it in Development on `http://127.0.0.1:
 indent, LF, readable characters; the same bytes on every OS) and stop the API.
 
 The documents list no `servers`, so the contracts do not depend on the machine or port that produced them.
+
+The C# client in `src/ApexPost.Client` is generated from `contracts/v2.json`. After exporting a changed v2 contract,
+run `scripts/generate-client.sh` or `scripts/generate-client.ps1` and commit the regenerated
+`Generated/ApexPostApiClient.g.cs` with it. `GeneratedClientTests` fails when an operation of the contract has no
+client method.

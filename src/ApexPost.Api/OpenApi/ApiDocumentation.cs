@@ -36,8 +36,9 @@ public static class ApiDocumentation
     /// Registers the built-in OpenAPI generator through API Versioning: it calls <c>AddOpenApi("v1")</c> and
     /// <c>AddOpenApi("v2")</c> itself, one document per API Explorer group name. A direct <c>services.AddOpenApi</c>
     /// is rejected by the Asp.Versioning analyzer AV0029.
-    /// Each document gets <see cref="ApexDocumentTransformer"/> (info block) and
-    /// <see cref="SchemaLessContentTransformer"/> (no empty media types), and lists only its own versioned routes.
+    /// Each document gets <see cref="ApexDocumentTransformer"/> (info block),
+    /// <see cref="SchemaLessContentTransformer"/> (no empty media types) and <see cref="NullEnumValueTransformer"/>
+    /// (no null in enum value lists), and lists only its own versioned routes.
     /// The XML comments (GenerateDocumentationFile is on) are read by API Versioning; <see cref="XmlExampleTransformer"/>
     /// adds the property examples and request body descriptions it leaves out.
     /// </summary>
@@ -52,6 +53,7 @@ public static class ApiDocumentation
             options.Document.AddOperationTransformer<SchemaLessContentTransformer>();
             options.Document.AddOperationTransformer(examples);
             options.Document.AddSchemaTransformer(examples);
+            options.Document.AddSchemaTransformer<NullEnumValueTransformer>();
         });
     }
 

@@ -1113,8 +1113,7 @@
           "Pickup",
           "InTransit",
           "Delivered",
-          "Failed",
-          null
+          "Failed"
         ]
       },
       "ScanUploadRequest": {
