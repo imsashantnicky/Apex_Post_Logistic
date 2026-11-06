@@ -13,26 +13,26 @@ public sealed class OperationMetadataTests(ApiFactory factory) : IClassFixture<A
 {
     private const string ProblemJson = "application/problem+json";
     private const string ApiPrefix = "/api/";
-    private const string ShipmentPath = "/api/shipments/{trackingNumber}";
+    private const string ShipmentPath = "/api/v1/shipments/{trackingNumber}";
     private const string ScansPath = ShipmentPath + "/scans";
 
     private static readonly ExpectedOperation[] Expected =
     [
-        new(ApiRoutes.ListShipments, "get", "/api/shipments", ApiRoutes.ShipmentsTag, "List shipments",
+        new(ApiRoutes.ListShipmentsV1, "get", "/api/v1/shipments", ApiRoutes.ShipmentsTag, "List shipments",
             ["200", "400", "500"]),
-        new(ApiRoutes.GetShipment, "get", ShipmentPath, ApiRoutes.ShipmentsTag, "Get a shipment",
+        new(ApiRoutes.GetShipmentV1, "get", ShipmentPath, ApiRoutes.ShipmentsTag, "Get a shipment",
             ["200", "404", "500"]),
-        new(ApiRoutes.CreateShipment, "post", "/api/shipments", ApiRoutes.ShipmentsTag, "Create a shipment",
+        new(ApiRoutes.CreateShipmentV1, "post", "/api/v1/shipments", ApiRoutes.ShipmentsTag, "Create a shipment",
             ["201", "400", "409", "415", "500"]),
-        new(ApiRoutes.ReplaceShipment, "put", ShipmentPath, ApiRoutes.ShipmentsTag, "Replace a shipment",
+        new(ApiRoutes.ReplaceShipmentV1, "put", ShipmentPath, ApiRoutes.ShipmentsTag, "Replace a shipment",
             ["200", "400", "404", "409", "415", "500"]),
-        new(ApiRoutes.ChangeShipmentStatus, "patch", ShipmentPath + "/status", ApiRoutes.ShipmentsTag,
+        new(ApiRoutes.ChangeShipmentStatusV1, "patch", ShipmentPath + "/status", ApiRoutes.ShipmentsTag,
             "Change the status of a shipment", ["200", "400", "404", "409", "415", "500"]),
-        new(ApiRoutes.DeleteShipment, "delete", ShipmentPath, ApiRoutes.ShipmentsTag, "Delete a shipment",
+        new(ApiRoutes.DeleteShipmentV1, "delete", ShipmentPath, ApiRoutes.ShipmentsTag, "Delete a shipment",
             ["204", "404", "409", "500"]),
-        new(ApiRoutes.UploadScans, "post", ScansPath, ApiRoutes.ScansTag, "Upload scans of a shipment",
+        new(ApiRoutes.UploadScansV1, "post", ScansPath, ApiRoutes.ScansTag, "Upload scans of a shipment",
             ["200", "400", "404", "415", "500"]),
-        new(ApiRoutes.GetScans, "get", ScansPath, ApiRoutes.ScansTag, "Get the scans of a shipment",
+        new(ApiRoutes.GetScansV1, "get", ScansPath, ApiRoutes.ScansTag, "Get the scans of a shipment",
             ["200", "404", "500"]),
     ];
 
@@ -162,7 +162,7 @@ public sealed class OperationMetadataTests(ApiFactory factory) : IClassFixture<A
     {
         using var document = await ReadDocumentAsync();
 
-        var body = document.RootElement.GetProperty("paths").GetProperty("/api/shipments").GetProperty("post")
+        var body = document.RootElement.GetProperty("paths").GetProperty("/api/v1/shipments").GetProperty("post")
             .GetProperty("requestBody");
 
         Assert.Equal("The tracking number, recipient and weight.", Text(body, "description"));

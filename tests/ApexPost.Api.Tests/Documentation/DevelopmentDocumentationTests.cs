@@ -37,9 +37,9 @@ public sealed class DevelopmentDocumentationTests(ApiFactory factory) : IClassFi
         using var document = JsonDocument.Parse(await client.GetStringAsync(ApiDocumentation.V1DocumentUrl, Ct));
         var paths = document.RootElement.GetProperty("paths");
 
-        Assert.True(paths.TryGetProperty("/api/shipments", out _));
-        Assert.True(paths.TryGetProperty("/api/shipments/{trackingNumber}", out _));
-        Assert.True(paths.TryGetProperty("/api/shipments/{trackingNumber}/scans", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/shipments", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/shipments/{trackingNumber}", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/shipments/{trackingNumber}/scans", out _));
     }
 
     [Fact]
@@ -53,6 +53,7 @@ public sealed class DevelopmentDocumentationTests(ApiFactory factory) : IClassFi
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         Assert.Equal("text/html", page.Content.Headers.ContentType?.MediaType);
         Assert.Contains(ApiDocumentation.V1DocumentUrl, initializer, StringComparison.Ordinal);
+        Assert.Contains(ApiDocumentation.V2DocumentUrl, initializer, StringComparison.Ordinal);
     }
 
     [Fact]

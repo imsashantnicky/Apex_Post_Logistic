@@ -20,8 +20,9 @@ builder.Services.AddShipmentTracking(builder.Configuration);
 
 builder.Services.AddApexApi(builder.Configuration);
 
-// The built-in .NET OpenAPI generator; ApexDocumentTransformer fills title, description, version and contact.
-builder.Services.AddApexOpenApi();
+// URL-segment versioning (v1 deprecated, v2 current; /api/shipments stays a v1 alias) and the built-in .NET OpenAPI
+// generator with one document per version; ApexDocumentTransformer fills title, description, version and contact.
+builder.Services.AddApexApiVersioning().AddApexOpenApi();
 
 var app = builder.Build();
 
@@ -37,7 +38,7 @@ app.UseExceptionHandler();
 // Empty error responses (unknown route, wrong method, wrong content type) get a ProblemDetails body as well.
 app.UseStatusCodePages();
 
-// /openapi/v1.json and Swagger UI at /swagger exist in Development only; elsewhere both answer 404.
+// /openapi/v1.json, /openapi/v2.json and Swagger UI at /swagger exist in Development only; elsewhere both answer 404.
 app.MapApexDocumentationInDevelopment();
 
 app.MapControllers();
