@@ -57,7 +57,8 @@ public class ApiFactory : WebApplicationFactory<Program>
             {
                 [$"ConnectionStrings:{TrackingDependencyInjection.ConnectionName}"] = ConnectionString,
             })
-            .AddInMemoryCollection(TestTokens.HostConfiguration));
+            .AddInMemoryCollection(TestTokens.HostConfiguration)
+            .AddInMemoryCollection(TestPartnerKeys.HostConfiguration));
         builder.ConfigureTestServices(services =>
             services.AddControllers().AddApplicationPart(typeof(ThrowingController).Assembly));
     }

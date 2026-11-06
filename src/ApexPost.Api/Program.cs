@@ -40,6 +40,15 @@ if (app.Environment.IsDevelopment())
 // Exceptions become ProblemDetails through ApiExceptionHandler; it sits above everything that can throw.
 app.UseExceptionHandler();
 
+// Tokens and API keys must never travel in clear text. Outside Development the browser is told to use HTTPS only
+// (HSTS; a developer's localhost certificate should not be pinned), and every plain HTTP request is redirected.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+
 // Empty error responses (unknown route, wrong method, wrong content type) get a ProblemDetails body as well.
 app.UseStatusCodePages();
 

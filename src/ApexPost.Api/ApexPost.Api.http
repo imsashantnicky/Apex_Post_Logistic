@@ -19,11 +19,13 @@
 @baseUrl = https://localhost:7310
 @v1 = {{baseUrl}}/api/v1/shipments
 @v2 = {{baseUrl}}/api/v2/shipments
+@v2Partner = {{baseUrl}}/api/v2/partner/shipments
 @json = application/json
 
 # Seeded shipments
 @createdShipment = APX-20000001
 @pickedUpShipment = APX-20000003
+@inTransitShipment = APX-20000005
 @deliveredShipment = APX-20000008
 @unknownShipment = APX-29999999
 
@@ -34,6 +36,10 @@
 # Tokens: the courier token comes from the "courierLogin" request; paste the user-jwts Admin token here.
 @courierToken = {{courierLogin.response.body.$.accessToken}}
 @adminToken = paste-the-output-of-dotnet-user-jwts-create-role-Admin
+
+# Partner key: set one once (never commit it) and paste the same value here:
+#   dotnet user-secrets set "PartnerKeys:ParcelTrackDemo" "<a long random value>" --project src/ApexPost.Api
+@partnerKey = paste-the-value-of-PartnerKeys-ParcelTrackDemo
 
 ###############################################################################
 # Authentication and roles (Part D)
@@ -102,6 +108,34 @@ Content-Type: {{json}}
     }
   ]
 }
+
+###############################################################################
+# Partner tracking (v2 only, X-Api-Key instead of a user token)
+###############################################################################
+
+### 200 - a partner key reads status, destination city and latest scan (no recipient details)
+GET {{v2Partner}}/{{inTransitShipment}}
+X-Api-Key: {{partnerKey}}
+Accept: {{json}}
+
+### 401 - no X-Api-Key header (WWW-Authenticate: ApiKey)
+GET {{v2Partner}}/{{inTransitShipment}}
+Accept: {{json}}
+
+### 401 - an unknown key ("The API key is not valid."; the key is never echoed or logged)
+GET {{v2Partner}}/{{inTransitShipment}}
+X-Api-Key: not-a-partner-key
+Accept: {{json}}
+
+### 401 - a user token does not open the partner route
+GET {{v2Partner}}/{{inTransitShipment}}
+Authorization: Bearer {{courierToken}}
+Accept: {{json}}
+
+### 404 - a valid key and an unknown tracking number
+GET {{v2Partner}}/{{unknownShipment}}
+X-Api-Key: {{partnerKey}}
+Accept: {{json}}
 
 ###############################################################################
 # Versioning

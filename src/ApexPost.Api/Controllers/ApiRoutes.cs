@@ -57,6 +57,13 @@ public static class ApiRoutes
     /// <summary>The OpenAPI tag of the scan endpoints.</summary>
     public const string ScansTag = "Scans";
 
+    /// <summary>The OpenAPI tag of the read-only partner endpoint.</summary>
+    public const string PartnerTag = "Partner";
+
+    /// <summary>The partner base route, v2 only: /api/v2/partner/shipments.</summary>
+    public const string VersionedPartnerShipments =
+        "api/v{" + VersionRouteValue + ":apiVersion}/partner/shipments";
+
     // Route names are the operationIds of the OpenAPI documents, so they never change once published. v1 names end
     // in V1; v2 names have no suffix, so the generated SDK gets clean method names. Only the versioned v1 routes are
     // named; the alias routes share the actions and stay unnamed (a route name must map to one template).
@@ -108,4 +115,7 @@ public static class ApiRoutes
 
     /// <summary>Route name of GET /api/v2/shipments/{trackingNumber}/scans.</summary>
     public const string GetScans = "GetScans";
+
+    /// <summary>Route name of GET /api/v2/partner/shipments/{trackingNumber}.</summary>
+    public const string GetPartnerShipment = "GetPartnerShipment";
 }

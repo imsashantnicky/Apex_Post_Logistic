@@ -15,6 +15,9 @@ public static class ApiSecurityRegistration
     /// <summary>The clock skew allowed on exp and nbf, smaller than the 5-minute default.</summary>
     public static readonly TimeSpan ClockSkew = TimeSpan.FromSeconds(30);
 
+    /// <summary>How long a browser keeps to HTTPS after it saw the Strict-Transport-Security header.</summary>
+    public static readonly TimeSpan HstsMaxAge = TimeSpan.FromDays(365);
+
     /// <summary>
     /// Registers bearer authentication, authorization, the courier of the request and the dev token issuer. Outside
     /// Development the /dev/token controller is removed from the application.
@@ -56,6 +59,16 @@ public static class ApiSecurityRegistration
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentCourier, ClaimsCurrentCourier>();
         services.AddSingleton<DevTokenIssuer>();
+
+        // Partner keys for the X-Api-Key filter, read from the PartnerKeys section (user-secrets in Development).
+        services.AddSingleton<PartnerKeyStore>();
+
+        // Strict-Transport-Security for a year, subdomains included; UseHsts sends it outside Development only.
+        services.AddHsts(options =>
+        {
+            options.MaxAge = HstsMaxAge;
+            options.IncludeSubDomains = true;
+        });
         return services;
     }
 }
