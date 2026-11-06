@@ -1,0 +1,6 @@
+# Applies ONLY to this folder: code written by NSwag from contracts/v2.json (scripts/generate-client.*).
+# It is regenerated, never edited, so analyzer findings here cannot be fixed by hand. The project keeps
+# TreatWarningsAsErrors for everything else, including the partial classes in Extensions/.
+[*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
