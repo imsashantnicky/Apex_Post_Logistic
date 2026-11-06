@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using ApexPost.Infrastructure.Tracking;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -51,13 +52,25 @@ public class ApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(EnvironmentName);
-        builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
-            new Dictionary<string, string?>
+        builder.ConfigureAppConfiguration((_, configuration) => configuration
+            .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 [$"ConnectionStrings:{TrackingDependencyInjection.ConnectionName}"] = ConnectionString,
-            }));
+            })
+            .AddInMemoryCollection(TestTokens.HostConfiguration));
         builder.ConfigureTestServices(services =>
             services.AddControllers().AddApplicationPart(typeof(ThrowingController).Assembly));
+    }
+
+    /// <summary>
+    /// Every client sends a token with both roles for CR-101, so the endpoint tests are about the endpoints; the
+    /// security tests replace or remove it (<see cref="TestTokens.ClientWith"/>).
+    /// </summary>
+    protected override void ConfigureClient(HttpClient client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        base.ConfigureClient(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestTokens.AllRoles());
     }
 
     private TrackingDbContext NewContext()

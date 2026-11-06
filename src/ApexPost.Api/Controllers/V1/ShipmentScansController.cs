@@ -1,6 +1,8 @@
 using ApexPost.Api.Contracts.V1;
+using ApexPost.Api.Security;
 using ApexPost.Application.Tracking;
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ScanUploadResult = ApexPost.Api.Contracts.V1.ScanUploadResult;
 
@@ -10,6 +12,7 @@ namespace ApexPost.Api.Controllers.V1;
 /// The scans of one shipment in the deprecated v1 contract, also on the /api/shipments alias: an idempotent upload from the courier device and the scan history. Each action binds
 /// the input, calls <see cref="IShipmentTrackingService"/> and returns the result.
 /// </summary>
+[Authorize]
 [ApiController]
 [ApiVersion(ApiRoutes.Version1, Deprecated = true)]
 [Tags(ApiRoutes.ScansTag)]
@@ -24,9 +27,12 @@ public sealed class ShipmentScansController(IShipmentTrackingService tracking) :
     /// <response code="400">The batch or a scan field is missing or invalid.</response>
     /// <response code="404">No shipment has this tracking number.</response>
     /// <response code="415">The body is not application/json.</response>
+    /// <response code="401">No valid bearer token: missing, expired or not signed with the API's key.</response>
+    /// <response code="403">The token is not a Courier token, or a scan was recorded by another courier.</response>
     /// <response code="500">An unexpected server error.</response>
     [HttpPost(ApiRoutes.VersionedShipmentScans, Name = ApiRoutes.UploadScansV1)]
     [HttpPost(ApiRoutes.ShipmentScans)]
+    [Authorize(Roles = ApiRoles.Courier)]
     [EndpointSummary("Upload scans of a shipment")]
     [EndpointDescription(
         "Stores a batch of 1 to 100 courier scans. The scanId (scan::{GUID}) is the idempotency key: a scan that " +
@@ -38,6 +44,8 @@ public sealed class ShipmentScansController(IShipmentTrackingService tracking) :
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status415UnsupportedMediaType, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, ApiRoutes.ProblemJson)]
     public async Task<ActionResult<ScanUploadResult>> Upload(
         string trackingNumber,
@@ -54,6 +62,7 @@ public sealed class ShipmentScansController(IShipmentTrackingService tracking) :
     /// <param name="cancellationToken">Cancelled when the client goes away.</param>
     /// <response code="200">The scans, oldest first; empty when none were uploaded yet.</response>
     /// <response code="404">No shipment has this tracking number.</response>
+    /// <response code="401">No valid bearer token: missing, expired or not signed with the API's key.</response>
     /// <response code="500">An unexpected server error.</response>
     [HttpGet(ApiRoutes.VersionedShipmentScans, Name = ApiRoutes.GetScansV1)]
     [HttpGet(ApiRoutes.ShipmentScans)]
@@ -61,6 +70,7 @@ public sealed class ShipmentScansController(IShipmentTrackingService tracking) :
     [EndpointDescription("Returns the scan history of one shipment, oldest first by scannedAtUtc.")]
     [ProducesResponseType<IReadOnlyList<ScanResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ApiRoutes.ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ApiRoutes.ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, ApiRoutes.ProblemJson)]
     public async Task<ActionResult<IReadOnlyList<ScanResponse>>> List(
         string trackingNumber,

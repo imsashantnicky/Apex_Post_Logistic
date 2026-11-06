@@ -13,7 +13,7 @@ public sealed class ShipmentTrackingServiceTests
 
     public ShipmentTrackingServiceTests()
     {
-        _service = new ShipmentTrackingService(_store, _store, _store, new FixedTimeProvider());
+        _service = new ShipmentTrackingService(_store, _store, _store, new FixedCourier(), new FixedTimeProvider());
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

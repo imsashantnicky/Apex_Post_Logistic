@@ -88,6 +88,26 @@
               }
             }
           },
+          "401": {
+            "description": "No valid bearer token: missing, expired or not signed with the API's key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token is not a Courier token, or a scan was recorded by another courier.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "An unexpected server error.",
             "content": {
@@ -137,6 +157,16 @@
           },
           "404": {
             "description": "No shipment has this tracking number.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid bearer token: missing, expired or not signed with the API's key.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -242,6 +272,16 @@
               }
             }
           },
+          "401": {
+            "description": "No valid bearer token: missing, expired or not signed with the API's key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "An unexpected server error.",
             "content": {
@@ -319,6 +359,26 @@
               }
             }
           },
+          "401": {
+            "description": "No valid bearer token: missing, expired or not signed with the API's key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token does not have the Admin role.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "An unexpected server error.",
             "content": {
@@ -367,6 +427,16 @@
           },
           "404": {
             "description": "No shipment has this tracking number, or it is not APX- followed by 8 digits.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid bearer token: missing, expired or not signed with the API's key.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -475,6 +545,26 @@
               }
             }
           },
+          "401": {
+            "description": "No valid bearer token: missing, expired or not signed with the API's key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token does not have the Admin role.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "An unexpected server error.",
             "content": {
@@ -524,6 +614,26 @@
           },
           "409": {
             "description": "The shipment is no longer Created.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid bearer token: missing, expired or not signed with the API's key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token does not have the Admin role.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -626,6 +736,26 @@
           },
           "415": {
             "description": "The body is not application/json.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid bearer token: missing, expired or not signed with the API's key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token does not have the Courier role.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1392,8 +1522,21 @@
           }
         }
       }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "A JWT from dotnet user-jwts or, in Development, POST /dev/token. Roles: Courier, Admin.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
     }
   },
+  "security": [
+    {
+      "Bearer": []
+    }
+  ],
   "tags": [
     {
       "name": "Scans"

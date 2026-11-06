@@ -8,6 +8,13 @@
 # v2 (/api/v2/shipments) is current: nested "recipient", "latestScan", enums as strings.
 # Every answer carries api-supported-versions: 2.0 and api-deprecated-versions: 1.0;
 # v1 answers also carry Deprecation, Sunset and Link headers (see VERSIONING.md).
+#
+# Every request needs a bearer token (Part D). Reads accept any role; scan upload and status PATCH need Courier;
+# create, replace and DELETE need Admin. Run "courierLogin" below first. For the Admin token run once and paste
+# the printed token into @adminToken (never commit a real token; these are local development tokens):
+#   dotnet user-jwts create --project src/ApexPost.Api --role Admin
+# A Courier token from the same tool also works in place of the /dev/token one:
+#   dotnet user-jwts create --project src/ApexPost.Api --role Courier --claim courierId=CR-101
 
 @baseUrl = https://localhost:7310
 @v1 = {{baseUrl}}/api/v1/shipments
@@ -24,16 +31,90 @@
 @repeatedScanIdV1 = scan::0f8fad5b-d9cb-469f-a165-70867728950e
 @repeatedScanIdV2 = scan::7c9e6679-7425-40de-944b-e07fc1f90ae7
 
+# Tokens: the courier token comes from the "courierLogin" request; paste the user-jwts Admin token here.
+@courierToken = {{courierLogin.response.body.$.accessToken}}
+@adminToken = paste-the-output-of-dotnet-user-jwts-create-role-Admin
+
+###############################################################################
+# Authentication and roles (Part D)
+###############################################################################
+
+### 200 - Development sign-in for the fictional courier CR-101: a one-hour token with role Courier
+# @name courierLogin
+POST {{baseUrl}}/dev/token
+Content-Type: {{json}}
+
+{
+  "courierId": "CR-101"
+}
+
+### 401 - /dev/token knows only the fictional couriers CR-101 and CR-102
+POST {{baseUrl}}/dev/token
+Content-Type: {{json}}
+
+{
+  "courierId": "CR-999"
+}
+
+### 200 - a valid token of any role may read
+GET {{v2}}/{{createdShipment}}
+Authorization: Bearer {{courierToken}}
+Accept: {{json}}
+
+### 401 - no token (ProblemDetails, WWW-Authenticate: Bearer)
+GET {{v2}}/{{createdShipment}}
+Accept: {{json}}
+
+### 401 - a token that is not signed with the API's key ("The bearer token is not valid.")
+GET {{v2}}/{{createdShipment}}
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJDUi0xMDEifQ.invalid-signature
+Accept: {{json}}
+
+### 403 - a Courier token cannot delete (Admin only)
+DELETE {{v2}}/{{createdShipment}}
+Authorization: Bearer {{courierToken}}
+
+### 403 - a Courier token cannot create a shipment (Admin only)
+POST {{v2}}
+Authorization: Bearer {{courierToken}}
+Content-Type: {{json}}
+
+{
+  "trackingNumber": "APX-2{{$randomInt 1000000 9999999}}",
+  "recipient": { "name": "Ava Example", "phone": "+44 20 7946 0101", "address": "12 Quay Street", "city": "Harbour Point" },
+  "weightKg": 2.5
+}
+
+### 403 - courier CR-101 cannot upload a scan recorded by CR-102 (checked in the tracking service)
+POST {{v2}}/{{pickedUpShipment}}/scans
+Authorization: Bearer {{courierToken}}
+Content-Type: {{json}}
+
+{
+  "scans": [
+    {
+      "scanId": "scan::{{$guid}}",
+      "trackingNumber": "{{pickedUpShipment}}",
+      "scanType": "InTransit",
+      "courierId": "CR-102",
+      "location": "Central hub",
+      "scannedAtUtc": "2026-11-01T10:00:00Z"
+    }
+  ]
+}
+
 ###############################################################################
 # Versioning
 ###############################################################################
 
 ### 200 - the Part B alias /api/shipments is v1 (no version in the URL means 1.0); deprecation headers included
 GET {{baseUrl}}/api/shipments/{{createdShipment}}
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### 404 - unknown API version (ProblemDetails)
 GET {{baseUrl}}/api/v3/shipments/{{createdShipment}}
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ###############################################################################
@@ -48,18 +129,22 @@ Accept: {{json}}
 
 ### v1 200 - first page, default page size 20
 GET {{v1}}
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v1 200 - page 1 of 5, only InTransit shipments in Riverton
 GET {{v1}}?page=1&pageSize=5&status=InTransit&city=riverton
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v1 400 - pageSize above the maximum of 50 (ValidationProblemDetails)
 GET {{v1}}?pageSize=51
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v1 400 - unknown status value
 GET {{v1}}?status=Lost
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ###############################################################################
@@ -70,6 +155,7 @@ Accept: {{json}}
 # A random tracking number, so this request can run again.
 # @name createShipmentV1
 POST {{v1}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -84,6 +170,7 @@ Accept: {{json}}
 
 ### v1 400 - invalid tracking number, phone and weight (errors per field)
 POST {{v1}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -98,6 +185,7 @@ Accept: {{json}}
 
 ### v1 409 - the tracking number already exists
 POST {{v1}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -112,6 +200,7 @@ Accept: {{json}}
 
 ### v1 415 - the body is not application/json
 POST {{v1}}
+Authorization: Bearer {{adminToken}}
 Content-Type: text/plain
 Accept: {{json}}
 
@@ -123,14 +212,17 @@ trackingNumber=APX-30000001
 
 ### v1 200 - the shipment just created
 GET {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v1 404 - unknown tracking number
 GET {{v1}}/{{unknownShipment}}
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v1 404 - not APX- + 8 digits, so the route constraint does not match
 GET {{v1}}/ABC-1
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ###############################################################################
@@ -139,6 +231,7 @@ Accept: {{json}}
 
 ### v1 200 - replaced
 PUT {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -152,6 +245,7 @@ Accept: {{json}}
 
 ### v1 400 - weight below 0.1 kg and name missing
 PUT {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -164,6 +258,7 @@ Accept: {{json}}
 
 ### v1 404 - unknown tracking number
 PUT {{v1}}/{{unknownShipment}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -177,6 +272,7 @@ Accept: {{json}}
 
 ### v1 409 - a Delivered shipment can no longer change
 PUT {{v1}}/{{deliveredShipment}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -190,6 +286,7 @@ Accept: {{json}}
 
 ### v1 415 - wrong content type
 PUT {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/xml
 Accept: {{json}}
 
@@ -202,6 +299,7 @@ Accept: {{json}}
 
 ### v1 400 - status missing
 PATCH {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -209,6 +307,7 @@ Accept: {{json}}
 
 ### v1 404 - unknown tracking number
 PATCH {{v1}}/{{unknownShipment}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -216,6 +315,7 @@ Accept: {{json}}
 
 ### v1 409 - PickedUp cannot go back to Created
 PATCH {{v1}}/{{pickedUpShipment}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -223,6 +323,7 @@ Accept: {{json}}
 
 ### v1 409 - Delivered is final
 PATCH {{v1}}/{{deliveredShipment}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -230,6 +331,7 @@ Accept: {{json}}
 
 ### v1 415 - wrong content type
 PATCH {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: text/plain
 Accept: {{json}}
 
@@ -243,6 +345,7 @@ status=2
 
 ### v1 200 - first run: accepted 1 (Created -> PickedUp); later runs: duplicatesSkipped 1
 POST {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -263,6 +366,7 @@ Accept: {{json}}
 ### v1 200 - mixed batch: 1 accepted (InTransit), 1 duplicate (repeated scan id), 2 rejected
 # (a scan of another shipment, and a later Pickup that would move the status back)
 POST {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -296,7 +400,7 @@ Accept: {{json}}
       "scanId": "scan::{{$guid}}",
       "trackingNumber": "{{createShipmentV1.response.body.$.trackingNumber}}",
       "scanType": 1,
-      "courierId": "CR-102",
+      "courierId": "CR-101",
       "location": "Central hub",
       "scannedAtUtc": "2026-11-01T11:00:00Z"
     }
@@ -305,6 +409,7 @@ Accept: {{json}}
 
 ### v1 400 - Delivered scan without recipientSignatureName, scan id not scan::{Guid}, courier id not CR-###
 POST {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -323,6 +428,7 @@ Accept: {{json}}
 
 ### v1 400 - empty batch (1 to 100 scans)
 POST {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -330,6 +436,7 @@ Accept: {{json}}
 
 ### v1 404 - unknown shipment
 POST {{v1}}/{{unknownShipment}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -348,6 +455,7 @@ Accept: {{json}}
 
 ### v1 415 - wrong content type
 POST {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: text/plain
 Accept: {{json}}
 
@@ -359,10 +467,12 @@ scan
 
 ### v1 200 - scans of the created shipment
 GET {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v1 404 - unknown shipment
 GET {{v1}}/{{unknownShipment}}/scans
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ###############################################################################
@@ -371,13 +481,16 @@ Accept: {{json}}
 
 ### v1 409 - PickedUp shipments cannot be deleted
 DELETE {{v1}}/{{pickedUpShipment}}
+Authorization: Bearer {{adminToken}}
 
 ### v1 404 - unknown tracking number
 DELETE {{v1}}/{{unknownShipment}}
+Authorization: Bearer {{adminToken}}
 
 ### v1 204 - create a throw-away shipment, then delete it
 # @name throwAwayV1
 POST {{v1}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -392,6 +505,7 @@ Accept: {{json}}
 
 ###
 DELETE {{v1}}/{{throwAwayV1.response.body.$.trackingNumber}}
+Authorization: Bearer {{adminToken}}
 
 ###############################################################################
 ###############################################################################
@@ -405,18 +519,22 @@ DELETE {{v1}}/{{throwAwayV1.response.body.$.trackingNumber}}
 
 ### v2 200 - first page, default page size 20
 GET {{v2}}
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v2 200 - page 1 of 5, only InTransit shipments in Riverton
 GET {{v2}}?page=1&pageSize=5&status=InTransit&city=riverton
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v2 400 - pageSize above the maximum of 50 (ValidationProblemDetails)
 GET {{v2}}?pageSize=51
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v2 400 - page below 1
 GET {{v2}}?page=0
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ###############################################################################
@@ -427,6 +545,7 @@ Accept: {{json}}
 # A random tracking number, so this request can run again. latestScan is null until the first scan.
 # @name createShipmentV2
 POST {{v2}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -443,6 +562,7 @@ Accept: {{json}}
 
 ### v2 400 - invalid tracking number, nested recipient errors (Recipient.Name, Recipient.Phone) and weight
 POST {{v2}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -459,6 +579,7 @@ Accept: {{json}}
 
 ### v2 400 - the flat v1 body is not a v2 body: recipient is required
 POST {{v2}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -473,6 +594,7 @@ Accept: {{json}}
 
 ### v2 409 - the tracking number already exists
 POST {{v2}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -489,6 +611,7 @@ Accept: {{json}}
 
 ### v2 415 - the body is not application/json
 POST {{v2}}
+Authorization: Bearer {{adminToken}}
 Content-Type: text/plain
 Accept: {{json}}
 
@@ -500,18 +623,22 @@ trackingNumber=APX-50000001
 
 ### v2 200 - the shipment just created
 GET {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v2 200 - a seeded shipment
 GET {{v2}}/{{deliveredShipment}}
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v2 404 - unknown tracking number
 GET {{v2}}/{{unknownShipment}}
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v2 404 - not APX- + 8 digits, so the route constraint does not match
 GET {{v2}}/ABC-1
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ###############################################################################
@@ -520,6 +647,7 @@ Accept: {{json}}
 
 ### v2 200 - replaced
 PUT {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -535,6 +663,7 @@ Accept: {{json}}
 
 ### v2 400 - recipient missing and weight below 0.1 kg
 PUT {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -544,6 +673,7 @@ Accept: {{json}}
 
 ### v2 404 - unknown tracking number
 PUT {{v2}}/{{unknownShipment}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -559,6 +689,7 @@ Accept: {{json}}
 
 ### v2 409 - a Delivered shipment can no longer change
 PUT {{v2}}/{{deliveredShipment}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -574,6 +705,7 @@ Accept: {{json}}
 
 ### v2 415 - wrong content type
 PUT {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/xml
 Accept: {{json}}
 
@@ -586,6 +718,7 @@ Accept: {{json}}
 
 ### v2 200 - Created -> OutForDelivery (skipping stages forward is allowed)
 PATCH {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -593,6 +726,7 @@ Accept: {{json}}
 
 ### v2 400 - unknown status name
 PATCH {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -600,6 +734,7 @@ Accept: {{json}}
 
 ### v2 404 - unknown tracking number
 PATCH {{v2}}/{{unknownShipment}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -607,6 +742,7 @@ Accept: {{json}}
 
 ### v2 409 - PickedUp cannot go back to Created
 PATCH {{v2}}/{{pickedUpShipment}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -614,6 +750,7 @@ Accept: {{json}}
 
 ### v2 409 - Delivered is final
 PATCH {{v2}}/{{deliveredShipment}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -621,6 +758,7 @@ Accept: {{json}}
 
 ### v2 415 - wrong content type
 PATCH {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}/status
+Authorization: Bearer {{courierToken}}
 Content-Type: text/plain
 Accept: {{json}}
 
@@ -633,6 +771,7 @@ status=PickedUp
 
 ### v2 200 - a scan of a seeded InTransit shipment: accepted 1 on the first run, duplicatesSkipped 1 afterwards
 POST {{v2}}/APX-20000005/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -642,7 +781,7 @@ Accept: {{json}}
       "scanId": "{{repeatedScanIdV2}}",
       "trackingNumber": "APX-20000005",
       "scanType": "InTransit",
-      "courierId": "CR-102",
+      "courierId": "CR-101",
       "location": "Southmere hub",
       "scannedAtUtc": "2026-11-01T09:00:00Z",
       "notes": "Second hub scan"
@@ -652,6 +791,7 @@ Accept: {{json}}
 
 ### v2 200 - delivered with a signature: accepted 1, the shipment ends as Delivered; GET it to see latestScan
 POST {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -671,6 +811,7 @@ Accept: {{json}}
 
 ### v2 400 - Delivered scan without recipientSignatureName, scan id not scan::{Guid}, courier id not CR-###
 POST {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -689,6 +830,7 @@ Accept: {{json}}
 
 ### v2 400 - unknown scanType name
 POST {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -707,6 +849,7 @@ Accept: {{json}}
 
 ### v2 404 - unknown shipment
 POST {{v2}}/{{unknownShipment}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -725,6 +868,7 @@ Accept: {{json}}
 
 ### v2 415 - wrong content type
 POST {{v2}}/{{createShipmentV2.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
 Content-Type: text/plain
 Accept: {{json}}
 
@@ -736,10 +880,12 @@ scan
 
 ### v2 200 - scans of a seeded InTransit shipment
 GET {{v2}}/APX-20000005/scans
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ### v2 404 - unknown shipment
 GET {{v2}}/{{unknownShipment}}/scans
+Authorization: Bearer {{courierToken}}
 Accept: {{json}}
 
 ###############################################################################
@@ -748,13 +894,16 @@ Accept: {{json}}
 
 ### v2 409 - PickedUp shipments cannot be deleted
 DELETE {{v2}}/{{pickedUpShipment}}
+Authorization: Bearer {{adminToken}}
 
 ### v2 404 - unknown tracking number
 DELETE {{v2}}/{{unknownShipment}}
+Authorization: Bearer {{adminToken}}
 
 ### v2 204 - create a throw-away shipment, then delete it
 # @name throwAwayV2
 POST {{v2}}
+Authorization: Bearer {{adminToken}}
 Content-Type: {{json}}
 Accept: {{json}}
 
@@ -771,3 +920,4 @@ Accept: {{json}}
 
 ###
 DELETE {{v2}}/{{throwAwayV2.response.body.$.trackingNumber}}
+Authorization: Bearer {{adminToken}}

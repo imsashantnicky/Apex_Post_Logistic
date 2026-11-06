@@ -37,6 +37,7 @@ public static class ApiDocumentation
     /// <c>AddOpenApi("v2")</c> itself, one document per API Explorer group name. A direct <c>services.AddOpenApi</c>
     /// is rejected by the Asp.Versioning analyzer AV0029.
     /// Each document gets <see cref="ApexDocumentTransformer"/> (info block),
+    /// <see cref="BearerSecuritySchemeTransformer"/> (JWT bearer scheme),
     /// <see cref="SchemaLessContentTransformer"/> (no empty media types) and <see cref="NullEnumValueTransformer"/>
     /// (no null in enum value lists), and lists only its own versioned routes.
     /// The XML comments (GenerateDocumentationFile is on) are read by API Versioning; <see cref="XmlExampleTransformer"/>
@@ -50,6 +51,7 @@ public static class ApiDocumentation
             var documentName = options.Description.GroupName;
             options.Document.ShouldInclude = description => IsVersionedRouteOf(description, documentName);
             options.Document.AddDocumentTransformer<ApexDocumentTransformer>();
+            options.Document.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
             options.Document.AddOperationTransformer<SchemaLessContentTransformer>();
             options.Document.AddOperationTransformer(examples);
             options.Document.AddSchemaTransformer(examples);
