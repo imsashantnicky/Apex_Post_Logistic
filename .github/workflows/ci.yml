@@ -41,3 +41,26 @@ jobs:
 
       - name: Test (without measurement tests)
         run: dotnet test Apex_Post_Logistic.slnx -c Release --no-build --filter "Category!=Measurement"
+
+  build-mobile:
+    # MAUI cannot build on ubuntu, so the courier app has its own solution and a Windows job.
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui
+
+      - name: Restore
+        run: dotnet restore ApexPost.Mobile.slnx
+
+      - name: Build (Android and Windows)
+        run: dotnet build ApexPost.Mobile.slnx -c Release --no-restore
+
+      - name: Test API client
+        run: dotnet test tests/Mobile/ApexPost.Courier.ApiClient.Tests -c Release --no-build

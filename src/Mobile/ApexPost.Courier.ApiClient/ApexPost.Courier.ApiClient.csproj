@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Every public member needs an XML comment; a missing one fails the build (warnings are errors). -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Courier\ApexPost.Courier.Domain\ApexPost.Courier.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
