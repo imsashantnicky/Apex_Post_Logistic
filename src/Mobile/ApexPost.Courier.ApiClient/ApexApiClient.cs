@@ -4,16 +4,19 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using ApexPost.Courier.ApiClient.Contracts;
 using ApexPost.Courier.ApiClient.Json;
+using ApexPost.Courier.ApiClient.Resilience;
 using ApexPost.Courier.ApiClient.Results;
 using ApexPost.Courier.Domain.Scans;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 
 namespace ApexPost.Courier.ApiClient;
 
 /// <summary>
 /// Typed client for the v2 courier endpoints. It is registered with <c>AddHttpClient&lt;ApexApiClient&gt;()</c>,
-/// so the factory owns the <see cref="HttpClient"/>, its base address and the auth handler. Every method returns
-/// an <see cref="ApiResult{T}"/>: HTTP errors, bad JSON and network faults become typed failures, and only a
-/// cancellation requested by the caller is thrown.
+/// so the factory owns the <see cref="HttpClient"/>, its base address, the auth handler and the resilience
+/// pipeline. Every method returns an <see cref="ApiResult{T}"/>: HTTP errors, bad JSON, network faults, timeouts
+/// and an open circuit become typed failures, and only a cancellation requested by the caller is thrown.
 /// </summary>
 /// <param name="httpClient">Client with <see cref="HttpClient.BaseAddress"/> set to the API root.</param>
 public sealed class ApexApiClient(HttpClient httpClient)
@@ -50,7 +53,10 @@ public sealed class ApexApiClient(HttpClient httpClient)
     public Task<ApiResult<IReadOnlyList<ScanResponse>>> GetScansAsync(string trackingNumber, CancellationToken ct) =>
         SendForShipmentAsync(trackingNumber, HttpMethod.Get, ScansSuffix, null, Json.IReadOnlyListScanResponse, ct);
 
-    /// <summary>Uploads scans of one shipment. Repeating a scan id is safe: it counts as a duplicate.</summary>
+    /// <summary>
+    /// Uploads scans of one shipment. The request is marked with <see cref="IdempotentRequest"/> so the retry
+    /// strategy may repeat it: every scan carries its <c>scan::{Guid}</c> id and the server skips a repeated id.
+    /// </summary>
     /// <param name="trackingNumber">Tracking number the scans belong to.</param>
     /// <param name="request">The batch.</param>
     /// <param name="ct">Cancels the call.</param>
@@ -61,7 +67,14 @@ public sealed class ApexApiClient(HttpClient httpClient)
     {
         ArgumentNullException.ThrowIfNull(request);
         var body = JsonContent.Create(request, Json.ScanUploadRequest);
-        return SendForShipmentAsync(trackingNumber, HttpMethod.Post, ScansSuffix, body, Json.ScanUploadResult, ct);
+        return SendForShipmentAsync(
+            trackingNumber,
+            HttpMethod.Post,
+            ScansSuffix,
+            body,
+            Json.ScanUploadResult,
+            ct,
+            retrySafe: true);
     }
 
     /// <summary>Moves a shipment forward (<c>PATCH /api/v2/shipments/{trackingNumber}/status</c>).</summary>
@@ -83,7 +96,8 @@ public sealed class ApexApiClient(HttpClient httpClient)
         string suffix,
         HttpContent? body,
         JsonTypeInfo<T> typeInfo,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool retrySafe = false)
         where T : class
     {
         using (body)
@@ -96,6 +110,11 @@ public sealed class ApexApiClient(HttpClient httpClient)
 
             var path = new Uri($"{Shipments}/{trackingNumber}{suffix}", UriKind.Relative);
             using var request = new HttpRequestMessage(method, path) { Content = body };
+            if (retrySafe)
+            {
+                IdempotentRequest.Mark(request);
+            }
+
             return await SendAsync(request, typeInfo, ct).ConfigureAwait(false);
         }
     }
@@ -124,6 +143,16 @@ public sealed class ApexApiClient(HttpClient httpClient)
         catch (HttpRequestException)
         {
             return Failed<T>(ApiFailureKind.Network, FailureMessages.Network, null);
+        }
+        catch (TimeoutRejectedException)
+        {
+            // The total timeout, or the attempt timeout of the last attempt, of the resilience pipeline ran out.
+            return Failed<T>(ApiFailureKind.Timeout, FailureMessages.Timeout, null);
+        }
+        catch (BrokenCircuitException)
+        {
+            // The circuit is open: nothing was sent and the app keeps working offline.
+            return Failed<T>(ApiFailureKind.ServerUnavailable, FailureMessages.ServerUnavailable, null);
         }
     }
 

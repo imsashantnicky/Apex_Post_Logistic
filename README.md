@@ -610,6 +610,21 @@ the partner operation requires only that one. In Swagger UI, **Authorize** there
 a key field. [SECURITY.md](SECURITY.md) explains the design, the OAuth 2.0 flows a real identity provider would use,
 why API keys are weaker, HTTPS/HSTS and the Debug-only localhost certificate exception of the courier app.
 
+### Resilience of the courier app
+
+The typed `ApexApiClient` of the courier app runs every call through a `Microsoft.Extensions.Http.Resilience`
+pipeline (`AddApexResilience()` in `MauiProgram`): total timeout 30 s → retry (3 retries, exponential backoff with
+jitter) → circuit breaker (50 % failures of at least 4 attempts in 30 s, open for 15 s) → attempt timeout 8 s.
+Only network errors, timeouts, 408 and 5xx are retried, never another 4xx, and only for GET/PUT/DELETE and the scan
+upload, which is safe to repeat because the server de-duplicates by scan id. While the circuit is open the app shows
+"Server unavailable – working offline" and scans keep saving locally. Every retry and state change is logged without
+tokens or bodies. [RESILIENCE.md](RESILIENCE.md) explains the values; the tests are in
+`tests/Mobile/ApexPost.Courier.ApiClient.Tests/Resilience`:
+
+```bash
+dotnet test tests/Mobile/ApexPost.Courier.ApiClient.Tests -c Release
+```
+
 ## Known limitations
 
 - The allowlists see the address of the direct connection. Behind a proxy that is the proxy, so all callers would

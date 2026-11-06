@@ -12,6 +12,9 @@ public static class FailureMessages
     /// <summary>Text for a request that took too long.</summary>
     public const string Timeout = "The ApexPost server took too long to answer. Try again.";
 
+    /// <summary>Text while the circuit breaker is open (also the banner of the app).</summary>
+    public const string ServerUnavailable = "Server unavailable – working offline. Your scans stay on this device.";
+
     /// <summary>Text for a body the app could not read.</summary>
     public const string InvalidResponse = "The server sent an answer the app could not read.";
 
