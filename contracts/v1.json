@@ -1,0 +1,1417 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "ApexPost Logistics API",
+    "description": "Shipment tracking for ApexPost couriers and partners: create and track shipments, move them through the status lifecycle Created → PickedUp → InTransit → OutForDelivery → Delivered | Failed, and upload courier scans idempotently. Every error is an RFC 7807 ProblemDetails response.\n\n**Deprecated:** v1 is deprecated and will be removed on 2027-05-31 (sunset). Use the latest version instead; see VERSIONING.md for the migration.",
+    "contact": {
+      "name": "ApexPost API Team",
+      "email": "api-team@apexpost.example"
+    },
+    "version": "v1"
+  },
+  "paths": {
+    "/api/v1/shipments/{trackingNumber}/scans": {
+      "post": {
+        "tags": [
+          "Scans"
+        ],
+        "summary": "Upload scans of a shipment",
+        "description": "Stores a batch of 1 to 100 courier scans. The scanId (scan::{GUID}) is the idempotency key: a scan that is already stored, or repeated in the batch, is counted once under duplicatesSkipped, so the same batch can be sent again safely. A scan of another shipment or one that would move the status backwards is listed under rejected with a reason; the valid scans are still stored.",
+        "operationId": "UploadScansV1",
+        "parameters": [
+          {
+            "name": "trackingNumber",
+            "in": "path",
+            "description": "APX- followed by 8 digits.",
+            "required": true,
+            "schema": {
+              "pattern": "^APX-\\d{8}$",
+              "type": "string"
+            },
+            "example": "APX-20000001"
+          }
+        ],
+        "requestBody": {
+          "description": "1 to 100 scans.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanUploadRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The counts of accepted, duplicate and rejected scans.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanUploadResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The batch or a scan field is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No shipment has this tracking number.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not application/json.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      },
+      "get": {
+        "tags": [
+          "Scans"
+        ],
+        "summary": "Get the scans of a shipment",
+        "description": "Returns the scan history of one shipment, oldest first by scannedAtUtc.",
+        "operationId": "GetScansV1",
+        "parameters": [
+          {
+            "name": "trackingNumber",
+            "in": "path",
+            "description": "APX- followed by 8 digits.",
+            "required": true,
+            "schema": {
+              "pattern": "^APX-\\d{8}$",
+              "type": "string"
+            },
+            "example": "APX-20000001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The scans, oldest first; empty when none were uploaded yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScanResponse"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No shipment has this tracking number.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/api/v1/shipments": {
+      "get": {
+        "tags": [
+          "Shipments"
+        ],
+        "summary": "List shipments",
+        "description": "Returns one page of shipments, optionally only one status and one city. pageSize is 1 to 50 (default 20); a larger value is answered with 400, never silently cut.",
+        "operationId": "ListShipmentsV1",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The page number, 1 or more.",
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Shipments per page, 1 to 50 (default 20).",
+            "schema": {
+              "maximum": 50,
+              "minimum": 1,
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            },
+            "example": 20
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Only shipments with this status (name or number).",
+            "schema": {
+              "$ref": "#/components/schemas/ShipmentStatus"
+            },
+            "example": 3
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "description": "Only shipments to this city, ignoring case.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "Harbour Point"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of shipments, ordered by tracking number.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponseOfShipmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "page or pageSize out of range, or an unknown status.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      },
+      "post": {
+        "tags": [
+          "Shipments"
+        ],
+        "summary": "Create a shipment",
+        "description": "Registers a new shipment, which starts as Created. Answers 201 with the shipment and a Location header pointing to GET /api/v1/shipments/{trackingNumber} (on the /api/shipments alias when that was called).",
+        "operationId": "CreateShipmentV1",
+        "requestBody": {
+          "description": "The tracking number, recipient and weight.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShipmentRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShipmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The new shipment; the Location header points to it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A field is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A shipment with this tracking number already exists.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not application/json.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/api/v1/shipments/{trackingNumber}": {
+      "get": {
+        "tags": [
+          "Shipments"
+        ],
+        "summary": "Get a shipment",
+        "description": "Returns one shipment by tracking number. A value that is not APX- followed by 8 digits does not match the route and is answered with 404 as well.",
+        "operationId": "GetShipmentV1",
+        "parameters": [
+          {
+            "name": "trackingNumber",
+            "in": "path",
+            "description": "APX- followed by 8 digits.",
+            "required": true,
+            "schema": {
+              "pattern": "^APX-\\d{8}$",
+              "type": "string"
+            },
+            "example": "APX-20000001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The shipment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No shipment has this tracking number, or it is not APX- followed by 8 digits.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      },
+      "put": {
+        "tags": [
+          "Shipments"
+        ],
+        "summary": "Replace a shipment",
+        "description": "Replaces the recipient and weight of a shipment. The tracking number and status do not change; a Delivered or Failed shipment cannot be changed (409).",
+        "operationId": "ReplaceShipmentV1",
+        "parameters": [
+          {
+            "name": "trackingNumber",
+            "in": "path",
+            "description": "APX- followed by 8 digits.",
+            "required": true,
+            "schema": {
+              "pattern": "^APX-\\d{8}$",
+              "type": "string"
+            },
+            "example": "APX-20000001"
+          }
+        ],
+        "requestBody": {
+          "description": "The new recipient and weight.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShipmentRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShipmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The changed shipment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A field is missing or invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No shipment has this tracking number.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The shipment is Delivered or Failed, or was changed by someone else.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not application/json.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      },
+      "delete": {
+        "tags": [
+          "Shipments"
+        ],
+        "summary": "Delete a shipment",
+        "description": "Deletes a shipment that is still Created. Once a courier has picked it up the history must stay, so any later status is answered with 409.",
+        "operationId": "DeleteShipmentV1",
+        "parameters": [
+          {
+            "name": "trackingNumber",
+            "in": "path",
+            "description": "APX- followed by 8 digits.",
+            "required": true,
+            "schema": {
+              "pattern": "^APX-\\d{8}$",
+              "type": "string"
+            },
+            "example": "APX-20000002"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The shipment was deleted."
+          },
+          "404": {
+            "description": "No shipment has this tracking number.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The shipment is no longer Created.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/api/v1/shipments/{trackingNumber}/status": {
+      "patch": {
+        "tags": [
+          "Shipments"
+        ],
+        "summary": "Change the status of a shipment",
+        "description": "Moves a shipment forward: Created → PickedUp → InTransit → OutForDelivery → Delivered | Failed. A move backwards, to the same status or out of Delivered/Failed is answered with 409.",
+        "operationId": "ChangeShipmentStatusV1",
+        "parameters": [
+          {
+            "name": "trackingNumber",
+            "in": "path",
+            "description": "APX- followed by 8 digits.",
+            "required": true,
+            "schema": {
+              "pattern": "^APX-\\d{8}$",
+              "type": "string"
+            },
+            "example": "APX-20000001"
+          }
+        ],
+        "requestBody": {
+          "description": "The status to move to.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatusRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The shipment with its new status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The status is missing or unknown.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No shipment has this tracking number.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The move is not forward, or the shipment was changed by someone else.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not application/json.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateShipmentRequest": {
+        "required": [
+          "trackingNumber",
+          "recipientName",
+          "recipientPhone",
+          "recipientAddress",
+          "recipientCity"
+        ],
+        "type": "object",
+        "properties": {
+          "trackingNumber": {
+            "examples": [
+              "APX-20000011",
+              "APX-20000011"
+            ],
+            "pattern": "^APX-\\d{8}$",
+            "type": "string",
+            "description": "The tracking number, APX- followed by 8 digits. It must not exist yet."
+          },
+          "recipientName": {
+            "examples": [
+              "Kim Example",
+              "Kim Example"
+            ],
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "Who receives the shipment."
+          },
+          "recipientPhone": {
+            "examples": [
+              "+44 20 7946 0111",
+              "+44 20 7946 0111"
+            ],
+            "pattern": "^\\+?[0-9 ]{7,15}$",
+            "type": "string",
+            "description": "The recipient's phone number: 7 to 15 digits or spaces, optionally starting with +."
+          },
+          "recipientAddress": {
+            "examples": [
+              "5 Dock Road",
+              "5 Dock Road"
+            ],
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "description": "The street address."
+          },
+          "recipientCity": {
+            "examples": [
+              "Harbour Point",
+              "Harbour Point"
+            ],
+            "maxLength": 80,
+            "minLength": 0,
+            "type": "string",
+            "description": "The city."
+          },
+          "weightKg": {
+            "examples": [
+              2.5,
+              2.5
+            ],
+            "maximum": 30,
+            "minimum": 0.1,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "The weight in kilograms, 0.1 to 30.",
+            "format": "double"
+          }
+        },
+        "description": "The body of POST /api/shipments: a new shipment, which starts as Created."
+      },
+      "PagedResponseOfShipmentResponse": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount",
+          "totalPages",
+          "hasNext"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShipmentResponse"
+            },
+            "description": "The items of this page, at most ."
+          },
+          "page": {
+            "examples": [
+              1,
+              1
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The page number, starting at 1.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "examples": [
+              20,
+              20
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The requested page size, 1 to 50.",
+            "format": "int32"
+          },
+          "totalCount": {
+            "examples": [
+              10,
+              10
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many items match the filter on all pages.",
+            "format": "int32"
+          },
+          "totalPages": {
+            "examples": [
+              1,
+              1
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many pages there are.",
+            "format": "int32"
+          },
+          "hasNext": {
+            "examples": [
+              false,
+              false
+            ],
+            "type": "boolean",
+            "description": "Whether a next page exists."
+          }
+        },
+        "description": "One page of a list, with what a client needs to ask for the next one."
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RejectedScanResponse": {
+        "required": [
+          "scanId",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "scanId": {
+            "examples": [
+              "scan::7c9e6679-7425-40de-944b-e07fc1f90ae7",
+              "scan::7c9e6679-7425-40de-944b-e07fc1f90ae7"
+            ],
+            "type": "string",
+            "description": "The device document id of the refused scan."
+          },
+          "reason": {
+            "examples": [
+              "The scan would move the status from Delivered back to InTransit.",
+              "The scan would move the status from Delivered back to InTransit."
+            ],
+            "type": "string",
+            "description": "Why the scan was refused, in plain words."
+          }
+        },
+        "description": "A scan the server refused; the device marks it Failed."
+      },
+      "ScanItem": {
+        "required": [
+          "scanId",
+          "trackingNumber",
+          "scanType",
+          "courierId",
+          "location",
+          "scannedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "scanId": {
+            "examples": [
+              "scan::0f8fad5b-d9cb-469f-a165-70867728950e",
+              "scan::0f8fad5b-d9cb-469f-a165-70867728950e"
+            ],
+            "pattern": "^scan::[0-9a-fA-F-]{36}$",
+            "type": "string",
+            "description": "The device document id, scan:: followed by a GUID; it makes a repeated upload a duplicate."
+          },
+          "trackingNumber": {
+            "examples": [
+              "APX-20000001",
+              "APX-20000001"
+            ],
+            "pattern": "^APX-\\d{8}$",
+            "type": "string",
+            "description": "The scanned shipment."
+          },
+          "scanType": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What the courier recorded (1 Pickup, 2 InTransit, 3 Delivered, 4 Failed).",
+                "examples": [
+                  1
+                ],
+                "$ref": "#/components/schemas/ScanType"
+              }
+            ],
+            "description": "What the courier recorded (1 Pickup, 2 InTransit, 3 Delivered, 4 Failed)."
+          },
+          "courierId": {
+            "examples": [
+              "CR-101",
+              "CR-101"
+            ],
+            "pattern": "^CR-\\d{3}$",
+            "type": "string",
+            "description": "The courier, CR- followed by 3 digits."
+          },
+          "location": {
+            "examples": [
+              "Harbour Point depot",
+              "Harbour Point depot"
+            ],
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "Where the scan happened."
+          },
+          "scannedAtUtc": {
+            "examples": [
+              "2026-11-05T09:30:00.0000000Z",
+              "2026-11-05T09:30:00.0000000Z"
+            ],
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the scan happened, in UTC; at most 2 minutes ahead of the server clock.",
+            "format": "date-time"
+          },
+          "notes": {
+            "examples": [
+              "Collected from reception.",
+              "Collected from reception."
+            ],
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Free text from the courier."
+          },
+          "recipientSignatureName": {
+            "examples": [
+              "Ava Example",
+              "Ava Example"
+            ],
+            "maxLength": 100,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who signed for the shipment; required when  is Delivered."
+          }
+        },
+        "description": "One scan in an upload, with the field names of the courier device document. A Delivered scan also needs\n; the name is checked here and not stored."
+      },
+      "ScanResponse": {
+        "required": [
+          "scanId",
+          "trackingNumber",
+          "scanType",
+          "courierId",
+          "location",
+          "scannedAtUtc",
+          "notes",
+          "receivedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "scanId": {
+            "examples": [
+              "scan::0f8fad5b-d9cb-469f-a165-70867728950e",
+              "scan::0f8fad5b-d9cb-469f-a165-70867728950e"
+            ],
+            "type": "string",
+            "description": "The device document id, scan:: followed by a GUID."
+          },
+          "trackingNumber": {
+            "examples": [
+              "APX-20000003",
+              "APX-20000003"
+            ],
+            "type": "string",
+            "description": "The scanned shipment."
+          },
+          "scanType": {
+            "description": "What the courier recorded as a number: 1 Pickup, 2 InTransit, 3 Delivered, 4 Failed.",
+            "examples": [
+              1
+            ],
+            "$ref": "#/components/schemas/ScanType"
+          },
+          "courierId": {
+            "examples": [
+              "CR-101",
+              "CR-101"
+            ],
+            "type": "string",
+            "description": "The courier, CR- followed by 3 digits."
+          },
+          "location": {
+            "examples": [
+              "Westfield depot",
+              "Westfield depot"
+            ],
+            "type": "string",
+            "description": "Where the scan happened."
+          },
+          "scannedAtUtc": {
+            "examples": [
+              "2026-11-05T09:30:00.0000000Z",
+              "2026-11-05T09:30:00.0000000Z"
+            ],
+            "type": "string",
+            "description": "When the scan happened, in UTC.",
+            "format": "date-time"
+          },
+          "notes": {
+            "examples": [
+              "Collected from reception.",
+              "Collected from reception."
+            ],
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Free text from the courier, if any."
+          },
+          "receivedAtUtc": {
+            "examples": [
+              "2026-11-05T09:31:12.0000000Z",
+              "2026-11-05T09:31:12.0000000Z"
+            ],
+            "type": "string",
+            "description": "When the server stored the scan, in UTC.",
+            "format": "date-time"
+          }
+        },
+        "description": "A stored scan of a shipment."
+      },
+      "ScanType": {
+        "type": "integer"
+      },
+      "ScanUploadRequest": {
+        "required": [
+          "scans"
+        ],
+        "type": "object",
+        "properties": {
+          "scans": {
+            "examples": [
+              [
+                {
+                  "scanId": "scan::0f8fad5b-d9cb-469f-a165-70867728950e",
+                  "trackingNumber": "APX-20000001",
+                  "scanType": 1,
+                  "courierId": "CR-101",
+                  "location": "Harbour Point depot",
+                  "scannedAtUtc": "2026-11-05T09:30:00.0000000Z",
+                  "notes": "Collected from reception."
+                }
+              ],
+              [
+                {
+                  "scanId": "scan::0f8fad5b-d9cb-469f-a165-70867728950e",
+                  "trackingNumber": "APX-20000001",
+                  "scanType": 1,
+                  "courierId": "CR-101",
+                  "location": "Harbour Point depot",
+                  "scannedAtUtc": "2026-11-05T09:30:00.0000000Z",
+                  "notes": "Collected from reception."
+                }
+              ]
+            ],
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScanItem"
+            },
+            "description": "1 to 100 scans of this shipment."
+          }
+        },
+        "description": "The body of POST /api/shipments/{trackingNumber}/scans: a batch of device scans, safe to send again."
+      },
+      "ScanUploadResult": {
+        "required": [
+          "accepted",
+          "duplicatesSkipped",
+          "rejected"
+        ],
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "examples": [
+              1,
+              1
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many scans this upload stored.",
+            "format": "int32"
+          },
+          "duplicatesSkipped": {
+            "examples": [
+              0,
+              0
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many scans were already stored, or repeated in the batch, and were skipped.",
+            "format": "int32"
+          },
+          "rejected": {
+            "examples": [
+              [],
+              []
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RejectedScanResponse"
+            },
+            "description": "The scans the server refused, each with a reason; empty when all were valid."
+          }
+        },
+        "description": "The answer to a scan upload: `{ accepted, duplicatesSkipped, rejected: [{ scanId, reason }] }`. Accepted and\nduplicate scans become Synced on the device, rejected ones Failed."
+      },
+      "ShipmentResponse": {
+        "required": [
+          "trackingNumber",
+          "recipientName",
+          "recipientPhone",
+          "recipientAddress",
+          "recipientCity",
+          "weightKg",
+          "status",
+          "createdAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "trackingNumber": {
+            "examples": [
+              "APX-20000001",
+              "APX-20000001"
+            ],
+            "type": "string",
+            "description": "The tracking number, APX- followed by 8 digits."
+          },
+          "recipientName": {
+            "examples": [
+              "Ava Example",
+              "Ava Example"
+            ],
+            "type": "string",
+            "description": "Who receives the shipment."
+          },
+          "recipientPhone": {
+            "examples": [
+              "+44 20 7946 0101",
+              "+44 20 7946 0101"
+            ],
+            "type": "string",
+            "description": "The recipient's phone number."
+          },
+          "recipientAddress": {
+            "examples": [
+              "12 Quay Street",
+              "12 Quay Street"
+            ],
+            "type": "string",
+            "description": "The street address."
+          },
+          "recipientCity": {
+            "examples": [
+              "Harbour Point",
+              "Harbour Point"
+            ],
+            "type": "string",
+            "description": "The city."
+          },
+          "weightKg": {
+            "examples": [
+              1.2,
+              1.2
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "The weight in kilograms.",
+            "format": "double"
+          },
+          "status": {
+            "description": "The current status as a number: 1 Created, 2 PickedUp, 3 InTransit, 4 OutForDelivery, 5 Delivered, 6 Failed.",
+            "examples": [
+              1
+            ],
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "createdAtUtc": {
+            "examples": [
+              "2026-11-05T08:00:00.0000000Z",
+              "2026-11-05T08:00:00.0000000Z"
+            ],
+            "type": "string",
+            "description": "When the shipment was registered, in UTC.",
+            "format": "date-time"
+          },
+          "version": {
+            "examples": [
+              1,
+              1
+            ],
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "A counter that grows with every change of the shipment.",
+            "format": "int32"
+          }
+        },
+        "description": "A shipment in v1: flat recipient fields and the status as a number."
+      },
+      "ShipmentStatus": {
+        "type": "integer"
+      },
+      "UpdateShipmentRequest": {
+        "required": [
+          "recipientName",
+          "recipientPhone",
+          "recipientAddress",
+          "recipientCity"
+        ],
+        "type": "object",
+        "properties": {
+          "recipientName": {
+            "examples": [
+              "Ava Example",
+              "Ava Example"
+            ],
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "Who receives the shipment."
+          },
+          "recipientPhone": {
+            "examples": [
+              "+44 20 7946 0101",
+              "+44 20 7946 0101"
+            ],
+            "pattern": "^\\+?[0-9 ]{7,15}$",
+            "type": "string",
+            "description": "The recipient's phone number: 7 to 15 digits or spaces, optionally starting with +."
+          },
+          "recipientAddress": {
+            "examples": [
+              "14 Quay Street",
+              "14 Quay Street"
+            ],
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "description": "The street address."
+          },
+          "recipientCity": {
+            "examples": [
+              "Harbour Point",
+              "Harbour Point"
+            ],
+            "maxLength": 80,
+            "minLength": 0,
+            "type": "string",
+            "description": "The city."
+          },
+          "weightKg": {
+            "examples": [
+              1.4,
+              1.4
+            ],
+            "maximum": 30,
+            "minimum": 0.1,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "The weight in kilograms, 0.1 to 30.",
+            "format": "double"
+          }
+        },
+        "description": "The body of PUT /api/shipments/{trackingNumber}: the new recipient and weight. The tracking number comes from\nthe route and cannot change."
+      },
+      "UpdateStatusRequest": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The new status (v1 sends the number: 1 Created, 2 PickedUp, 3 InTransit, 4 OutForDelivery, 5 Delivered,\n6 Failed). Only forward moves pass.",
+                "examples": [
+                  2
+                ],
+                "$ref": "#/components/schemas/ShipmentStatus"
+              }
+            ],
+            "description": "The new status (v1 sends the number: 1 Created, 2 PickedUp, 3 InTransit, 4 OutForDelivery, 5 Delivered,\n6 Failed). Only forward moves pass."
+          }
+        },
+        "description": "The body of PATCH /api/shipments/{trackingNumber}/status: the status to move to."
+      },
+      "ValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Scans"
+    },
+    {
+      "name": "Shipments"
+    }
+  ],
+  "x-api-versioning": {
+    "links": [
+      {
+        "rel": "deprecation",
+        "url": "https://developer.apexpost.example/api/versioning"
+      },
+      {
+        "rel": "sunset",
+        "url": "https://developer.apexpost.example/api/versioning"
+      }
+    ]
+  }
+}

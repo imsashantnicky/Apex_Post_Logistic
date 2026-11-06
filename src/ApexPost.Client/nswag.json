@@ -1,0 +1,43 @@
+{
+  "runtime": "Net100",
+  "defaultVariables": null,
+  "documentGenerator": {
+    "fromDocument": {
+      "url": "../../contracts/v2.json",
+      "output": null,
+      "newLineBehavior": "LF"
+    }
+  },
+  "codeGenerators": {
+    "openApiToCSharpClient": {
+      "namespace": "ApexPost.Client",
+      "className": "ApexPostApiClient",
+      "generateClientInterfaces": true,
+      "generateClientClasses": true,
+      "generateDtoTypes": true,
+      "generateExceptionClasses": true,
+      "exceptionClass": "ApiException",
+      "operationGenerationMode": "SingleClientFromOperationId",
+      "useBaseUrl": false,
+      "generateBaseUrlProperty": false,
+      "injectHttpClient": true,
+      "disposeHttpClient": false,
+      "generateOptionalParameters": true,
+      "generateNullableReferenceTypes": true,
+      "generateOptionalPropertiesAsNullable": true,
+      "jsonLibrary": "SystemTextJson",
+      "classStyle": "Poco",
+      "generateDataAnnotations": false,
+      "dateTimeType": "System.DateTime",
+      "arrayType": "System.Collections.Generic.ICollection",
+      "arrayInstanceType": "System.Collections.ObjectModel.Collection",
+      "arrayBaseType": "System.Collections.ObjectModel.Collection",
+      "dictionaryType": "System.Collections.Generic.IDictionary",
+      "dictionaryInstanceType": "System.Collections.Generic.Dictionary",
+      "generateUpdateJsonSerializerSettingsMethod": true,
+      "generatePrepareRequestAndProcessResponseAsAsyncMethods": false,
+      "output": "Generated/ApexPostApiClient.g.cs",
+      "newLineBehavior": "LF"
+    }
+  }
+}

@@ -2,6 +2,8 @@
   <Folder Name="/src/">
     <Project Path="src/ApexPost.Api/ApexPost.Api.csproj" />
     <Project Path="src/ApexPost.Application/ApexPost.Application.csproj" />
+    <Project Path="src/ApexPost.Client.Consumer/ApexPost.Client.Consumer.csproj" />
+    <Project Path="src/ApexPost.Client/ApexPost.Client.csproj" />
     <Project Path="src/ApexPost.Domain/ApexPost.Domain.csproj" />
     <Project Path="src/ApexPost.Infrastructure/ApexPost.Infrastructure.csproj" />
     <Project Path="src/ApexPost.Web/ApexPost.Web.csproj" />

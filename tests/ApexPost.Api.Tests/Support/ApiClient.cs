@@ -11,7 +11,12 @@ namespace ApexPost.Api.Tests.Support;
 /// <summary>Helpers for the endpoint tests: fresh tracking numbers, scans near the real clock, raw bodies.</summary>
 public static class ApiClient
 {
+    /// <summary>The Part B route, kept as an alias of v1.</summary>
     public const string Shipments = "/api/shipments";
+
+    public const string V1Shipments = "/api/v1/shipments";
+
+    public const string V2Shipments = "/api/v2/shipments";
 
     /// <summary>The JSON options the API uses by default (camelCase).</summary>
     public static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
