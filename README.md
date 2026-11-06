@@ -481,7 +481,10 @@ Run the API in Development (`dotnet run --project src/ApexPost.Api --launch-prof
 
 `/api/v2/shipments` is the current contract. `/api/v1/shipments` and the Part B alias `/api/shipments` are deprecated
 and answer with `Deprecation`, `Sunset` and `Link` headers. [VERSIONING.md](VERSIONING.md) lists every v1 → v2 change,
-the deprecation policy and the sunset plan.
+the deprecation policy and the sunset plan. [API-NOTES.md](API-NOTES.md) compares the v1 and v2 shapes, and
+[src/ApexPost.Api/ApexPost.Api.http](src/ApexPost.Api/ApexPost.Api.http) has a success and a failure request for every
+endpoint in both versions. Screenshots of Part C are listed in
+[docs/screenshots/week4-partC/](docs/screenshots/week4-partC/README.md).
 
 `contracts/v1.json` and `contracts/v2.json` are the published contracts. `ContractTrackingTests` fails when the live
 documents differ from them, so every contract change shows up as a reviewed diff. After an intended change, export
