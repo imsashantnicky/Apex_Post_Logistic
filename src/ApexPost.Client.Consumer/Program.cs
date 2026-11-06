@@ -1,4 +1,5 @@
-﻿using ApexPost.Client;
+﻿using System.Net.Http.Headers;
+using ApexPost.Client;
 using ApexPost.Client.Consumer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,8 +18,16 @@ builder.Services.AddOptions<ApexPostApiOptions>()
     .ValidateOnStart();
 
 // Typed client: IHttpClientFactory owns the HttpClient (pooled handlers); the generated class only receives it.
+// The demo creates shipments and uploads CR-101 scans, so its token needs the Admin and Courier roles.
 builder.Services.AddHttpClient<IApexPostApiClient, ApexPostApiClient>((services, http) =>
-    http.BaseAddress = services.GetRequiredService<IOptions<ApexPostApiOptions>>().Value.BaseAddress());
+{
+    var options = services.GetRequiredService<IOptions<ApexPostApiOptions>>().Value;
+    http.BaseAddress = options.BaseAddress();
+    if (!string.IsNullOrWhiteSpace(options.AccessToken))
+    {
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.AccessToken);
+    }
+});
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(Console.Out);

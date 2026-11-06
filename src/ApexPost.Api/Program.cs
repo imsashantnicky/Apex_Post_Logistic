@@ -20,6 +20,11 @@ builder.Services.AddShipmentTracking(builder.Configuration);
 
 builder.Services.AddApexApi(builder.Configuration);
 
+// JWT bearer tokens (issuer and audience from appsettings, signing key from user-secrets via dotnet user-jwts), the
+// role rules on the actions, the courier of the request for the scan ownership check in the tracking service, and
+// POST /dev/token for the fictional couriers CR-101 and CR-102 (Development only).
+builder.Services.AddApexSecurity(builder.Environment);
+
 // URL-segment versioning (v1 deprecated, v2 current; /api/shipments stays a v1 alias) and the built-in .NET OpenAPI
 // generator with one document per version; ApexDocumentTransformer fills title, description, version and contact.
 builder.Services.AddApexApiVersioning().AddApexOpenApi();
@@ -40,6 +45,10 @@ app.UseStatusCodePages();
 
 // /openapi/v1.json, /openapi/v2.json and Swagger UI at /swagger exist in Development only; elsewhere both answer 404.
 app.MapApexDocumentationInDevelopment();
+
+// Who is calling (bearer token), then whether the action allows it; 401 and 403 are written as ProblemDetails.
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

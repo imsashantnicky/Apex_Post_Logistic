@@ -16,6 +16,14 @@ public sealed class ApexPostApiOptions
     public Uri? BaseUrl { get; set; }
 
     /// <summary>
+    /// A bearer token sent as Authorization: Bearer on every request; without it the API answers 401. Never put it
+    /// in appsettings.json: pass it with the environment variable <c>ApexPostApi__AccessToken</c>, for example the
+    /// output of dotnet user-jwts create --project src/ApexPost.Api --role Admin --role Courier
+    /// --claim courierId=CR-101.
+    /// </summary>
+    public string? AccessToken { get; set; }
+
+    /// <summary>
     /// The base URL with a trailing slash. The generated client appends relative paths ("api/v2/shipments"), and
     /// without the slash <see cref="Uri"/> would drop the last segment of a base URL that has a path.
     /// </summary>

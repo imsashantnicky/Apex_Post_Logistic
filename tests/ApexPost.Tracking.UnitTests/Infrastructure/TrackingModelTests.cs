@@ -1,6 +1,7 @@
 using ApexPost.Application.Tracking;
 using ApexPost.Infrastructure.Persistence;
 using ApexPost.Infrastructure.Tracking;
+using ApexPost.Tracking.UnitTests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -72,6 +73,7 @@ public sealed class TrackingModelTests
             })
             .Build();
         var services = new ServiceCollection().AddShipmentTracking(configuration);
+        services.AddScoped<ICurrentCourier, FixedCourier>();
 
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {

@@ -101,7 +101,7 @@ public sealed class TrackingSqlTests(TrackingDatabase database) : IClassFixture<
 
     private static ShipmentTrackingService Service(TrackingDbContext context) =>
         new(new TrackedShipmentRepository(context), new SqlTrackingQueries(context), new TrackingUnitOfWork(context),
-            new FixedTimeProvider());
+            new FixedCourier(), new FixedTimeProvider());
 
     private static string NewTrackingNumber() =>
         "APX-" + Random.Shared.Next(10_000_000, 99_999_999).ToString(System.Globalization.CultureInfo.InvariantCulture);

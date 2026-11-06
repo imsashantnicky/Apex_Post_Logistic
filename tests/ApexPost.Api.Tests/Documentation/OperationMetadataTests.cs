@@ -19,21 +19,21 @@ public sealed class OperationMetadataTests(ApiFactory factory) : IClassFixture<A
     private static readonly ExpectedOperation[] Expected =
     [
         new(ApiRoutes.ListShipmentsV1, "get", "/api/v1/shipments", ApiRoutes.ShipmentsTag, "List shipments",
-            ["200", "400", "500"]),
+            ["200", "400", "401", "500"]),
         new(ApiRoutes.GetShipmentV1, "get", ShipmentPath, ApiRoutes.ShipmentsTag, "Get a shipment",
-            ["200", "404", "500"]),
+            ["200", "401", "404", "500"]),
         new(ApiRoutes.CreateShipmentV1, "post", "/api/v1/shipments", ApiRoutes.ShipmentsTag, "Create a shipment",
-            ["201", "400", "409", "415", "500"]),
+            ["201", "400", "401", "403", "409", "415", "500"]),
         new(ApiRoutes.ReplaceShipmentV1, "put", ShipmentPath, ApiRoutes.ShipmentsTag, "Replace a shipment",
-            ["200", "400", "404", "409", "415", "500"]),
+            ["200", "400", "401", "403", "404", "409", "415", "500"]),
         new(ApiRoutes.ChangeShipmentStatusV1, "patch", ShipmentPath + "/status", ApiRoutes.ShipmentsTag,
-            "Change the status of a shipment", ["200", "400", "404", "409", "415", "500"]),
+            "Change the status of a shipment", ["200", "400", "401", "403", "404", "409", "415", "500"]),
         new(ApiRoutes.DeleteShipmentV1, "delete", ShipmentPath, ApiRoutes.ShipmentsTag, "Delete a shipment",
-            ["204", "404", "409", "500"]),
+            ["204", "401", "403", "404", "409", "500"]),
         new(ApiRoutes.UploadScansV1, "post", ScansPath, ApiRoutes.ScansTag, "Upload scans of a shipment",
-            ["200", "400", "404", "415", "500"]),
+            ["200", "400", "401", "403", "404", "415", "500"]),
         new(ApiRoutes.GetScansV1, "get", ScansPath, ApiRoutes.ScansTag, "Get the scans of a shipment",
-            ["200", "404", "500"]),
+            ["200", "401", "404", "500"]),
     ];
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

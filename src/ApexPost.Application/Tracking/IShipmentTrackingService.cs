@@ -49,7 +49,8 @@ public interface IShipmentTrackingService
     /// Stores a batch of device scans. A scan id already stored, or repeated in the batch, is skipped as a duplicate,
     /// so the same upload can be sent again safely. Each stored scan moves its shipment forward; a scan that would
     /// move it back or past Delivered/Failed is rejected with a reason, and the valid scans are still stored.
-    /// Accepted + duplicates + rejected always equals the number of scans sent.
+    /// Accepted + duplicates + rejected always equals the number of scans sent. Only the courier who recorded the
+    /// scans may upload them: any other caller gets <see cref="Exceptions.ForbiddenException"/> (403).
     /// </summary>
     Task<ScanUploadResult> UploadScansAsync(IReadOnlyList<ScanUpload> scans, CancellationToken cancellationToken);
 
