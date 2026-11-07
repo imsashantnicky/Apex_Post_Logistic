@@ -21,6 +21,9 @@ public static class FailureMessages
     /// <summary>Text for a tracking number that is not <c>APX-</c> plus eight digits.</summary>
     public const string InvalidTrackingNumber = "Enter a tracking number like APX-10000001.";
 
+    /// <summary>Text for a courier id that is not <c>CR-</c> plus three digits.</summary>
+    public const string InvalidCourierId = "Enter a courier id like CR-101.";
+
     private const int MaximumFieldErrorsShown = 3;
 
     /// <summary>Builds the failure for an error status, using the problem body when there is one.</summary>

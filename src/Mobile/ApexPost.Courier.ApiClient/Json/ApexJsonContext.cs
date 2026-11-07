@@ -29,4 +29,6 @@ namespace ApexPost.Courier.ApiClient.Json;
 [JsonSerializable(typeof(IReadOnlyList<ScanResponse>))]
 [JsonSerializable(typeof(PartnerShipmentResponse))]
 [JsonSerializable(typeof(ApiProblem))]
+[JsonSerializable(typeof(DevTokenRequest))]
+[JsonSerializable(typeof(DevTokenResponse))]
 public sealed partial class ApexJsonContext : JsonSerializerContext;

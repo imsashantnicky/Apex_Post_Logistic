@@ -8,6 +8,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ApexPost.Api\ApexPost.Api.csproj" />
     <ProjectReference Include="..\..\src\ApexPost.Client.Consumer\ApexPost.Client.Consumer.csproj" />
+    <!-- The courier app's uploader, for the end-to-end sync test against the real API host. -->
+    <ProjectReference Include="..\..\src\Mobile\ApexPost.Courier.ApiClient\ApexPost.Courier.ApiClient.csproj" />
   </ItemGroup>
 
   <ItemGroup>
