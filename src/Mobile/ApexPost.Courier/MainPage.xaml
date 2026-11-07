@@ -6,6 +6,18 @@
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="14">
 
+            <Border x:Name="OfflineBanner"
+                    IsVisible="False"
+                    Padding="12"
+                    BackgroundColor="#FDECEA"
+                    Stroke="#B3261E"
+                    StrokeShape="RoundRectangle 10">
+                <Label Text="Server unavailable – working offline. Scans are still saved on this device."
+                       TextColor="#B3261E"
+                       FontAttributes="Bold"
+                       SemanticProperties.Description="Server unavailable, working offline" />
+            </Border>
+
             <Label x:Name="ApiAddressLabel" FontSize="12" TextColor="{StaticResource Gray500}" />
             <Label x:Name="PendingLabel" FontSize="16" FontAttributes="Bold" Text="Pending scans on this device: –" />
 

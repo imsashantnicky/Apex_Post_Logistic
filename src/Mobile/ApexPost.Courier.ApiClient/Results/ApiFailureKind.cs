@@ -35,4 +35,7 @@ public enum ApiFailureKind
 
     /// <summary>The server answered with a body the app could not read.</summary>
     InvalidResponse = 11,
+
+    /// <summary>The circuit breaker is open after repeated server failures; the call was not sent.</summary>
+    ServerUnavailable = 12,
 }

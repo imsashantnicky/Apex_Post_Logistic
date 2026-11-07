@@ -1,6 +1,7 @@
 using ApexPost.Courier.ApiClient;
 using ApexPost.Courier.ApiClient.Auth;
 using ApexPost.Courier.ApiClient.Http;
+using ApexPost.Courier.ApiClient.Resilience;
 using ApexPost.Courier.Domain.Ports;
 using ApexPost.Courier.Offline;
 using ApexPost.Courier.Offline.Scans;
@@ -57,9 +58,11 @@ public static class MauiProgram
         builder.Services.AddTransient<AuthHeaderHandler>();
 
         // IHttpClientFactory owns the handlers and their lifetime; the app never creates an HttpClient itself.
+        // Resilience (RESILIENCE.md): total timeout 30 s → retry ×3 → circuit breaker → attempt timeout 8 s.
         var client = builder.Services
             .AddHttpClient<ApexApiClient>(http => http.BaseAddress = baseAddress)
-            .AddHttpMessageHandler<AuthHeaderHandler>();
+            .AddHttpMessageHandler<AuthHeaderHandler>()
+            .AddApexResilience();
 
 #if DEBUG
         client.ConfigurePrimaryHttpMessageHandler(DevCertificateBypass.CreateHandler);

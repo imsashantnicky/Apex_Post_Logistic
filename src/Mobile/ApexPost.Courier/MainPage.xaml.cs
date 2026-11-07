@@ -2,13 +2,16 @@ using System.Globalization;
 using ApexPost.Courier.ApiClient;
 using ApexPost.Courier.ApiClient.Auth;
 using ApexPost.Courier.ApiClient.Contracts;
+using ApexPost.Courier.ApiClient.Resilience;
 using ApexPost.Courier.Domain.Ports;
+using Polly.CircuitBreaker;
 
 namespace ApexPost.Courier;
 
 /// <summary>
 /// Start page: stores the courier token in SecureStorage, looks up a shipment through the typed client and shows
-/// the number of scans still waiting on the device. Every API failure is shown as its friendly message.
+/// the number of scans still waiting on the device. Every API failure is shown as its friendly message, and a
+/// banner says "Server unavailable – working offline" while the API circuit breaker is open.
 /// </summary>
 public partial class MainPage : ContentPage
 {
@@ -18,17 +21,20 @@ public partial class MainPage : ContentPage
     private readonly ApexApiClient _api;
     private readonly IAccessTokenStore _tokens;
     private readonly IScanQueries _scans;
+    private readonly ICircuitStateProvider _circuit;
 
     /// <summary>Creates the page with its services.</summary>
     /// <param name="api">Typed API client.</param>
     /// <param name="tokens">Secure token store.</param>
     /// <param name="scans">Local scan queries.</param>
-    public MainPage(ApexApiClient api, IAccessTokenStore tokens, IScanQueries scans)
+    /// <param name="circuit">State of the API circuit breaker, for the offline banner.</param>
+    public MainPage(ApexApiClient api, IAccessTokenStore tokens, IScanQueries scans, ICircuitStateProvider circuit)
     {
         InitializeComponent();
         _api = api;
         _tokens = tokens;
         _scans = scans;
+        _circuit = circuit;
         ApiAddressLabel.Text = $"API: {api.BaseAddress}";
     }
 
@@ -36,11 +42,24 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        _circuit.StateChanged += OnCircuitStateChanged;
+        OfflineBanner.IsVisible = _circuit.IsServerUnavailable;
         var pending = await _scans.GetPendingAsync(CancellationToken.None);
         PendingLabel.Text = string.Create(CultureInfo.CurrentCulture, $"Pending scans on this device: {pending.Count}");
         var token = await _tokens.GetAccessTokenAsync(CancellationToken.None);
         ShowTokenStatus(string.IsNullOrEmpty(token) ? "Not signed in." : "Token stored securely.", OkColor);
     }
+
+    /// <inheritdoc />
+    protected override void OnDisappearing()
+    {
+        _circuit.StateChanged -= OnCircuitStateChanged;
+        base.OnDisappearing();
+    }
+
+    // Raised on the thread of the HTTP call that changed the state, so the banner is updated on the UI thread.
+    private void OnCircuitStateChanged(object? sender, CircuitState state) =>
+        Dispatcher.Dispatch(() => OfflineBanner.IsVisible = _circuit.IsServerUnavailable);
 
     private async void OnSaveTokenClicked(object? sender, EventArgs e)
     {
