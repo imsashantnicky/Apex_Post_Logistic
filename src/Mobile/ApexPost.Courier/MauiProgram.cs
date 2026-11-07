@@ -7,8 +7,12 @@ using ApexPost.Courier.Domain.Ports;
 using ApexPost.Courier.Offline;
 using ApexPost.Courier.Offline.Outbox;
 using ApexPost.Courier.Offline.Scans;
+using ApexPost.Courier.Presentation.Ports;
+using ApexPost.Courier.Presentation.ViewModels;
 using ApexPost.Courier.Security;
+using ApexPost.Courier.Services;
 using ApexPost.Courier.Sync;
+using ApexPost.Courier.Views;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +24,9 @@ public static class MauiProgram
     private const string SettingsResource = "ApexPost.Courier.appsettings.json";
     private const string ListenerLogFile = "listener.log";
 
-    /// <summary>Builds the app: configuration, typed API client, token store, offline scan store and sync.</summary>
+    /// <summary>
+    /// Builds the app: configuration, typed API client, token store, offline scan store, sync and the screens.
+    /// </summary>
     public static MauiApp CreateMauiApp()
     {
         var builder = MauiApp.CreateBuilder();
@@ -36,6 +42,7 @@ public static class MauiProgram
         AddApiClient(builder);
         AddOfflineStore(builder.Services);
         AddSync(builder.Services);
+        AddScreens(builder.Services);
 
 #if DEBUG
         builder.Logging.AddDebug();
@@ -105,8 +112,27 @@ public static class MauiProgram
             provider.GetRequiredService<ILogger<OutboxService>>()));
         services.AddSingleton(Connectivity.Current);
         services.AddSingleton<CourierSync>();
-        services.AddSingleton<AppNavigator>();
-        services.AddTransient<LoginPage>();
-        services.AddTransient<MainPage>();
+        services.AddSingleton<ISyncRunner>(provider => provider.GetRequiredService<CourierSync>());
+        services.AddSingleton<IPendingCountSource, PendingCountSource>();
+    }
+
+    // MVVM: the view models (ApexPost.Courier.Presentation) are singletons so the banner, the live count and the
+    // sync history survive tab switches; Shell resolves the pages from here through their ContentTemplate.
+    private static void AddScreens(IServiceCollection services)
+    {
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IUiDispatcher, MainThreadDispatcher>();
+        services.AddSingleton<IAppNavigator, ShellNavigator>();
+        services.AddSingleton<ConnectionBannerViewModel>();
+        services.AddSingleton<LoginViewModel>();
+        services.AddSingleton<ShipmentLookupViewModel>();
+        services.AddSingleton<NewScanViewModel>();
+        services.AddSingleton<PendingScansViewModel>();
+        services.AddSingleton<SyncStatusViewModel>();
+        services.AddSingleton<AppShell>();
+        services.AddSingleton<LoginPage>();
+        services.AddSingleton<NewScanPage>();
+        services.AddSingleton<PendingScansPage>();
+        services.AddSingleton<SyncStatusPage>();
     }
 }
