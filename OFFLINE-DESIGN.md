@@ -45,6 +45,33 @@ The uploader is a port in `ApexPost.Courier.Domain` (`IShipmentUploader`). Part 
 (100–300 ms delay, `APX-99999999` always fails). **Part D swaps it for `HttpShipmentUploader`** that calls the API
 through Polly; the outbox, the repository and the domain do not change.
 
+### Part D: batches through the real API
+
+The MAUI app registers `HttpShipmentUploader` (`src/Mobile/ApexPost.Courier.ApiClient/Sync`) instead of the fake;
+the console harness and the Part A tests keep `FakeShipmentUploader`. `IShipmentUploader` is unchanged. Batches use
+a separate port, `IBatchShipmentUploader : IShipmentUploader` (`UploadBatchAsync(trackingNumber, scans)`), and
+`OutboxService` uses it whenever the uploader implements it:
+
+- Pending scans are grouped per tracking number (the API takes the scans of one shipment per call), groups in the
+  order of their oldest scan, scans oldest first, and split into batches of **20** (`OutboxService.BatchSize`; the
+  API accepts 100, a smaller request is kinder to a weak mobile link).
+- Each batch is one `POST /api/v2/shipments/{trackingNumber}/scans` with the bearer token, the retries and the
+  circuit breaker of [RESILIENCE.md](RESILIENCE.md).
+
+| Answer of the batch | `BatchUploadOutcome` | New `syncStatus` | The run |
+| --- | --- | --- | --- |
+| 200: `accepted` and `duplicatesSkipped` | `Completed` | `Synced` | goes on |
+| 200: listed in `rejected` | `Completed` | `Failed` (reason logged) | goes on |
+| 400, 403, 404, other 4xx | `Refused` | `Failed` for the whole batch | goes on |
+| network error, timeout, 5xx after retries, 429, unreadable answer, **open circuit** | `Retryable` | unchanged (`Pending` stays `Pending`) | stops; the rest wait for the next run |
+| 401 | `Unauthorized` | unchanged | stops; the app clears the token and opens Sign in |
+
+Runs start at start-up, after sign-in, when `Connectivity.ConnectivityChanged` reports Internet access, after a new
+scan and from the **Sync now** button (`CourierSync`). The outbox stays single-flight, so overlapping triggers start
+one run. The token lives only in MAUI `SecureStorage`, never in Preferences, files or logs. The pending count on the
+main page comes from the Part A `ScanChangeMonitor.PendingCountChanged` event, switched to the UI thread with the
+page's dispatcher.
+
 ## 2. Conflicts: the server decides, scans are append-only
 
 Two devices, or a device and a back-office user, can change the same shipment while one of them is offline.

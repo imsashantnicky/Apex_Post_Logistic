@@ -46,8 +46,11 @@ public sealed partial class OutboxService : IDisposable
     }
 
     /// <summary>
-    /// Uploads every pending scan, oldest first. An accepted scan becomes Synced; a rejected scan or an upload
-    /// that throws becomes Failed. One bad scan never stops the others.
+    /// Uploads every pending scan, oldest first. With a single-scan uploader (the Part A fake) an accepted scan
+    /// becomes Synced and a rejected scan or an upload that throws becomes Failed; one bad scan never stops the
+    /// others. With an <see cref="IBatchShipmentUploader"/> (the HTTP uploader) the scans go in batches of up to
+    /// <see cref="BatchSize"/> per tracking number: accepted and duplicate scans become Synced, rejected scans
+    /// Failed, and when the server cannot be reached or answers 401 the run stops and the rest keep their status.
     /// </summary>
     /// <param name="includeFailed">Also retry scans whose earlier upload failed.</param>
     /// <param name="ct">Stops the run before the next scan. Scans not attempted yet keep their status.</param>
@@ -64,22 +67,12 @@ public sealed partial class OutboxService : IDisposable
         try
         {
             var scans = await LoadScansAsync(includeFailed, ct).ConfigureAwait(false);
-            int synced = 0, failed = 0;
-            foreach (var scan in scans)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (await UploadOneAsync(scan, ct).ConfigureAwait(false))
-                {
-                    synced++;
-                }
-                else
-                {
-                    failed++;
-                }
-            }
+            var result = _uploader is IBatchShipmentUploader batchUploader
+                ? await UploadInBatchesAsync(batchUploader, scans, ct).ConfigureAwait(false)
+                : await UploadOneByOneAsync(scans, ct).ConfigureAwait(false);
 
-            LogRunFinished(_logger, scans.Count, synced, failed);
-            return new OutboxResult(scans.Count, synced, failed);
+            LogRunFinished(_logger, result.Attempted, result.Synced, result.Failed, result.Deferred);
+            return result;
         }
         finally
         {
@@ -102,6 +95,26 @@ public sealed partial class OutboxService : IDisposable
         return [.. pending.Concat(failed).OrderBy(scan => scan.ScannedAtUtc)];
     }
 
+    // Part A path, used by the fake uploader: one request per scan, every failure becomes Failed.
+    private async Task<OutboxResult> UploadOneByOneAsync(IReadOnlyList<ShipmentScan> scans, CancellationToken ct)
+    {
+        int synced = 0, failed = 0;
+        foreach (var scan in scans)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (await UploadOneAsync(scan, ct).ConfigureAwait(false))
+            {
+                synced++;
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        return new OutboxResult(scans.Count, synced, failed);
+    }
+
     private async Task<bool> UploadOneAsync(ShipmentScan scan, CancellationToken ct)
     {
         UploadResult result;
@@ -121,13 +134,17 @@ public sealed partial class OutboxService : IDisposable
             LogUploadFailed(_logger, scan.Id, scan.TrackingNumber, result.Error ?? "unknown");
         }
 
-        // The upload has already happened, so the outcome is saved even if cancellation arrives now.
-        if (!await _statusUpdater.UpdateSyncStatusAsync(scan.Id, status, CancellationToken.None).ConfigureAwait(false))
-        {
-            LogScanMissing(_logger, scan.Id);
-        }
-
+        await SaveStatusAsync(scan.Id, status).ConfigureAwait(false);
         return result.Success;
+    }
+
+    // The upload has already happened, so the outcome is saved even if cancellation arrives now.
+    private async Task SaveStatusAsync(string scanId, SyncStatus status)
+    {
+        if (!await _statusUpdater.UpdateSyncStatusAsync(scanId, status, CancellationToken.None).ConfigureAwait(false))
+        {
+            LogScanMissing(_logger, scanId);
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Outbox run skipped: another run is in progress")]
@@ -135,8 +152,8 @@ public sealed partial class OutboxService : IDisposable
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Outbox run finished: {Attempted} attempted, {Synced} synced, {Failed} failed")]
-    private static partial void LogRunFinished(ILogger logger, int attempted, int synced, int failed);
+        Message = "Outbox run finished: {Attempted} attempted, {Synced} synced, {Failed} failed, {Deferred} deferred")]
+    private static partial void LogRunFinished(ILogger logger, int attempted, int synced, int failed, int deferred);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Upload of scan {ScanId} ({TrackingNumber}) failed: {Reason}")]
     private static partial void LogUploadFailed(ILogger logger, string scanId, string trackingNumber, string reason);

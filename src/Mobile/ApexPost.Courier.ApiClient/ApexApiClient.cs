@@ -27,8 +27,37 @@ public sealed class ApexApiClient(HttpClient httpClient)
 
     private static ApexJsonContext Json => ApexJson.Context;
 
+    /// <summary>
+    /// Name of the client registration (<c>AddHttpClient&lt;ApexApiClient&gt;(HttpClientName, ...)</c>), so a
+    /// singleton such as the uploader can ask <see cref="IHttpClientFactory"/> for the same configured client.
+    /// </summary>
+    public const string HttpClientName = "ApexApi";
+
+    private const string DevelopmentTokenPath = "dev/token";
+
     /// <summary>The API root this client calls (chosen per platform at start-up).</summary>
     public Uri? BaseAddress => httpClient.BaseAddress;
+
+    /// <summary>
+    /// Signs a fictional courier in through <c>POST /dev/token</c>, which exists only while the API runs in
+    /// Development (404 elsewhere). The answer holds a one-hour Courier token.
+    /// </summary>
+    /// <param name="courierId">Courier id, <c>CR-</c> plus three digits (CR-101 or CR-102 in Development).</param>
+    /// <param name="ct">Cancels the call.</param>
+    public async Task<ApiResult<DevTokenResponse>> RequestDevelopmentTokenAsync(string courierId, CancellationToken ct)
+    {
+        if (!ScanRules.IsValidCourierId(courierId))
+        {
+            return Failed<DevTokenResponse>(ApiFailureKind.InvalidInput, FailureMessages.InvalidCourierId, null);
+        }
+
+        using var body = JsonContent.Create(new DevTokenRequest(courierId), Json.DevTokenRequest);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(DevelopmentTokenPath, UriKind.Relative))
+        {
+            Content = body,
+        };
+        return await SendAsync(request, Json.DevTokenResponse, ct).ConfigureAwait(false);
+    }
 
     /// <summary>Gets one shipment (<c>GET /api/v2/shipments/{trackingNumber}</c>).</summary>
     /// <param name="trackingNumber">Tracking number, <c>APX-</c> plus eight digits.</param>

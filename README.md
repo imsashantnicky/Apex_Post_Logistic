@@ -625,6 +625,29 @@ tokens or bodies. [RESILIENCE.md](RESILIENCE.md) explains the values; the tests 
 dotnet test tests/Mobile/ApexPost.Courier.ApiClient.Tests -c Release
 ```
 
+### Offline sync in the courier app
+
+The app opens **Sign in** when no token is stored. While the API runs in Development, **Sign in** asks
+`POST /dev/token` for a CR-101 or CR-102 token; any courier token can also be pasted. The token is kept only in
+`SecureStorage`. On the main page the courier records scans (saved on the device as `Pending` first) and sees the live
+pending count from the Part A change listener. `HttpShipmentUploader` replaces the fake uploader in the app: the outbox
+sends pending scans in batches of 20 per tracking number. Accepted and duplicate scans become `Synced`, rejected
+scans `Failed`, and a network failure or an open circuit leaves them `Pending`. A sync starts at start-up, after
+sign-in, when the device gets Internet access again, after a new scan and from **Sync now**. A 401 clears the token
+and returns to Sign in. [OFFLINE-DESIGN.md](OFFLINE-DESIGN.md#part-d-batches-through-the-real-api) has the table of
+outcomes.
+
+Run it (Windows; the API must run in Development on `https://localhost:7310`):
+
+```bash
+dotnet run --project src/ApexPost.Api --launch-profile https
+dotnet build src/Mobile/ApexPost.Courier -f net10.0-windows10.0.19041.0 -t:Run
+```
+
+`tests/ApexPost.Courier.Offline.Tests/Outbox/BatchOutboxTests.cs` covers batching and every outcome, and
+`tests/ApexPost.Api.Tests/Sync/HttpUploaderEndToEndTests.cs` runs the real uploader against the API host and its
+SQL Server database.
+
 ## Known limitations
 
 - The allowlists see the address of the direct connection. Behind a proxy that is the proxy, so all callers would
