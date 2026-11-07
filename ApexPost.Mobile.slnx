@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/Courier/">
+    <Project Path="src/Courier/ApexPost.Courier.Domain/ApexPost.Courier.Domain.csproj" />
+    <Project Path="src/Courier/ApexPost.Courier.Offline/ApexPost.Courier.Offline.csproj" />
+  </Folder>
+  <Folder Name="/src/Mobile/">
+    <Project Path="src/Mobile/ApexPost.Courier.ApiClient/ApexPost.Courier.ApiClient.csproj" />
+    <Project Path="src/Mobile/ApexPost.Courier/ApexPost.Courier.csproj" />
+  </Folder>
+  <Folder Name="/tests/Mobile/">
+    <Project Path="tests/Mobile/ApexPost.Courier.ApiClient.Tests/ApexPost.Courier.ApiClient.Tests.csproj" />
+  </Folder>
+</Solution>
