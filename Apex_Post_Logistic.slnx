@@ -15,6 +15,7 @@
   </Folder>
   <Folder Name="/src/Mobile/">
     <Project Path="src/Mobile/ApexPost.Courier.ApiClient/ApexPost.Courier.ApiClient.csproj" />
+    <Project Path="src/Mobile/ApexPost.Courier.Presentation/ApexPost.Courier.Presentation.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ApexPost.Api.Tests/ApexPost.Api.Tests.csproj" />
@@ -28,5 +29,6 @@
   </Folder>
   <Folder Name="/tests/Mobile/">
     <Project Path="tests/Mobile/ApexPost.Courier.ApiClient.Tests/ApexPost.Courier.ApiClient.Tests.csproj" />
+    <Project Path="tests/Mobile/ApexPost.Courier.Presentation.Tests/ApexPost.Courier.Presentation.Tests.csproj" />
   </Folder>
 </Solution>

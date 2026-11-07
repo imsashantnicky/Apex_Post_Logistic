@@ -1,5 +1,6 @@
 using ApexPost.Courier.ApiClient.Auth;
 using ApexPost.Courier.ApiClient.Resilience;
+using ApexPost.Courier.ApiClient.Sync;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -31,7 +32,7 @@ public sealed class ResilientClient : IAsyncDisposable
         services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Trace).AddProvider(Logs));
         services.AddSingleton<IAccessTokenStore>(new InMemoryTokenStore(Token));
         services.AddTransient<AuthHeaderHandler>();
-        services.AddHttpClient<ApexApiClient>(client => client.BaseAddress = ClientFactory.BaseAddress)
+        services.AddHttpClient<ApexApiClient>(ApexApiClient.HttpClientName, client => client.BaseAddress = ClientFactory.BaseAddress)
             .AddHttpMessageHandler<AuthHeaderHandler>()
             .AddApexResilience(settings ?? FastSettings)
             .ConfigurePrimaryHttpMessageHandler(() => handler);
@@ -45,6 +46,8 @@ public sealed class ResilientClient : IAsyncDisposable
     public ApexApiClient Api => _provider.GetRequiredService<ApexApiClient>();
 
     public ICircuitStateProvider Circuit => _provider.GetRequiredService<ICircuitStateProvider>();
+
+    public HttpShipmentUploader Uploader => new(_provider.GetRequiredService<IHttpClientFactory>());
 
     public IEnumerable<CapturedLog> ResilienceLogs =>
         Logs.Entries.Where(entry => entry.Category == ApexResilience.LogCategory);

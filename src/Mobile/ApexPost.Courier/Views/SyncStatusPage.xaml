@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ApexPost.Courier.Presentation.ViewModels;assembly=ApexPost.Courier.Presentation"
+             xmlns:views="clr-namespace:ApexPost.Courier.Views"
+             x:Class="ApexPost.Courier.Views.SyncStatusPage"
+             x:DataType="vm:SyncStatusViewModel"
+             Title="Sync Status">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="14">
+
+            <views:OfflineBanner BindingContext="{Binding Banner}" />
+
+            <HorizontalStackLayout Spacing="12">
+                <Label Text="{Binding Courier}" FontSize="14" VerticalOptions="Center" />
+                <Button Text="Sign out" Command="{Binding SignOutCommand}" />
+            </HorizontalStackLayout>
+
+            <Border Padding="14" StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Last sync" FontAttributes="Bold" />
+                    <Label Text="{Binding LastSync}" />
+                    <Label Text="{Binding LastResult}" TextColor="#1B7F4B">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label" Binding="{Binding LastResultIsError}" Value="True">
+                                <Setter Property="TextColor" Value="#B3261E" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                    <Button Text="Sync now" Command="{Binding SyncNowCommand}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Padding="14" StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Circuit breaker" FontAttributes="Bold" />
+                    <Label Text="{Binding Banner.CircuitStateText}" SemanticProperties.Description="Circuit state" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Padding="14" StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Last problems" FontAttributes="Bold" />
+                    <CollectionView ItemsSource="{Binding RecentProblems}">
+                        <CollectionView.EmptyView>
+                            <Label Text="No problems in this session." TextColor="{StaticResource Gray500}" />
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Label Text="{Binding .}" FontSize="13" TextColor="#B3261E" Margin="0,2" />
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Padding="14" StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Scans the server refused" FontAttributes="Bold" />
+                    <CollectionView ItemsSource="{Binding FailedScans}">
+                        <CollectionView.EmptyView>
+                            <Label Text="None." TextColor="{StaticResource Gray500}" />
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ScanRow">
+                                <VerticalStackLayout Margin="0,4" Spacing="2">
+                                    <Label Text="{Binding TrackingNumber}" FontAttributes="Bold" />
+                                    <Label Text="{Binding Details}" FontSize="12"
+                                           TextColor="{StaticResource Gray500}" />
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

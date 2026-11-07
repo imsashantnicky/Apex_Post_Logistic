@@ -625,6 +625,58 @@ tokens or bodies. [RESILIENCE.md](RESILIENCE.md) explains the values; the tests 
 dotnet test tests/Mobile/ApexPost.Courier.ApiClient.Tests -c Release
 ```
 
+### Offline sync in the courier app
+
+The app opens **Sign in** when no token is stored. While the API runs in Development, **Sign in** asks
+`POST /dev/token` for a CR-101 or CR-102 token; any courier token can also be pasted. The token is kept only in
+`SecureStorage`. On the **New Scan** tab the courier records scans (saved on the device as `Pending` first), and the
+**Pending** tab shows the live pending count from the Part A change listener. `HttpShipmentUploader` replaces the fake uploader in the app: the outbox
+sends pending scans in batches of 20 per tracking number. Accepted and duplicate scans become `Synced`, rejected
+scans `Failed`, and a network failure or an open circuit leaves them `Pending`. A sync starts at start-up, after
+sign-in, when the device gets Internet access again, after a new scan and from **Sync now**. A 401 clears the token
+and returns to Sign in. [OFFLINE-DESIGN.md](OFFLINE-DESIGN.md#part-d-batches-through-the-real-api) has the table of
+outcomes.
+
+Run it (Windows; the API must run in Development on `https://localhost:7310`):
+
+```bash
+dotnet run --project src/ApexPost.Api --launch-profile https
+dotnet build src/Mobile/ApexPost.Courier -f net10.0-windows10.0.19041.0 -t:Run
+```
+
+`tests/ApexPost.Courier.Offline.Tests/Outbox/BatchOutboxTests.cs` covers batching and every outcome, and
+`tests/ApexPost.Api.Tests/Sync/HttpUploaderEndToEndTests.cs` runs the real uploader against the API host and its
+SQL Server database.
+
+### Courier app screens (Shell + MVVM)
+
+`AppShell` has a sign-in route and three tabs. Each page is XAML with compiled bindings (`x:DataType`) and a small
+code-behind that only sets its `BindingContext`. The view models live in `src/Mobile/ApexPost.Courier.Presentation`,
+a plain `net10.0` library without MAUI types, so the ubuntu CI job tests them.
+
+| Page | View model | What it does |
+| --- | --- | --- |
+| Sign in | `LoginViewModel` | `POST /dev/token` for a demo courier or a pasted token; the token goes only to SecureStorage |
+| New Scan | `NewScanViewModel`, `ShipmentLookupViewModel` | Checks `APX-########` and the location before saving; courier id from the token; saves as `Pending`; shipment look-up |
+| Pending | `PendingScansViewModel` | Pending scans, oldest first, with a live count from the change listener |
+| Sync Status | `SyncStatusViewModel` | Last sync time and counts, circuit breaker state, last 5 problems, refused scans, **Sync now**, **Sign out** |
+
+`ConnectionBannerViewModel` is one shared instance. Every page shows its banner "Server unavailable – working
+offline" while the circuit is open. API errors are shown with the friendly ProblemDetails text of the client plus
+"Reference: <traceId>", and never with server internals. Events from background threads (listener, circuit breaker,
+outbox) reach the view models through `IUiDispatcher`. The app has its own ports: `IAppNavigator` (Shell routes),
+`ISyncRunner` (`CourierSync`) and `IPendingCountSource` (the listener).
+
+Run it on the Android emulator (start an emulator first; the app uses `https://10.0.2.2:7310/`):
+
+```bash
+dotnet build src/Mobile/ApexPost.Courier -f net10.0-android -t:Run
+```
+
+Tests: `dotnet test tests/Mobile/ApexPost.Courier.Presentation.Tests -c Release`. The steps for recording the demo
+are in [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md), and the screenshot list is in
+[docs/screenshots/week4-partD/README.md](docs/screenshots/week4-partD/README.md).
+
 ## Known limitations
 
 - The allowlists see the address of the direct connection. Behind a proxy that is the proxy, so all callers would

@@ -2,10 +2,17 @@ using ApexPost.Courier.ApiClient;
 using ApexPost.Courier.ApiClient.Auth;
 using ApexPost.Courier.ApiClient.Http;
 using ApexPost.Courier.ApiClient.Resilience;
+using ApexPost.Courier.ApiClient.Sync;
 using ApexPost.Courier.Domain.Ports;
 using ApexPost.Courier.Offline;
+using ApexPost.Courier.Offline.Outbox;
 using ApexPost.Courier.Offline.Scans;
+using ApexPost.Courier.Presentation.Ports;
+using ApexPost.Courier.Presentation.ViewModels;
 using ApexPost.Courier.Security;
+using ApexPost.Courier.Services;
+using ApexPost.Courier.Sync;
+using ApexPost.Courier.Views;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -15,8 +22,11 @@ namespace ApexPost.Courier;
 public static class MauiProgram
 {
     private const string SettingsResource = "ApexPost.Courier.appsettings.json";
+    private const string ListenerLogFile = "listener.log";
 
-    /// <summary>Builds the app: configuration, typed API client, token store and the offline scan store.</summary>
+    /// <summary>
+    /// Builds the app: configuration, typed API client, token store, offline scan store, sync and the screens.
+    /// </summary>
     public static MauiApp CreateMauiApp()
     {
         var builder = MauiApp.CreateBuilder();
@@ -31,7 +41,8 @@ public static class MauiProgram
         AddEmbeddedSettings(builder.Configuration);
         AddApiClient(builder);
         AddOfflineStore(builder.Services);
-        builder.Services.AddTransient<MainPage>();
+        AddSync(builder.Services);
+        AddScreens(builder.Services);
 
 #if DEBUG
         builder.Logging.AddDebug();
@@ -60,7 +71,7 @@ public static class MauiProgram
         // IHttpClientFactory owns the handlers and their lifetime; the app never creates an HttpClient itself.
         // Resilience (RESILIENCE.md): total timeout 30 s → retry ×3 → circuit breaker → attempt timeout 8 s.
         var client = builder.Services
-            .AddHttpClient<ApexApiClient>(http => http.BaseAddress = baseAddress)
+            .AddHttpClient<ApexApiClient>(ApexApiClient.HttpClientName, http => http.BaseAddress = baseAddress)
             .AddHttpMessageHandler<AuthHeaderHandler>()
             .AddApexResilience();
 
@@ -77,5 +88,51 @@ public static class MauiProgram
         services.AddSingleton<CouchbaseScanRepository>();
         services.AddSingleton<IScanRepository>(provider => provider.GetRequiredService<CouchbaseScanRepository>());
         services.AddSingleton<IScanQueries>(provider => provider.GetRequiredService<CouchbaseScanRepository>());
+
+        // The Part A listener: live lines go to a file in the app folder (the working directory is not writable
+        // on Android), not to the console; the pending count reaches the UI through PendingCountChanged.
+        services.AddSingleton(provider => new ScanChangeMonitor(
+            provider.GetRequiredService<CourierDatabase>(),
+            provider.GetRequiredService<IScanQueries>(),
+            TimeProvider.System,
+            provider.GetRequiredService<ILogger<ScanChangeMonitor>>(),
+            TextWriter.Null,
+            Path.Combine(FileSystem.Current.AppDataDirectory, ListenerLogFile)));
+    }
+
+    // The HTTP uploader replaces the Part A fake here; the fake stays for the console harness and the tests.
+    private static void AddSync(IServiceCollection services)
+    {
+        services.AddSingleton<HttpShipmentUploader>();
+        services.AddSingleton<IShipmentUploader>(provider => provider.GetRequiredService<HttpShipmentUploader>());
+        services.AddSingleton(provider => new OutboxService(
+            provider.GetRequiredService<IScanQueries>(),
+            provider.GetRequiredService<CouchbaseScanRepository>(),
+            provider.GetRequiredService<HttpShipmentUploader>(),
+            provider.GetRequiredService<ILogger<OutboxService>>()));
+        services.AddSingleton(Connectivity.Current);
+        services.AddSingleton<CourierSync>();
+        services.AddSingleton<ISyncRunner>(provider => provider.GetRequiredService<CourierSync>());
+        services.AddSingleton<IPendingCountSource, PendingCountSource>();
+    }
+
+    // MVVM: the view models (ApexPost.Courier.Presentation) are singletons so the banner, the live count and the
+    // sync history survive tab switches; Shell resolves the pages from here through their ContentTemplate.
+    private static void AddScreens(IServiceCollection services)
+    {
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IUiDispatcher, MainThreadDispatcher>();
+        services.AddSingleton<IAppNavigator, ShellNavigator>();
+        services.AddSingleton<ConnectionBannerViewModel>();
+        services.AddSingleton<LoginViewModel>();
+        services.AddSingleton<ShipmentLookupViewModel>();
+        services.AddSingleton<NewScanViewModel>();
+        services.AddSingleton<PendingScansViewModel>();
+        services.AddSingleton<SyncStatusViewModel>();
+        services.AddSingleton<AppShell>();
+        services.AddSingleton<LoginPage>();
+        services.AddSingleton<NewScanPage>();
+        services.AddSingleton<PendingScansPage>();
+        services.AddSingleton<SyncStatusPage>();
     }
 }
