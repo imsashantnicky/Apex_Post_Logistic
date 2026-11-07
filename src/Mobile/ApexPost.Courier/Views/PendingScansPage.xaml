@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ApexPost.Courier.Presentation.ViewModels;assembly=ApexPost.Courier.Presentation"
+             xmlns:views="clr-namespace:ApexPost.Courier.Views"
+             x:Class="ApexPost.Courier.Views.PendingScansPage"
+             x:DataType="vm:PendingScansViewModel"
+             Title="Pending">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="20" RowSpacing="12">
+
+        <views:OfflineBanner Grid.Row="0" BindingContext="{Binding Banner}" />
+
+        <Label Grid.Row="1"
+               Text="{Binding Title}"
+               FontSize="18"
+               FontAttributes="Bold"
+               SemanticProperties.Description="Live number of pending scans" />
+        <Label Grid.Row="2"
+               Text="Updates live from the local database listener. Oldest scan first."
+               FontSize="12"
+               TextColor="{StaticResource Gray500}" />
+
+            <CollectionView Grid.Row="3" ItemsSource="{Binding Scans}">
+                <CollectionView.EmptyView>
+                    <Label Text="Nothing waiting – every scan on this device has been uploaded."
+                           Margin="0,20"
+                           HorizontalTextAlignment="Center"
+                           TextColor="{StaticResource Gray500}" />
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ScanRow">
+                        <Border Padding="12" Margin="0,4" StrokeShape="RoundRectangle 8">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding TrackingNumber}" FontAttributes="Bold" />
+                                <Label Text="{Binding Details}" FontSize="12" TextColor="{StaticResource Gray500}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+    </Grid>
+</ContentPage>

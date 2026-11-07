@@ -1,5 +1,6 @@
 using ApexPost.Courier.ApiClient.Auth;
 using ApexPost.Courier.Offline.Outbox;
+using ApexPost.Courier.Presentation.Ports;
 using Microsoft.Extensions.Logging;
 
 namespace ApexPost.Courier.Sync;
@@ -9,7 +10,7 @@ namespace ApexPost.Courier.Sync;
 /// The outbox is single-flight, so a trigger that arrives during a run returns at once. A 401 clears the token
 /// from SecureStorage and raises <see cref="SignInRequired"/>; network problems leave the scans Pending.
 /// </summary>
-public sealed partial class CourierSync : IDisposable
+public sealed partial class CourierSync : ISyncRunner, IDisposable
 {
     private readonly OutboxService _outbox;
     private readonly IAccessTokenStore _tokens;

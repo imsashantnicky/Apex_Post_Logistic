@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ApexPost.Courier.Presentation.ViewModels;assembly=ApexPost.Courier.Presentation"
+             x:Class="ApexPost.Courier.Views.LoginPage"
+             x:DataType="vm:LoginViewModel"
+             Title="Sign in">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="14" MaximumWidthRequest="480">
+
+            <Label Text="ApexPost Courier" FontSize="24" FontAttributes="Bold" TextColor="#C8102E" />
+            <Label Text="{Binding ApiAddress}" FontSize="12" TextColor="{StaticResource Gray500}" />
+            <Label Text="{Binding Message}" IsVisible="{Binding HasMessage}" FontSize="14" TextColor="#1B7F4B">
+                <Label.Triggers>
+                    <DataTrigger TargetType="Label" Binding="{Binding MessageIsError}" Value="True">
+                        <Setter Property="TextColor" Value="#B3261E" />
+                    </DataTrigger>
+                </Label.Triggers>
+            </Label>
+
+            <Border Padding="14" StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Sign in as a demo courier" FontAttributes="Bold" />
+                    <Label Text="Calls POST /dev/token, which exists only while the API runs in Development (fictional couriers CR-101 and CR-102)."
+                           FontSize="12" TextColor="{StaticResource Gray500}" />
+                    <Entry Text="{Binding CourierId}"
+                           MaxLength="6"
+                           Placeholder="CR-101"
+                           SemanticProperties.Description="Courier id" />
+                    <Button Text="Sign in" Command="{Binding SignInCommand}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Padding="14" StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Or paste an access token" FontAttributes="Bold" />
+                    <Label Text="For example one from dotnet user-jwts. It is kept in SecureStorage only."
+                           FontSize="12" TextColor="{StaticResource Gray500}" />
+                    <Entry Text="{Binding Token}"
+                           IsPassword="True"
+                           Placeholder="Courier token (JWT)"
+                           SemanticProperties.Description="Access token" />
+                    <Button Text="Use token" Command="{Binding UseTokenCommand}" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
