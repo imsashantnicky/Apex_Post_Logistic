@@ -41,6 +41,12 @@
 #   dotnet user-secrets set "PartnerKeys:ParcelTrackDemo" "<a long random value>" --project src/ApexPost.Api
 @partnerKey = paste-the-value-of-PartnerKeys-ParcelTrackDemo
 
+# Expired token for the 401 "expired" request: a Courier token whose lifetime ended in the past. Create it once and
+# paste it here (the API allows 30 s clock skew, so any end date before today works):
+#   dotnet user-jwts create --project src/ApexPost.Api --role Courier --claim courierId=CR-101
+#     --not-before 2026-01-01 --expires-on 2026-01-02 --output token
+@expiredToken = paste-the-output-of-dotnet-user-jwts-create-with-a-past-expires-on
+
 ###############################################################################
 # Authentication and roles (Part D)
 ###############################################################################
@@ -71,10 +77,38 @@ Accept: {{json}}
 GET {{v2}}/{{createdShipment}}
 Accept: {{json}}
 
+### 401 - an expired token ("The bearer token has expired. Sign in again for a new token.")
+GET {{v2}}/{{createdShipment}}
+Authorization: Bearer {{expiredToken}}
+Accept: {{json}}
+
 ### 401 - a token that is not signed with the API's key ("The bearer token is not valid.")
 GET {{v2}}/{{createdShipment}}
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJDUi0xMDEifQ.invalid-signature
 Accept: {{json}}
+
+### 200 - a valid Admin token may read as well
+GET {{v2}}/{{createdShipment}}
+Authorization: Bearer {{adminToken}}
+Accept: {{json}}
+
+### 403 - an Admin token cannot upload scans (Courier only; "The role of your token does not allow this action.")
+POST {{v2}}/{{pickedUpShipment}}/scans
+Authorization: Bearer {{adminToken}}
+Content-Type: {{json}}
+
+{
+  "scans": [
+    {
+      "scanId": "scan::{{$guid}}",
+      "trackingNumber": "{{pickedUpShipment}}",
+      "scanType": "InTransit",
+      "courierId": "CR-101",
+      "location": "Central hub",
+      "scannedAtUtc": "2026-11-01T10:00:00Z"
+    }
+  ]
+}
 
 ### 403 - a Courier token cannot delete (Admin only)
 DELETE {{v2}}/{{createdShipment}}
