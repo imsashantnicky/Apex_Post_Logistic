@@ -1,21 +1,23 @@
 using ApexPost.Infrastructure.Persistence;
-using ApexPost.Web.Composition;
+using ApexPost.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.SqlClient;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ApexPost.IntegrationTests.Support;
 
 /// <summary>
 /// The real application on a throw-away SQL Server database of its own, migrated and seeded, with fast password
 /// hashing, known partner keys, a short courier timeout, captured logs and a remote address chosen per client. The
-/// server comes from ConnectionStrings:ApexPostTestServer, or else from the application's own user-secrets; the
-/// application's database itself is never touched, and the temporary one is dropped with the factory.
+/// server comes from <see cref="SqlTestServer"/> (environment variable, user-secrets, LocalDB, else the test is
+/// skipped); the application's database itself is never touched, and the temporary one is dropped with the factory.
 /// </summary>
 public class ApexFactory : WebApplicationFactory<Program>
 {
@@ -24,23 +26,30 @@ public class ApexFactory : WebApplicationFactory<Program>
     public const string BurstPartnerKey = "burst-partner-key-for-tests";
     public const string PartnerOrigin = "https://tracking.partner.example";
 
-    private const string TestServerName = "ApexPostTestServer";
-    private const string ApplicationDatabaseName = "ApexPostDb";
+    private const string ApplicationDatabaseName = SqlTestServer.ApplicationDatabaseName;
+
+    /// <summary>The fictional instant the host's clock starts at; "today" for every test of this host.</summary>
+    public static readonly DateTimeOffset FixedNow = new(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
 
     private bool _databaseCreated;
 
     public ApexFactory()
     {
-        var server = new SqlConnectionStringBuilder(ServerConnection())
-        {
-            InitialCatalog = "ApexPostTests_" + Guid.NewGuid().ToString("N"),
-        };
-        ConnectionString = server.ConnectionString;
+        ConnectionString = SqlTestServer.NewDatabase("Web");
     }
 
     public string ConnectionString { get; }
 
     public CapturedLogs Logs { get; } = new();
+
+    /// <summary>The business date of <see cref="FixedNow"/>.</summary>
+    public static DateOnly Today => DateOnly.FromDateTime(FixedNow.UtcDateTime);
+
+    /// <summary>
+    /// The host's clock instead of the wall clock: it starts at <see cref="FixedNow"/> and moves 1 ms on every read, so
+    /// rows still get distinct, ordered times and a test never depends on the real date or midnight.
+    /// </summary>
+    public FakeTimeProvider Clock { get; } = new(FixedNow) { AutoAdvanceAmount = TimeSpan.FromMilliseconds(1) };
 
     protected virtual string EnvironmentName => Environments.Development;
 
@@ -70,11 +79,13 @@ public class ApexFactory : WebApplicationFactory<Program>
                 ["Integration:ApiKeys:Burst"] = BurstPartnerKey,
             })
             .AddInMemoryCollection(ExtraSettings));
+        builder.ConfigureTestServices(services => services.Replace(ServiceDescriptor.Singleton<TimeProvider>(Clock)));
     }
 
     /// <summary>The application never migrates by itself, so the database must exist before the host starts.</summary>
     protected override IHost CreateHost(IHostBuilder builder)
     {
+        SqlTestServer.SkipIfUnavailable();
         using var database = NewContext();
         database.Database.Migrate();
         _databaseCreated = true;
@@ -94,16 +105,4 @@ public class ApexFactory : WebApplicationFactory<Program>
 
     private ApexPostDbContext NewContext() =>
         new(new DbContextOptionsBuilder<ApexPostDbContext>().UseSqlServer(ConnectionString).Options);
-
-    private static string ServerConnection()
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddUserSecrets(typeof(ApexRoutes).Assembly, optional: true)
-            .AddEnvironmentVariables()
-            .Build();
-        return configuration.GetConnectionString(TestServerName)
-            ?? configuration.GetConnectionString(ApplicationDatabaseName)
-            ?? throw new InvalidOperationException(
-                $"Set ConnectionStrings:{TestServerName}, or run setup-secrets.bat, to reach a SQL Server.");
-    }
 }

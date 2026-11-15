@@ -5,6 +5,7 @@ using ApexPost.Courier.ApiClient.Tests.Support;
 
 namespace ApexPost.Courier.ApiClient.Tests.Client;
 
+[Trait("Category", "Unit")]
 public sealed class DevelopmentTokenTests
 {
     private const string Answer = """

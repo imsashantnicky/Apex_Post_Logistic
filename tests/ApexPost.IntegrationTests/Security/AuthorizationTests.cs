@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ApexPost.IntegrationTests.Security;
 
+[Trait("Category", "Integration")]
 public sealed class AuthorizationTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Sku = "PKG-0001";

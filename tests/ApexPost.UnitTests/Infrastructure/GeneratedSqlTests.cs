@@ -9,6 +9,7 @@ namespace ApexPost.UnitTests.Infrastructure;
 /// <summary>
 /// Keeps the SQL that the measured indexes depend on, without a server: ToQueryString shows what EF Core would send.
 /// </summary>
+[Trait("Category", "Unit")]
 public sealed class GeneratedSqlTests
 {
     private static readonly DateOnly Day = new(2026, 11, 1);

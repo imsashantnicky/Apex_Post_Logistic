@@ -3,6 +3,7 @@ using ApexPost.Domain.Tracking;
 
 namespace ApexPost.Tracking.UnitTests.Rules;
 
+[Trait("Category", "Unit")]
 public sealed class ShipmentStatusRulesTests
 {
     public static TheoryData<ShipmentStatus, ShipmentStatus> ForwardMoves => new()

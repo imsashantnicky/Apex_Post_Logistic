@@ -6,6 +6,7 @@ using ApexPost.Tracking.UnitTests.Support;
 
 namespace ApexPost.Tracking.UnitTests.Services;
 
+[Trait("Category", "Unit")]
 public sealed class ShipmentTrackingServiceTests
 {
     private readonly InMemoryTracking _store = new();

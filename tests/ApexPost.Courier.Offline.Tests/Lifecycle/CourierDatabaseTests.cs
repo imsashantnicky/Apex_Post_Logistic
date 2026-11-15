@@ -1,8 +1,9 @@
 using ApexPost.Courier.Offline;
 using Couchbase.Lite;
 
-namespace ApexPost.Courier.UnitTests.Offline;
+namespace ApexPost.Courier.Offline.Tests.Lifecycle;
 
+[Trait("Category", "Integration")]
 public sealed class CourierDatabaseTests : IDisposable
 {
     private readonly string _directory =

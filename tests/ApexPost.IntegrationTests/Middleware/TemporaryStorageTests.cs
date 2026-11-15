@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ApexPost.IntegrationTests.Middleware;
 
+[Trait("Category", "Integration")]
 public sealed class TemporaryStorageTests
 {
     private const string ApplicationDatabase = "ApexPostDb";

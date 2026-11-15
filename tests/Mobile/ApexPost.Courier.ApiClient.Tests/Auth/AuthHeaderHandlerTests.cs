@@ -5,6 +5,7 @@ using ApexPost.Courier.ApiClient.Tests.Support;
 
 namespace ApexPost.Courier.ApiClient.Tests.Auth;
 
+[Trait("Category", "Unit")]
 public sealed class AuthHeaderHandlerTests
 {
     private const string Token = "eyJhbGciOiJIUzI1NiJ9.fake.signature";

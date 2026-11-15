@@ -8,6 +8,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 namespace ApexPost.UnitTests.Services;
 
 /// <summary>Rule 10: fee = max(2.00, 2 % of the amount); a cash total is rounded to the nearest 0.05.</summary>
+[Trait("Category", "Unit")]
 public sealed class FeeAndCashRoundingTests
 {
     [Theory]

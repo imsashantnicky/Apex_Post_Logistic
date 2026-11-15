@@ -4,6 +4,7 @@ using ApexPost.IntegrationTests.Support;
 
 namespace ApexPost.IntegrationTests.Workflows;
 
+[Trait("Category", "Integration")]
 public sealed partial class CounterWorkflowTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Sku = "PKG-0001";

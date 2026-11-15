@@ -12,6 +12,7 @@ namespace ApexPost.IntegrationTests.Sql;
 /// Two real sessions on SQL Server: stock rows locked in opposite order deadlock with error 1205, which the
 /// application's execution strategy retries; the same rows in one order only wait. Both transactions roll back.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class DeadlockTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const int DeadlockVictim = 1205;

@@ -10,6 +10,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 namespace ApexPost.UnitTests.Services;
 
 /// <summary>Zone Z01: base 5.00, 1.50 per kg; multipliers Standard 1.0, Express 1.6, Registered 1.3.</summary>
+[Trait("Category", "Unit")]
 public sealed class ShippingPricerTests
 {
     [Theory]

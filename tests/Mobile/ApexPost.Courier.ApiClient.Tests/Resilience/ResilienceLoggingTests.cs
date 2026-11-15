@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace ApexPost.Courier.ApiClient.Tests.Resilience;
 
 /// <summary>Every retry and every circuit change is logged; no log line holds the token or the body.</summary>
+[Trait("Category", "Unit")]
 public sealed class ResilienceLoggingTests
 {
     private const string TrackingNumber = "APX-20000005";

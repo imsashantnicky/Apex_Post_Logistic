@@ -7,6 +7,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 10: money order fee = max(2.00, 2 % of amount); cash totals round to the nearest 0.05.</summary>
+[Trait("Category", "Unit")]
 public sealed class FeeAndCashRoundingRuleTests
 {
     [Theory]

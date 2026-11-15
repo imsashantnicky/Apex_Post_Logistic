@@ -12,6 +12,7 @@ namespace ApexPost.IntegrationTests.Workflows;
 /// One sale from the browser to the database and into the report: every row it should leave, the exact change of the
 /// report totals worked out by hand, and who may reverse it.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed partial class SaleToReportTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Clerk = "clerk1.br004@apexpost.test";
@@ -30,7 +31,7 @@ public sealed partial class SaleToReportTests(ApexFactory factory) : IClassFixtu
     {
         get
         {
-            var today = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var today = ApexFactory.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             return $"/Reports/DailySales?from={today}&to={today}";
         }
     }

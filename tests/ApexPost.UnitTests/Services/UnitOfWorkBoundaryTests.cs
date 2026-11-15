@@ -15,6 +15,7 @@ namespace ApexPost.UnitTests.Services;
 /// The transaction boundary of every write: a use case that succeeds commits exactly once, and one that fails commits
 /// nothing. Fake repositories only stage, so a missing commit would lose the change and a second one would split it.
 /// </summary>
+[Trait("Category", "Unit")]
 public sealed class UnitOfWorkBoundaryTests
 {
     private const string Password = "A-long-enough-password";

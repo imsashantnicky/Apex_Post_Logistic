@@ -5,6 +5,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Integration")]
 public sealed class JsonCredentialStoreTests : IDisposable
 {
     private readonly TempDataFolder _folder = new();

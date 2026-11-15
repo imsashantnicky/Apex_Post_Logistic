@@ -8,6 +8,7 @@ namespace ApexPost.Api.Tests.Documentation;
 /// Any change of a route, DTO, status code or comment fails here until the contracts are exported again with
 /// scripts/export-contracts.ps1 (or .sh) and the diff is reviewed in the pull request.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class ContractTrackingTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string SolutionFile = "Apex_Post_Logistic.slnx";

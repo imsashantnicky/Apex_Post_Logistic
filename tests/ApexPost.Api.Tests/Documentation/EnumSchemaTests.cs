@@ -9,6 +9,7 @@ namespace ApexPost.Api.Tests.Documentation;
 /// nullable property; without the transformer the shared ScanType component listed null and NSwag generated an
 /// empty class instead of the enum for ScanItem.scanType.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class EnumSchemaTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

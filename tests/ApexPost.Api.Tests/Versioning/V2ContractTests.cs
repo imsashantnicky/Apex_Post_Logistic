@@ -10,6 +10,7 @@ namespace ApexPost.Api.Tests.Versioning;
 /// <summary>
 /// The v2 contract: nested recipient, latestScan (null without scans) and enums as strings, on the same service as v1.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class V2ContractTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static readonly string[] ShipmentShape =
@@ -175,7 +176,7 @@ public sealed class V2ContractTests(ApiFactory factory) : IClassFixture<ApiFacto
             scanType,
             courierId = "CR-101",
             location = "Central Hub",
-            scannedAtUtc = DateTime.UtcNow.AddMinutes(-minutesAgo),
+            scannedAtUtc = ApiFactory.FixedNow.UtcDateTime.AddMinutes(-minutesAgo),
         };
         var route = $"{V2Shipments}/{trackingNumber}/scans";
         var response = await client.PostAsJsonAsync(route, new { scans = new[] { scan } }, Ct);

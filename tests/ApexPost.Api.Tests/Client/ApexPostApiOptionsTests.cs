@@ -6,6 +6,7 @@ namespace ApexPost.Api.Tests.Client;
 /// The consumer's base URL always ends with a slash, so the generated client's relative paths (api/v2/...) are
 /// appended to it instead of replacing its last segment.
 /// </summary>
+[Trait("Category", "Unit")]
 public sealed class ApexPostApiOptionsTests
 {
     [Theory]

@@ -1,7 +1,7 @@
 using ApexPost.Courier.Domain.Ports;
 using ApexPost.Courier.Domain.Scans;
 
-namespace ApexPost.Courier.UnitTests.Support;
+namespace ApexPost.Courier.Offline.Tests.Support;
 
 /// <summary>An uploader whose behaviour each test supplies; records every scan it was asked to upload.</summary>
 internal sealed class StubShipmentUploader(Func<ShipmentScan, CancellationToken, Task<UploadResult>> upload)

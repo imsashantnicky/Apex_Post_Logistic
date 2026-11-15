@@ -5,6 +5,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 1: a closed branch cannot accept transactions.</summary>
+[Trait("Category", "Unit")]
 public sealed class ClosedBranchRuleTests
 {
     [Fact]

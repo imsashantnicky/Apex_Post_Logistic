@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 namespace ApexPost.UnitTests.Infrastructure;
 
 /// <summary>Each case stops at the gate: the database points nowhere, so reaching SQL Server would fail.</summary>
+[Trait("Category", "Unit")]
 public sealed class DevelopmentSeederTests : IDisposable
 {
     private const string NowhereConnection = "Server=127.0.0.1,1;Database=None;Connect Timeout=1";

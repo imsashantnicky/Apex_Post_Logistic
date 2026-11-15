@@ -7,6 +7,7 @@ using ApexPost.Domain.Tracking;
 namespace ApexPost.Api.Tests.Contracts;
 
 /// <summary>The rules of the create, update and status requests, with their boundaries.</summary>
+[Trait("Category", "Unit")]
 public sealed class ShipmentRequestTests
 {
     [Fact]

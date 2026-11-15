@@ -12,6 +12,7 @@ namespace ApexPost.Api.Tests.Versioning;
 /// The v1 JSON is the Part B contract and must not change: flat recipient fields and numeric enums, the same on
 /// /api/v1/shipments and on the /api/shipments alias. The snapshots are the exact bodies of the seeded shipment.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed partial class V1ContractSnapshotTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string Seeded = "APX-20000001";

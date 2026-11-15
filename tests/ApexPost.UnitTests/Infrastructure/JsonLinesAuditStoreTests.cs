@@ -8,6 +8,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Integration")]
 public sealed class JsonLinesAuditStoreTests : IDisposable
 {
     private readonly TempDataFolder _folder = new();

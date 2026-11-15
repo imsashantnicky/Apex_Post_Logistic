@@ -35,7 +35,10 @@ public static class TestTokens
     /// <summary>A token with both roles for CR-101; every existing endpoint test sends it.</summary>
     public static string AllRoles() => Create([ApiRoles.Courier, ApiRoles.Admin]);
 
-    /// <summary>A valid token unless a parameter breaks it; expiresIn may be negative for an expired token.</summary>
+    /// <summary>
+    /// A valid token unless a parameter breaks it; expiresIn may be negative for an expired token. Times count from
+    /// <see cref="ApiFactory.FixedNow"/>, the clock the test host validates tokens with.
+    /// </summary>
     public static string Create(
         string[] roles,
         string? courierId = Courier,
@@ -45,7 +48,7 @@ public static class TestTokens
         string audience = Audience)
     {
         ArgumentNullException.ThrowIfNull(roles);
-        var expires = DateTime.UtcNow + (expiresIn ?? TimeSpan.FromHours(1));
+        var expires = ApiFactory.FixedNow.UtcDateTime + (expiresIn ?? TimeSpan.FromHours(1));
         var issued = expires.AddHours(-2);
         var claims = new Dictionary<string, object> { [ApiClaims.Subject] = courierId ?? "admin" };
         if (roles.Length > 0)

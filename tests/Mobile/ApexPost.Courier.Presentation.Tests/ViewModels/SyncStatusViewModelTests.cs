@@ -7,6 +7,7 @@ using Polly.CircuitBreaker;
 
 namespace ApexPost.Courier.Presentation.Tests.ViewModels;
 
+[Trait("Category", "Unit")]
 public sealed class SyncStatusViewModelTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 7, 10, 15, 0, TimeSpan.Zero);

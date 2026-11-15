@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>The tests must never reach the development database, and must leave no database behind.</summary>
+[Trait("Category", "Integration")]
 public sealed class DisposableDatabaseTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string TestDatabasePrefix = "ApexPostTests_";

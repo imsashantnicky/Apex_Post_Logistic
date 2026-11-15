@@ -11,6 +11,7 @@ using ApexPost.UnitTests.Support;
 
 namespace ApexPost.UnitTests.Services;
 
+[Trait("Category", "Unit")]
 public sealed class SpecificationAndExtensionTests
 {
     private static readonly DateOnly Today = DateOnly.FromDateTime(TestData.Now.UtcDateTime);

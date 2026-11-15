@@ -1,8 +1,9 @@
 using ApexPost.Courier.Domain.Scans;
 using ApexPost.Courier.Offline;
 
-namespace ApexPost.Courier.Offline.Tests.Architecture;
+namespace ApexPost.Courier.UnitTests.Architecture;
 
+[Trait("Category", "Unit")]
 public sealed class DomainDependencyTests
 {
     private const string CouchbasePrefix = "Couchbase";

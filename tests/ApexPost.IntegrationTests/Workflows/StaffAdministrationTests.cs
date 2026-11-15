@@ -5,6 +5,7 @@ using ApexPost.IntegrationTests.Support;
 
 namespace ApexPost.IntegrationTests.Workflows;
 
+[Trait("Category", "Integration")]
 public sealed class StaffAdministrationTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string StaffPath = "/Staff";

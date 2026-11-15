@@ -7,6 +7,7 @@ using ApexPost.Courier.Domain.Enums;
 
 namespace ApexPost.Courier.ApiClient.Tests.Client;
 
+[Trait("Category", "Unit")]
 public sealed class ApexApiClientTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

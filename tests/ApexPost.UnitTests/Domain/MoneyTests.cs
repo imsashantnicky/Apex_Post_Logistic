@@ -2,6 +2,7 @@ using ApexPost.Domain.Common;
 
 namespace ApexPost.UnitTests.Domain;
 
+[Trait("Category", "Unit")]
 public sealed class MoneyTests
 {
     [Theory]

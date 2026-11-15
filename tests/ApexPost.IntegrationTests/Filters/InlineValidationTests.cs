@@ -3,6 +3,7 @@ using ApexPost.IntegrationTests.Support;
 
 namespace ApexPost.IntegrationTests.Filters;
 
+[Trait("Category", "Integration")]
 public sealed class InlineValidationTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string CreatePath = "/Staff/Create";

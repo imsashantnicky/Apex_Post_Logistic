@@ -6,6 +6,7 @@ using ApexPost.Courier.Domain.Enums;
 
 namespace ApexPost.Courier.ApiClient.Tests.Json;
 
+[Trait("Category", "Unit")]
 public sealed class ApexJsonTests
 {
     private static readonly DateTime Noon = new(2026, 11, 5, 12, 0, 0, DateTimeKind.Utc);

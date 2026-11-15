@@ -13,6 +13,7 @@ namespace ApexPost.Api.Tests.Security;
 /// ProblemDetails. A courier may upload only its own scans: the tracking service compares each scan's courierId
 /// with the token's courierId claim and answers 403 for any other.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class AuthorizationTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -130,8 +131,9 @@ public sealed class AuthorizationTests(ApiFactory factory) : IClassFixture<ApiFa
     }
 
     [Fact]
-    public async Task Courier_of_another_id_cannot_upload_in_v2_either()
+    public async Task PostScansV2_ScanOfAnotherCourierId_Returns403()
     {
+        // Arrange
         var trackingNumber = await NewShipmentAsync();
         using var courier = factory.ClientWith(CourierToken(TestTokens.OtherCourier));
         var body = new
@@ -145,13 +147,15 @@ public sealed class AuthorizationTests(ApiFactory factory) : IClassFixture<ApiFa
                     scanType = "Pickup",
                     courierId = TestTokens.Courier,
                     location = "Central Hub",
-                    scannedAtUtc = DateTime.UtcNow.AddMinutes(-10),
+                    scannedAtUtc = factory.Clock.GetUtcNow().UtcDateTime.AddMinutes(-10),
                 },
             },
         };
 
+        // Act
         var response = await courier.PostAsJsonAsync($"{V2Shipments}/{trackingNumber}/scans", body, Ct);
 
+        // Assert
         await Problem.ReadAsync(response, HttpStatusCode.Forbidden);
     }
 

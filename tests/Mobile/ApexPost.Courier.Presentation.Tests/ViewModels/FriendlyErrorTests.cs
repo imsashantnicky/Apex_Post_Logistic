@@ -3,6 +3,7 @@ using ApexPost.Courier.Presentation.Errors;
 
 namespace ApexPost.Courier.Presentation.Tests.ViewModels;
 
+[Trait("Category", "Unit")]
 public sealed class FriendlyErrorTests
 {
     [Fact]

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Options;
 namespace ApexPost.IntegrationTests.Middleware;
 
 /// <summary>Each test shows which of two neighbouring steps answers first.</summary>
+[Trait("Category", "Integration")]
 public sealed class PipelineOrderTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     [Fact]

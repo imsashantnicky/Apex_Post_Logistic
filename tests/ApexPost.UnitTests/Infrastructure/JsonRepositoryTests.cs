@@ -10,6 +10,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Integration")]
 public sealed class JsonRepositoryTests : IDisposable
 {
     private const string Sku = TestData.FirstSku;

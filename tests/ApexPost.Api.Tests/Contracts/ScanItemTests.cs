@@ -6,6 +6,7 @@ using ApexPost.Domain.Tracking;
 namespace ApexPost.Api.Tests.Contracts;
 
 /// <summary>The rules of one uploaded scan, including both custom rules.</summary>
+[Trait("Category", "Unit")]
 public sealed class ScanItemTests
 {
     private static readonly DateTime Now = FixedTimeProvider.DefaultNow.UtcDateTime;

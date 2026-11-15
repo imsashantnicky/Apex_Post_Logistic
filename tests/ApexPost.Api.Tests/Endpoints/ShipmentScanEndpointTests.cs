@@ -9,6 +9,7 @@ using static ApexPost.Api.Tests.Support.ApiClient;
 namespace ApexPost.Api.Tests.Endpoints;
 
 /// <summary>Every status code of the scan endpoints, through the real host and a real SQL Server database.</summary>
+[Trait("Category", "Integration")]
 public sealed class ShipmentScanEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string Unknown = "APX-29999999";

@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Integration")]
 public sealed class DependencyInjectionTests : IDisposable
 {
     private readonly TempDataFolder _folder = new();

@@ -7,6 +7,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 9: Standard 20 %, Reduced 5 %, Exempt 0 %; previewed while open and frozen at payment.</summary>
+[Trait("Category", "Unit")]
 public sealed class TaxRuleTests
 {
     private static readonly Func<ILineItem, Money> Tax = TaxRule.From(StandardTaxRates);

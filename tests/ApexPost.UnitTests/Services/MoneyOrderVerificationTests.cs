@@ -8,6 +8,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 namespace ApexPost.UnitTests.Services;
 
 /// <summary>Rule 4: a money order above 300.00 needs a passed verification in the same transaction.</summary>
+[Trait("Category", "Unit")]
 public sealed class MoneyOrderVerificationTests
 {
     [Theory]
