@@ -1,6 +1,7 @@
 using ApexPost.Infrastructure.Tracking;
 using ApexPost.Tests.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace ApexPost.IntegrationTests.Tracking;
 
@@ -14,11 +15,18 @@ public sealed class TrackingDatabase : IAsyncLifetime
     public string ConnectionString { get; } = SqlTestServer.NewDatabase("Tracking");
 
     /// <summary>A new context on the test database; skips the running test when no SQL Server was found.</summary>
-    public TrackingDbContext NewContext()
+    public TrackingDbContext NewContext() => NewContext([]);
+
+    /// <summary>
+    /// A new context on the test database with extra interceptors (for example <see cref="SqlCommandCapture"/>);
+    /// skips the running test when no SQL Server was found.
+    /// </summary>
+    public TrackingDbContext NewContext(params IInterceptor[] interceptors)
     {
         SqlTestServer.SkipIfUnavailable();
         var options = new DbContextOptionsBuilder<TrackingDbContext>();
         TrackingDependencyInjection.UseTrackingSqlServer(options, ConnectionString);
+        options.AddInterceptors(interceptors);
         return new TrackingDbContext(options.Options);
     }
 
