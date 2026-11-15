@@ -86,3 +86,26 @@ still handled, and nothing is saved when no scan is accepted.
 Result after GREEN: the new test passes, and the full suite
 (`dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"`) has 1,917 passed, 0 failed,
 0 skipped. No existing test uploaded a scan older than 72 hours, so none had to change.
+
+## 4. Boundary tests (TEST, not RED)
+
+Two more tests pin the edge of the rule at the same upload time (2026-11-10 12:00 UTC):
+
+| Test | Scan time | Age | Expected |
+| --- | --- | --- | --- |
+| `UploadScansAsync_ScanExactly72HoursOld_AcceptsScan` | 2026-11-07 12:00:00 | exactly 72 h | accepted |
+| `UploadScansAsync_Scan72HoursAndOneSecondOld_RejectsScanWithReason` | 2026-11-07 11:59:59 | 72 h + 1 s | rejected, same reason |
+
+Honest note: **both passed the first time they ran**. The GREEN check already used a strict `>`, so exactly
+72 hours was accepted and one second more was refused. They were therefore committed as `TEST: boundary cases`,
+not as a RED commit, and no second GREEN commit was needed. They still earn their place: if someone changes `>` to
+`>=`, or turns the limit into whole days, one of them fails.
+
+Real output:
+
+```text
+  Passed ApexPost.Tracking.UnitTests.Services.ScanAgeRuleTests.UploadScansAsync_ScanOlderThan72Hours_RejectsScanWithReason [47 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ScanAgeRuleTests.UploadScansAsync_Scan72HoursAndOneSecondOld_RejectsScanWithReason [1 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ScanAgeRuleTests.UploadScansAsync_ScanExactly72HoursOld_AcceptsScan [5 ms]
+Total tests: 3
+```

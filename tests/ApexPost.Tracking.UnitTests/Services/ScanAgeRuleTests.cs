@@ -43,6 +43,40 @@ public sealed class ScanAgeRuleTests
         Assert.Empty(_store.StoredScans);
     }
 
+    [Fact]
+    public async Task UploadScansAsync_ScanExactly72HoursOld_AcceptsScan()
+    {
+        // Arrange
+        _store.Store(TestData.Shipment());
+        var scan = ScanAt(new DateTime(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc));
+
+        // Act
+        var result = await _service.UploadScansAsync([scan], Ct);
+
+        // Assert
+        Assert.Equal(1, result.Accepted);
+        Assert.Empty(result.Rejected);
+        Assert.Equal(scan.ScanId, Assert.Single(_store.StoredScans).ScanId);
+    }
+
+    [Fact]
+    public async Task UploadScansAsync_Scan72HoursAndOneSecondOld_RejectsScanWithReason()
+    {
+        // Arrange
+        _store.Store(TestData.Shipment());
+        var scan = ScanAt(new DateTime(2026, 11, 7, 11, 59, 59, DateTimeKind.Utc));
+
+        // Act
+        var result = await _service.UploadScansAsync([scan], Ct);
+
+        // Assert
+        var rejected = Assert.Single(result.Rejected);
+        Assert.Equal(scan.ScanId, rejected.ScanId);
+        Assert.Equal("Scan is older than 72 hours.", rejected.Reason);
+        Assert.Equal(0, result.Accepted);
+        Assert.Empty(_store.StoredScans);
+    }
+
     private static ScanUpload ScanAt(DateTime scannedAtUtc) =>
         TestData.Scan(ScanType.Pickup) with { ScannedAtUtc = scannedAtUtc };
 }
