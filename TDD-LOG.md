@@ -174,3 +174,20 @@ Result: 0 warnings, 0 errors; full suite 1,929 passed, 0 failed, 0 skipped (1,91
 Existing behaviour that did not change: every upload that does not contain a scan older than the limit gives the
 same answer as before; all earlier tests pass with their assertions unchanged (only six constructor calls gained the
 policy argument, recorded in `TESTING-STRATEGY.md` 5.2 / 5.3).
+
+## 8. Commit list
+
+Output of `git log --oneline --reverse origin/week5-testing..HEAD` on `week5-testing-07-tdd` (each commit was pushed
+on its own before the next one was written):
+
+```text
+037206c RED: reject a scan older than 72 hours
+8df8b29 GREEN: reject scans older than 72 hours
+65c4556 TEST: boundary cases for the 72-hour scan age
+e188a59 REFACTOR: move the scan age limit into TrackingOptions
+4144af5 REFACTOR: tidy the scan age policy and prove the rule at API level
+```
+
+This list is added by a final `docs(tdd):` commit, because a commit cannot contain its own hash. The PR is merged
+with "Create a merge commit", so these commits keep their hashes and their RED → GREEN → TEST → REFACTOR order on
+`week5-testing` and later on `main`.
