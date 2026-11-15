@@ -3,10 +3,10 @@ using ApexPost.Courier.Domain.Enums;
 using ApexPost.Courier.Domain.Scans;
 using ApexPost.Courier.Offline;
 using ApexPost.Courier.Offline.Scans;
-using ApexPost.Courier.UnitTests.Support;
+using ApexPost.Courier.Offline.Tests.Support;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace ApexPost.Courier.UnitTests.Offline;
+namespace ApexPost.Courier.Offline.Tests.Listener;
 
 public sealed class ScanChangeMonitorTests : IDisposable
 {

@@ -1,7 +1,7 @@
 using ApexPost.Courier.Offline;
 using Couchbase.Lite;
 
-namespace ApexPost.Courier.UnitTests.Offline;
+namespace ApexPost.Courier.Offline.Tests.Lifecycle;
 
 public sealed class CourierDatabaseTests : IDisposable
 {
