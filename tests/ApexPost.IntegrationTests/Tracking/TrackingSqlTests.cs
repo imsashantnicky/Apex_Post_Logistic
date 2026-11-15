@@ -4,6 +4,7 @@ using ApexPost.Application.Tracking;
 using ApexPost.Domain.Tracking;
 using ApexPost.Infrastructure.Tracking;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 
@@ -126,7 +127,8 @@ public sealed class TrackingSqlTests(TrackingDatabase database) : IClassFixture<
             new SqlTrackingQueries(context),
             new TrackingUnitOfWork(context),
             Mock.Of<ICurrentCourier>(courier => courier.CourierId == TrackingTestData.CourierId),
-            new FakeTimeProvider(TrackingTestData.Now));
+            new FakeTimeProvider(TrackingTestData.Now),
+            new ScanAgePolicy(Options.Create(new TrackingOptions())));
 
     private static string NewTrackingNumber() =>
         "APX-" + Random.Shared.Next(10_000_000, 99_999_999).ToString(CultureInfo.InvariantCulture);

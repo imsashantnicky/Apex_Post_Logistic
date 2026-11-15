@@ -47,6 +47,7 @@ Likelihood and cost are rated Low / Medium / High. "Cost" is the damage if the d
 | R9 | The deprecated v1 contract drifts and breaks existing partners | `Api/Contracts/V1/*`, `Controllers/V1/*`, `contracts/v1.json` | Medium | High (partner integrations break) | Integration (JSON snapshot through the real host) | `V1ContractSnapshotTests`, `ContractTrackingTests`, `VersionHeaderTests` |
 | R10 | Week 3 money or stock is wrong (rounding, tax, negative stock, lost update) | `Domain/Common/Money.cs`, `Domain/Inventory/StockItem.cs`, `Application/Services/CheckoutService`, rowversion on `BranchStock` | Low (mature, heavily tested) | High (financial loss) | Unit (rules), integration (concurrency on SQL Server) | `MoneyTests`, `StockRuleTests`, `TaxRuleTests`, `CheckoutServiceTests`, `StockConcurrencyTests`, `BusinessRulesOnSqlTests` – kept; `CounterTransactionRowVersionTests` added in step 06 (stale `rowversion` on CounterTransactions → `ConcurrencyConflictException`) |
 | R11 | A test passes or fails depending on the wall clock | Tests using `DateTime.UtcNow` (section 5) | Medium | Medium (flaky CI, hidden bugs around midnight/expiry) | All | Fixed in step 02: both test hosts run on a fixed `FakeTimeProvider`, test data uses fixed times (section 5.1, finding 3) |
+| R12 | A scan uploaded days late moves a shipment long after the parcel moved on | `Application/Tracking/ScanAgePolicy.cs`, `TrackingOptions.MaxScanAgeHours`, `ShipmentTrackingService.TryRecordAsync` | Medium (devices stay offline) | Medium (wrong status shown, confusing history) | Unit (TDD, at / above the 72 h limit); integration for the API answer | `ScanAgeRuleTests` (TDD, step 07, section 8), `TrackingOptionsRegistrationTests`, `ScanAgeEndpointTests` (API answer) |
 
 ## 3. Test pyramid
 
@@ -197,7 +198,24 @@ Totals: 194 test classes, 1,185 test methods (961 `[Fact]`, 224 `[Theory]`), 1,9
 0 skipped. Added: `TrackingRepositorySqlTests` (+5), `CounterTransactionRowVersionTests` (+1) and
 `ShipmentLifecycleEndToEndTests` (+3).
 
-### 3.7 Target
+### 3.7 After step 07 (TDD)
+
+Real run on 2026-11-15 (`dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"`, SQL
+Server tests on real throw-away databases, nothing skipped). Three new classes; every other row is the same as in 3.6.
+
+| Project | Unit methods | Unit cases | Integration methods | Integration cases | Measurement methods |
+| --- | --- | --- | --- | --- | --- |
+| `tests/ApexPost.Tracking.UnitTests` | 97 | 243 | 0 | 0 | 0 |
+| `tests/ApexPost.Api.Tests` | 48 | 117 | 143 | 213 | 0 |
+| other six projects | unchanged | unchanged | unchanged | unchanged | unchanged |
+| **Total** | **653** | **1,161** | **536** | **768** | **5** |
+| **Share** | 54.7 % | 60.2 % | 44.9 % | 39.8 % | 0.4 % of methods |
+
+Totals: 197 test classes, 1,194 test methods (968 `[Fact]`, 226 `[Theory]`), 1,929 executed cases, 0 failed,
+0 skipped. Added: `ScanAgeRuleTests` (+4 methods, 7 cases), `TrackingOptionsRegistrationTests` (+3 methods, 4 cases)
+and `ScanAgeEndpointTests` (+2).
+
+### 3.8 Target
 
 | Level | Target share (executed cases) | What belongs there |
 | --- | --- | --- |
@@ -401,8 +419,8 @@ Two changes apply to *every* class and are not repeated in each row: since step 
 
 ### 5.2 Review table
 
-Decisions after step 03: 157 kept, 20 modified, 7 moved, 5 removed, 1 replaced (190 classes of the baseline; a moved
-class is listed under its new project and path). Step 02 had 163 / 14 / 7 / 5 / 1 and step 01 166 / 15 / 6 / 2 / 1; the differences are explained in
+Decisions after step 07: 155 kept, 22 modified, 7 moved, 5 removed, 1 replaced (190 classes of the baseline; a moved
+class is listed under its new project and path). Step 03 had 157 / 20 / 7 / 5 / 1, step 02 had 163 / 14 / 7 / 5 / 1 and step 01 166 / 15 / 6 / 2 / 1; the differences are explained in
 the rows that say "Was …". "Methods" and "Cases" are the baseline numbers of 3.1, except for merged classes, which show
 their numbers after the merge.
 
@@ -471,11 +489,11 @@ their numbers after the merge.
 | Tracking.UnitTests | `Domain/TrackingFormatsTests.cs` | 4 | 12 | Unit | modified (step 03) | The two format theories got the missing rows (lower case, missing dash, inner/trailing space, empty; courier `CR-099`, `CR-000`, `CR-999` valid, `CR-1000` and `CR-99` invalid) and still compare with the device rule; renamed with AAA (R7) |
 | Tracking.UnitTests | `Domain/TrackingScanTests.cs` | 4 | 7 | Unit | kept | Tracking domain invariant at unit level (R7) |
 | Tracking.UnitTests | `Infrastructure/TrackingModelTests.cs` | 5 | 6 | Unit | kept | Reads EF model metadata with Server=unused and never connects, so it is a unit test |
-| IntegrationTests | `Tracking/TrackingSqlTests.cs` (was Tracking.UnitTests `Infrastructure/`) | 4 | 4 | Integration | moved (step 02) | Opens a real SQL Server database, so it left the unit project; its fixture `Tracking/TrackingDatabase.cs` uses the shared `SqlTestServer` (skips instead of throwing), a fixed `FakeTimeProvider` and a Moq courier; renamed with AAA |
+| IntegrationTests | `Tracking/TrackingSqlTests.cs` (was Tracking.UnitTests `Infrastructure/`) | 4 | 4 | Integration | moved (step 02) | Opens a real SQL Server database, so it left the unit project; its fixture `Tracking/TrackingDatabase.cs` uses the shared `SqlTestServer` (skips instead of throwing), a fixed `FakeTimeProvider` and a Moq courier; renamed with AAA. Step 07: the service factory also passes `new ScanAgePolicy(Options.Create(new TrackingOptions()))` (default 72 h, from the TDD refactor); no assertion changed |
 | Tracking.UnitTests | `Rules/ShipmentStatusRulesTests.cs` | 5 | 28 | Unit | replaced (step 03) | 22 hand-picked rows replaced by the full 6x6 table written out by hand (36 `MemberData` rows, 14 allowed), a guard that the table lists each of the 36 pairs once, undefined statuses, `IsFinal` for all 6 statuses, `StatusFor` for all 4 scan types and the exact `DomainException` message for an undefined scan type; all names Method_Scenario_ExpectedResult with AAA (R1) |
-| Tracking.UnitTests | `Services/ScanOwnershipTests.cs` | 6 | 8 | Unit | kept | Tracking service rules with the stateful InMemoryTracking fake (R1-R4); Moq tests are added in new classes (step 04) |
-| Tracking.UnitTests | `Services/ShipmentScanUploadTests.cs` | 5 | 6 | Unit | kept | Tracking service rules with the stateful InMemoryTracking fake (R1-R4); Moq tests are added in new classes (step 04) |
-| Tracking.UnitTests | `Services/ShipmentTrackingServiceTests.cs` | 29 | 40 | Unit | modified (step 03) | Two methods changed: the `InvalidStatusTransitionException` theory now asserts the exact message and has a Failed → Delivered row; the undefined-status test asserts the `ValidationFailedException` field `status`, its message and that nothing is saved. Both renamed with AAA. Page and upload limits stay here only as wiring (3 + 2 rows); their boundaries are proved in `TrackingLimitsTests`. Moq tests come in new classes (step 04) (R1-R4) |
+| Tracking.UnitTests | `Services/ScanOwnershipTests.cs` | 6 | 8 | Unit | modified (step 07) | Was "kept": only the service factory changed; it passes the `ScanAgePolicy` that the TDD refactor added to the constructor (`TestData.ScanAge()`, default 72 h). No assertion changed. Tracking service rules with the stateful InMemoryTracking fake (R1-R4) |
+| Tracking.UnitTests | `Services/ShipmentScanUploadTests.cs` | 5 | 6 | Unit | modified (step 07) | Was "kept": only the constructor call changed; it passes the `ScanAgePolicy` from the TDD refactor (`TestData.ScanAge()`, default 72 h). No assertion changed. Tracking service rules with the stateful InMemoryTracking fake (R1-R4) |
+| Tracking.UnitTests | `Services/ShipmentTrackingServiceTests.cs` | 29 | 40 | Unit | modified (step 03) | Two methods changed: the `InvalidStatusTransitionException` theory now asserts the exact message and has a Failed → Delivered row; the undefined-status test asserts the `ValidationFailedException` field `status`, its message and that nothing is saved. Both renamed with AAA. Page and upload limits stay here only as wiring (3 + 2 rows); their boundaries are proved in `TrackingLimitsTests`. Moq tests come in new classes (step 04). Step 07: the constructor call also passes the `ScanAgePolicy` from the TDD refactor (`TestData.ScanAge()`); no assertion changed (R1-R4) |
 | Courier.UnitTests | `Harness/CourierHarnessTests.cs` | 9 | 9 | Integration | kept | Runs the harness on real Couchbase and carries the Integration trait. It stays here because the harness is `internal` and only this project has `InternalsVisibleTo`; moving it would need a production change for no gain |
 | Courier.UnitTests | `Harness/TableWriterTests.cs` | 2 | 4 | Unit | kept | Pure text formatting of the harness tables |
 | Courier.Offline.Tests | `Queries/CouchbaseScanQueriesTests.cs` (was Courier.UnitTests `Offline/`) | 12 | 18 | Integration | moved (step 02) | Real Couchbase; moved to the Couchbase integration project and merged with ScanQueryTests and IndexTests: the single injection case became a 6-row theory (its own input + the 5 of ScanQueryTests), plus the courier-id injection case and the `SEARCH _ USING INDEX` Explain theory; renamed with AAA |
@@ -614,6 +632,12 @@ New classes are not part of the baseline review above; they follow every rule of
 | 06 | IntegrationTests | `Tracking/TrackingRepositorySqlTests.cs` | Integration | `TrackingSqlTests` proves the service round trip; this class proves the repository / queries / unit of work against rules only SQL Server enforces, with two contexts as two requests: duplicate tracking number past the check → `DuplicateKeyException` (`SqlException` 2601), same scan id twice → one row (service retry and repository race), status + city + page 2 filtered and paged in SQL (command text captured by `SqlCommandCapture`), stale `Version` → `ConcurrencyConflictException` with the `UPDATE … WHERE [Version] = @…` captured. 5 methods, 5 cases (R2, R3) |
 | 06 | IntegrationTests | `Sql/CounterTransactionRowVersionTests.cs` | Integration | The tracking tables use an `int` `Version` token, so the real SQL Server `rowversion` is proved on the Week 3 table that has one and had no conflict test (`StockConcurrencyTests` covers `BranchStock`): two contexts, the second save of the same basket → `ConcurrencyConflictException`, row version moved. 1 method (R10) |
 | 06 | Api.Tests | `EndToEnd/ShipmentLifecycleEndToEndTests.cs` | Integration | The one clearly named end-to-end flow on `WebApplicationFactory<Program>` + throw-away SQL Server + `TestAuthHandler` (`TestAuthApiFactory`, registered in `ConfigureTestServices`): POST v2 → 201 + Location → GET → 200 → POST scans (2 accepted) → same batch again (2 duplicates) → GET scans → shipment InTransit; plus 401 without test credentials and 403 for Courier on an Admin action. 3 methods (R2, R3, R4; section 6.3) |
+| 07 | Tracking.UnitTests | `Services/ScanAgeRuleTests.cs` | Unit | The TDD class of the scan age rule (section 8, `TDD-LOG.md`): written before the production code, on a `FakeTimeProvider` upload time of 2026-11-10 12:00 UTC: 72 h 1 min → rejected with "Scan is older than 72 hours.", exactly 72 h → accepted, 72 h + 1 s → rejected; plus a theory for a configured limit (24 h / 96 h: at the limit accepted, one second older rejected with the matching reason). 4 methods, 7 cases (R12) |
+| 07 | Api.Tests | `Hosting/TrackingOptionsRegistrationTests.cs` | Unit | Proves the API binds the "Tracking" section (default 72, configured 48) and refuses `MaxScanAgeHours` 0 and −1 with `OptionsValidationException` and the exact message. A plain `ServiceCollection`, no host. 3 methods, 4 cases (R12) |
+| 07 | Api.Tests | `Endpoints/ScanAgeEndpointTests.cs` | Integration | The rule as a caller sees it, through the real host, its fixed clock and a throw-away SQL Server database: a 73 h old scan → 200 with `rejected: [{ scanId, "Scan is older than 72 hours." }]` and only the fresh scan stored; with `Tracking:MaxScanAgeHours = 24` set on the host, a 25 h old scan → "Scan is older than 24 hours.". 2 methods (R12) |
+
+Step 07 also changed the constructor call (only) of the Week 5 classes `ShipmentTrackingServiceMoqTests` and
+`TrackingRepositorySqlTests`: both pass the `ScanAgePolicy` with its default 72 hours; no assertion changed.
 
 ## 6. Data access strategy
 
@@ -658,6 +682,7 @@ instance did not start in that run, so the LocalDB success path itself is not ye
 | Step | Change | Why | Behaviour change |
 | --- | --- | --- | --- |
 | 04 | New port `IScanSyncStatusUpdater` (`src/Courier/ApexPost.Courier.Domain/Ports/IScanSyncStatusUpdater.cs`, no packages); `CouchbaseScanRepository` implements it; the `OutboxService` constructor takes `IScanSyncStatusUpdater` instead of the concrete `CouchbaseScanRepository` | The outbox could only be built with a real Couchbase database, so it had no unit test and could not be mocked. A separate one-method port was chosen instead of adding the member to `IScanRepository`, which would have broken the other implementation (`InMemoryScanStore` in Presentation.Tests) | None: the method body is unchanged, the harness, `MauiProgram` and the existing tests still pass the same repository object |
+| 07 | TDD rule (not testability): `ShipmentTrackingService.TryRecordAsync` rejects a scan older than the limit; new `TrackingOptions` (`MaxScanAgeHours`, default 72) and `ScanAgePolicy` (takes `IOptions<TrackingOptions>`) in `src/ApexPost.Application/Tracking/`; the service constructor takes `ScanAgePolicy`; `AddShipmentTracking` registers it as a singleton; `ApiRegistration` binds the "Tracking" section and validates it at start-up | W5.5 TDD rule. The limit lives in options so a deployment can change it and a test can set it; the policy is a small class with one job, injected by constructor so the service stays testable with a fixed `TimeProvider` | New behaviour by design: a scan more than 72 h older than the upload time is rejected with "Scan is older than 72 hours."; exactly 72 h is still accepted. Every other upload behaves as before (full suite green, no assertion changed). Because of the rule, the accepted scans in `src/ApexPost.Api/ApexPost.Api.http` now use relative times (`{{$datetime iso8601 -N m}}`) instead of fixed November dates, and two age-rule examples were added. Details in `TDD-LOG.md` |
 
 ### 6.2 Why mocking EF Core gives false confidence
 
@@ -775,6 +800,9 @@ with the reason "Scan is older than 72 hours."; exactly 72 hours is accepted; th
 - `TDD-LOG.md` records the requirement, the first failing test with its real output, the minimal implementation, the
   refactoring, every production change for testability, and the commit hashes. The TDD PR is merged with
   "Create a merge commit" so the RED/GREEN/REFACTOR history reaches `main`.
+- **Done in step 07.** RED → GREEN → `TEST:` (both boundary tests passed at once, stated in the log) → two
+  `REFACTOR:` commits; tests in `ScanAgeRuleTests`, `TrackingOptionsRegistrationTests` and `ScanAgeEndpointTests`.
+  The full story with the real failing output and the commit hashes is in `TDD-LOG.md`.
 
 ## 9. BDD plan
 

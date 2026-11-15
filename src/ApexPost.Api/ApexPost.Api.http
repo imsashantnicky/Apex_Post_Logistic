@@ -3,6 +3,8 @@
 # Development seeds APX-20000001 ... APX-20000010 (see API-NOTES.md for their statuses).
 # Run each version's requests top to bottom: later requests reuse the shipment created by
 # "createShipmentV1" / "createShipmentV2". All data is fictional.
+# Accepted scans use {{$datetime iso8601 -N m}} (UTC, N minutes ago): the server rejects a scan made more than
+# 72 hours before the upload, so a fixed date would stop being accepted a few days later.
 #
 # v1 (/api/v1/shipments, alias /api/shipments) is deprecated: flat recipient fields, enums as numbers.
 # v2 (/api/v2/shipments) is current: nested "recipient", "latestScan", enums as strings.
@@ -425,7 +427,7 @@ Accept: {{json}}
       "scanType": 1,
       "courierId": "CR-101",
       "location": "Harbour Point depot",
-      "scannedAtUtc": "2026-11-01T08:00:00Z",
+      "scannedAtUtc": "{{$datetime iso8601 -240 m}}",
       "notes": "Collected at the counter"
     }
   ]
@@ -446,7 +448,7 @@ Accept: {{json}}
       "scanType": 2,
       "courierId": "CR-101",
       "location": "Central hub",
-      "scannedAtUtc": "2026-11-01T10:00:00Z"
+      "scannedAtUtc": "{{$datetime iso8601 -120 m}}"
     },
     {
       "scanId": "{{repeatedScanIdV1}}",
@@ -454,7 +456,7 @@ Accept: {{json}}
       "scanType": 1,
       "courierId": "CR-101",
       "location": "Harbour Point depot",
-      "scannedAtUtc": "2026-11-01T08:00:00Z"
+      "scannedAtUtc": "{{$datetime iso8601 -240 m}}"
     },
     {
       "scanId": "scan::{{$guid}}",
@@ -462,7 +464,7 @@ Accept: {{json}}
       "scanType": 1,
       "courierId": "CR-101",
       "location": "Harbour Point depot",
-      "scannedAtUtc": "2026-11-01T10:30:00Z"
+      "scannedAtUtc": "{{$datetime iso8601 -90 m}}"
     },
     {
       "scanId": "scan::{{$guid}}",
@@ -470,7 +472,35 @@ Accept: {{json}}
       "scanType": 1,
       "courierId": "CR-101",
       "location": "Central hub",
-      "scannedAtUtc": "2026-11-01T11:00:00Z"
+      "scannedAtUtc": "{{$datetime iso8601 -60 m}}"
+    }
+  ]
+}
+
+### v1 200 - scan age rule: the fresh scan is accepted, the scan from 4 days ago is rejected with
+# reason "Scan is older than 72 hours." (limit: Tracking:MaxScanAgeHours, default 72; exactly 72 hours is accepted)
+POST {{v1}}/{{createShipmentV1.response.body.$.trackingNumber}}/scans
+Authorization: Bearer {{courierToken}}
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "scans": [
+    {
+      "scanId": "scan::{{$guid}}",
+      "trackingNumber": "{{createShipmentV1.response.body.$.trackingNumber}}",
+      "scanType": 2,
+      "courierId": "CR-101",
+      "location": "Riverton hub",
+      "scannedAtUtc": "{{$datetime iso8601 -4 d}}"
+    },
+    {
+      "scanId": "scan::{{$guid}}",
+      "trackingNumber": "{{createShipmentV1.response.body.$.trackingNumber}}",
+      "scanType": 2,
+      "courierId": "CR-101",
+      "location": "Riverton hub",
+      "scannedAtUtc": "{{$datetime iso8601 -30 m}}"
     }
   ]
 }
@@ -851,7 +881,7 @@ Accept: {{json}}
       "scanType": "InTransit",
       "courierId": "CR-101",
       "location": "Southmere hub",
-      "scannedAtUtc": "2026-11-01T09:00:00Z",
+      "scannedAtUtc": "{{$datetime iso8601 -180 m}}",
       "notes": "Second hub scan"
     }
   ]
@@ -871,8 +901,27 @@ Accept: {{json}}
       "scanType": "Delivered",
       "courierId": "CR-101",
       "location": "8 Harbour Lane",
-      "scannedAtUtc": "2026-11-01T15:00:00Z",
+      "scannedAtUtc": "{{$datetime iso8601 -10 m}}",
       "recipientSignatureName": "N. Example"
+    }
+  ]
+}
+
+### v2 200 - scan age rule: accepted 0, rejected 1 with reason "Scan is older than 72 hours."
+POST {{v2}}/APX-20000005/scans
+Authorization: Bearer {{courierToken}}
+Content-Type: {{json}}
+Accept: {{json}}
+
+{
+  "scans": [
+    {
+      "scanId": "scan::{{$guid}}",
+      "trackingNumber": "APX-20000005",
+      "scanType": "InTransit",
+      "courierId": "CR-101",
+      "location": "Southmere hub",
+      "scannedAtUtc": "{{$datetime iso8601 -73 h}}"
     }
   ]
 }

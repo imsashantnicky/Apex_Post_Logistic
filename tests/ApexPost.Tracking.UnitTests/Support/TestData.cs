@@ -1,5 +1,6 @@
 using ApexPost.Application.Tracking;
 using ApexPost.Domain.Tracking;
+using Microsoft.Extensions.Options;
 
 namespace ApexPost.Tracking.UnitTests.Support;
 
@@ -34,6 +35,10 @@ internal static class TestData
             "Central Hub",
             Now.AddMinutes(minutesAfterNow),
             null);
+
+    /// <summary>The scan age rule with the given limit (default 72 hours), as the host would build it.</summary>
+    public static ScanAgePolicy ScanAge(int maxScanAgeHours = TrackingOptions.DefaultMaxScanAgeHours) =>
+        new(Options.Create(new TrackingOptions { MaxScanAgeHours = maxScanAgeHours }));
 
     public static string NewScanId() => TrackingFormats.ScanIdPrefix + Guid.NewGuid().ToString("D");
 }

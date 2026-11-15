@@ -14,7 +14,8 @@ public sealed class ShipmentScanUploadTests
 
     public ShipmentScanUploadTests()
     {
-        _service = new ShipmentTrackingService(_store, _store, _store, new FixedCourier(), new FixedTimeProvider());
+        _service = new ShipmentTrackingService(
+            _store, _store, _store, new FixedCourier(), new FixedTimeProvider(), TestData.ScanAge());
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
