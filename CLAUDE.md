@@ -540,3 +540,192 @@ with their paths, and the screenshot list with ✅ for those already committed.
 - `/contracts/v1.json`, `/contracts/v2.json`, `nswag.json` and the generation script.
 - Screenshots under `docs/screenshots/week4-partX/` (the user takes them; list what is needed in each PR).
 - Part D demo video (3–5 minutes) following `docs/DEMO-SCRIPT.md`.
+
+
+
+---
+
+# WEEK 5 — Test Strategy & Automated Quality (brief: docs/lab/week5-brief.md) — ACTIVE
+
+Week 5 is the active week. This section OVERRIDES every earlier rule it conflicts with (list in W5.0).
+Read this section and `docs/WEEK5-CONTEXT.md` before every Week 5 task.
+
+## W5.0 Earlier rules that Week 5 overrides
+
+| Earlier rule | Week 5 rule |
+| --- | --- |
+| Week 2 §2 "Allowed libraries only … no Moq / FluentAssertions / others" | Test projects may also use **Moq**, **Reqnroll** (xUnit v3 integration), `Microsoft.Extensions.TimeProvider.Testing`, `coverlet.collector` and the `dotnet-reportgenerator-globaltool` tool. Production projects keep the old rule. FluentAssertions/NSubstitute stay forbidden. |
+| Week 2 §10 step 4 "`gh pr merge --merge --delete-branch`" / "`git merge --no-ff`" | **Never merge anything** (W5.9). The user merges every PR on GitHub. |
+| Week 2 §10 step 3 "0 skipped" | Locally, SQL tests may be skipped ONLY when no SQL Server is reachable, with a clear `Assert.Skip` message. In CI: 0 skipped. |
+| Week 2 §3 flat folders at the root | The real layout is `src/…` and `tests/…` (see W5.2). |
+| W3.1 "Do NOT edit any Week 2 test file in ApexPost.UnitTests/Domain, /Rules or /Services" | Existing tests may be kept / modified / moved / merged / removed / replaced, but ONLY with a row in the review table of `TESTING-STRATEGY.md`. |
+| Week 4 §3 and §4.1 "Week 3 is frozen", "tests/… do not change existing files" | Same as above for tests. Production code may change ONLY for testability or the TDD rule (W5.4), recorded in `TDD-LOG.md` or `TESTING-STRATEGY.md`. Existing behaviour must not change. |
+| Week 4 §7/§7a branch names and PR titles `week4-partX…` / `Week4 Part<X>…` | Branches `week5-testing` and `week5-testing-NN-name`; titles `Week5 – Step NN: …` (W5.9). |
+| "The brief in docs/lab/week2-brief.md wins" | `docs/lab/week5-brief.md` wins for Week 5. |
+
+## W5.1 Repository state at the start of Week 5
+
+- All of Week 4 (Parts A–D) was merged into `chore/setup` (default branch), NOT into `main`; `main` was 70 commits
+  behind. Step W0 opens a PR `chore/setup` → `main`. Week 5 starts only after the user merged it.
+- Existing tests: 9 projects, about 1,134 `[Fact]/[Theory]`, all xUnit v3; about 56% unit-level / 44% integration-level.
+  No Moq, no SQLite, no Reqnroll. Only 4 classes carry a `Category` trait (Measurement).
+- Known review findings to decide on: SQL Server tests inside `ApexPost.Tracking.UnitTests`
+  (`Infrastructure/TrackingSqlTests`, `TrackingModelTests`); overlap between `tests/Courier/ApexPost.Courier.UnitTests`
+  and `tests/ApexPost.Courier.Offline.Tests`; tests using `DateTime.UtcNow` (e.g. `NotInFutureAttributeTests`,
+  `AutomaticValidationTests`, `AuthorizationTests`, `DevTokenTests`, `Api.Tests/Support/ApiClient.cs`, Week 3 SQL tests);
+  sentence-style test names instead of `Method_Scenario_ExpectedResult`.
+- The brief's TDD examples already exist (forward-only transitions in `ShipmentStatusRules`,
+  `TrackingLimits.MaximumScansPerUpload = 100`, `TrackedShipment.MaximumWeightKg = 30`), so they are NOT used for TDD.
+
+## W5.2 Scope and test project structure
+
+- In scope: domain and application services, validation rules, repositories (integration level), Web API
+  controllers/endpoints (`src/ApexPost.Api`), typed API client (`src/Mobile/ApexPost.Courier.ApiClient`),
+  Couchbase Lite outbox and repository (`src/Courier/ApexPost.Courier.Offline`).
+- Out of scope: MAUI UI, pages, navigation, browser/front-end testing. `ApexPost.Courier.Presentation.Tests` is kept only
+  for plain view-model logic; it is not extended.
+- Structure (documented equivalent of the brief's three projects):
+
+| Level | Projects |
+| --- | --- |
+| Unit | `tests/ApexPost.UnitTests`, `tests/ApexPost.Tracking.UnitTests`, `tests/Courier/ApexPost.Courier.UnitTests`, `tests/Mobile/ApexPost.Courier.ApiClient.Tests`, `tests/Mobile/ApexPost.Courier.Presentation.Tests` |
+| Integration | `tests/ApexPost.IntegrationTests`, `tests/ApexPost.Api.Tests`, `tests/ApexPost.Courier.Offline.Tests` (real embedded Couchbase), plus SQL tests moved out of unit projects |
+| BDD | `tests/ApexPost.Specs` (new, Reqnroll) |
+
+  If a step merges or renames projects, update this table, the `.slnx` and the review table.
+
+## W5.3 Test rules (every new or modified test)
+
+- **Framework:** xUnit v3 everywhere (consistency with ~1,100 existing tests, new instance per test, Theories,
+  Reqnroll support). Do not add NUnit.
+- **AAA:** `// Arrange`, `// Act`, `// Assert` comments in every new/modified test.
+- **Naming:** `Method_Scenario_ExpectedResult` for every new test and every test class touched in Week 5.
+  Untouched older tests keep their sentence-style names; `TESTING-STRATEGY.md` explains why (mass renaming adds risk, no value).
+- **Traits:** `[Trait("Category", "Unit" | "Integration" | "Spec" | "Measurement")]` on EVERY test class.
+- **Parameterized:** `[Theory]` + `[InlineData]` / `[MemberData]` / `TheoryData<>` for rules with several cases
+  (tracking number format, weight boundaries, full 6×6 status-transition matrix, page/pageSize/upload-size limits).
+- **Exceptions and boundaries:** assert the exact exception type and message/parameter; test at, below and above every limit.
+- **Deterministic:** no `DateTime.Now/UtcNow` / `DateTimeOffset.UtcNow` in tests or code under test (use `TimeProvider` /
+  `FakeTimeProvider` or fixed fictional times); no test-order dependency; no static mutable state; unique temp folders
+  and throw-away databases per fixture.
+- **No real network:** unit tests use a fake or Moq `HttpMessageHandler`; API tests use `WebApplicationFactory` in-process;
+  no emails, no external hosts, no production databases.
+- **Fictional data and no secrets:** `CR-101`, `APX-10000001`, `@apexpost.test`; test configuration or user-secrets only.
+
+## W5.4 Mocking, isolation and data access
+
+- **Moq** isolates service dependencies: `ITrackedShipmentRepository` (the brief's IShipmentRepository),
+  `ITrackingQueries`, `ITrackingUnitOfWork`, `ICurrentCourier`, Courier `IScanRepository` / `IScanQueries`,
+  `IShipmentUploader`. Use `Setup`, `Returns`/`ReturnsAsync`/`ThrowsAsync`, `It.Is<>`, `It.IsAny<>`, `Verify(..., Times.*)`.
+- Hand-written fakes stay where a stateful fake is clearer (in-memory repositories for BDD). The strategy says when each is used.
+- For every mocked interface, `TESTING-STRATEGY.md` states **what the mock does NOT prove**.
+- **HTTP:** typed client tests cover 200 + JSON, 404, 500, timeout, caller cancellation, ProblemDetails and
+  ValidationProblemDetails, with a fake handler and at least one `Moq.Protected()` `SendAsync` setup + `Verify`.
+- **Never mock `DbContext` / `DbSet`.** Repositories and query logic run against a throw-away **SQL Server** test database:
+  CI env var `ConnectionStrings__ApexPostTestServer` → user-secrets → LocalDB `(localdb)\MSSQLLocalDB` on Windows →
+  `Assert.Skip("SQL Server not available: …")`. One shared helper does this. SQLite is NOT used; the strategy explains why
+  (rowversion, unique/filtered indexes, stored procedures, `datetime2`), and why mocking EF Core gives false confidence.
+- **API end to end:** at least one test with `WebApplicationFactory<Program>` + a test database + a test authentication
+  setup (`TestAuthHandler` scheme), flow create → get → upload scans → history, plus 401 and 403.
+
+## W5.5 TDD rule
+
+- Rule: **"The server rejects an uploaded scan whose `scannedAtUtc` is more than 72 hours before the upload time, reason
+  'Scan is older than 72 hours.'; exactly 72 hours is accepted; the limit is configurable (`TrackingOptions.MaxScanAgeHours`,
+  default 72)."** Confirm first that it does not exist.
+- Commits, in order, each pushed: `RED:` (compiles, fails on an ASSERTION, never a compile error) → `GREEN:` (minimal code)
+  → boundary `RED:`/`GREEN:` (or `TEST:` if the boundary already passes, stated honestly) → `REFACTOR:` (options,
+  `ScanAgePolicy`, constructor injection of `IOptions<TrackingOptions>`, no behaviour change).
+- `TDD-LOG.md`: requirement, first failing test (code + real failing output), minimal implementation, refactoring,
+  production code changed for testability and why, commit list with hashes.
+- The TDD PR is merged with **"Create a merge commit"** (no squash/rebase).
+
+## W5.6 BDD (Reqnroll)
+
+- `tests/ApexPost.Specs` with Reqnroll's xUnit v3 integration. If xUnit v3 is not supported, STOP and ask before a fallback.
+- `Features/ShipmentCreation.feature` at **API level** (business outcome is the HTTP answer; validation lives in the API DTOs):
+  valid creation, duplicate tracking number, Scenario Outline for invalid weights.
+- `Features/ScanSync.feature` at **service level** (real `OutboxService` in a temp Couchbase folder + real
+  `ShipmentTrackingService` with in-memory repositories through an in-process uploader; `FakeTimeProvider`):
+  offline scans uploaded, duplicate skipped, invalid rejected, Scenario Outline for scan age (71 h / 72 h / 73 h).
+- At least one Background and one Scenario Outline with Examples. Business language only (no URLs, JSON or class names).
+- State through context injection (per-scenario context classes in step constructors), never static fields.
+  `[BeforeScenario]` / `[AfterScenario]` hooks create and clean up factory, database, temp folder and time.
+- No SpecFlow exists in the repo; state "nothing to migrate" in the strategy.
+
+## W5.7 Copilot (honesty rule)
+
+- The USER runs GitHub Copilot. Claude prepares prompts and reviews output, but NEVER writes Copilot output itself or
+  pretends to be Copilot.
+- Raw output is saved unchanged in `docs/copilot/raw/`. `COPILOT-LOG.md`: each prompt verbatim, what Copilot produced,
+  every generated test kept / changed / rejected with the reason, at least two mutation proofs (break production code,
+  failing output in `docs/copilot/evidence/`, restore, passing output). Broken code is never committed.
+- Copilot-assisted classes start with:
+  `// Copilot-assisted: drafted by GitHub Copilot, reviewed and edited by a human (see COPILOT-LOG.md).`
+
+## W5.8 Commands
+
+- Build: `dotnet build Apex_Post_Logistic.slnx -c Release` → 0 warnings, 0 errors.
+- All tests: `dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"`.
+- By level: `--filter "Category=Unit"` / `"Category=Integration"` / `"Category=Spec"`.
+- Evidence: `--logger "trx;LogFileName=week5.trx" --logger "console;verbosity=normal"` → `docs/testing/test-run.txt`.
+- Coverage (optional): `--collect:"XPlat Code Coverage"` + `reportgenerator` → `docs/testing/coverage/`.
+
+## W5.9 Git workflow for Week 5 (the only valid one)
+
+- Integration branch `week5-testing` from the latest `main` (pushed once). Step branches `week5-testing-NN-name` (hyphen).
+- Before a step: `git fetch origin`; confirm the previous step PR is merged into `week5-testing` (if not, STOP and say so);
+  `git checkout week5-testing && git pull origin week5-testing && git checkout -b week5-testing-NN-name`.
+- During a step: 3–8 small Conventional Commits (TDD: `RED:` / `GREEN:` / `REFACTOR:`); subject ≤ 72 chars + 2–5 line body.
+- After a step: build + full suite (W5.8); update the Progress log in `docs/WEEK5-CONTEXT.md`; stage only relevant files;
+  `git push -u origin <step-branch>`; write the PR text to `.git/PR_BODY.md` (W5.10);
+  `gh pr create --base week5-testing --head <step-branch> --title "<title>" --body-file .git/PR_BODY.md`.
+  Without gh: print `https://github.com/imsashantnicky/Apex_Post_Logistic/compare/week5-testing...<step-branch>?expand=1`
+  and the full title and description.
+- Then STOP: print the PR URL, the title and a summary of at most 5 lines (what changed, build result,
+  tests passed/failed/skipped).
+- **NEVER merge:** no `gh pr merge`, no `git merge` into `main`, `chore/setup` or `week5-testing`, no direct push to them,
+  no force-push. The final PR `week5-testing` → `main` is created only when the user says "final PR week5".
+  The TDD PR and the final PR are merged by the user with "Create a merge commit".
+
+## W5.10 PR title and description
+
+Title: `Week5 – Step <NN>: <short description>` (final: `Week 5 – Test strategy & automated quality`), < 72 chars.
+Plain, simple English; claim only what the diff contains and what was really run. Fill every section ("None" if empty):
+
+    ## Summary
+    ## Changes                     (table: Area | File(s) | What changed)
+    ## Requirement coverage        (table: Brief requirement | Where implemented | Marks)
+    ## How it was tested           (commands, real passed/failed/skipped, new tests and what each proves)
+    ## Existing tests affected     (review-table rows added/changed: class, decision, reason)
+    ## Production code changed     (testability or TDD only, with reason)
+    ## Safety check                (no secrets/real data, no unrecorded behaviour change, shared files changed)
+    ## Design decisions
+    ## Screenshots / evidence the user must add   (checklist with exact path under docs/screenshots/week5/)
+    ## Follow-ups
+    ## How to review and merge     (Files changed + CI; merge method; then tell Claude to start the next step)
+
+The final PR also lists every step PR (number, title, link), the 100-mark checklist with ✅ and the implementing file
+per item, all deliverables with paths and the screenshot list.
+
+## W5.11 Definition of done (every Week 5 step)
+
+- 0 build warnings; full suite run with real counts; CI-equivalent run has 0 failed.
+- Every changed or removed existing test has a review-table row; every production change is recorded.
+- New tests follow W5.3; no secrets, no real data, no network, no `DateTime.Now`.
+- `TESTING-STRATEGY.md` stays true to the code (pyramid numbers, review table, data-access strategy).
+- PR created per W5.9/W5.10, then STOP.
+
+## W5.12 Marking checklist (100) and deliverables
+
+- Strategy document (risk map ≥ 5, pyramid + proportions, framework justification, existing-test review, data access) 20
+- Unit tests (AAA, naming, parameterized ≥ 2 rules, boundaries, exceptions, Test Explorer + dotnet test, README command) 15
+- Mocking & isolation (Moq interfaces, HTTP handler cases, no DbContext mocks, one WebApplicationFactory test + test auth) 20
+- TDD (RED/GREEN/REFACTOR commits on main, TDD-LOG.md, testability improvements) 15
+- BDD (business language, Background, Scenario Outline, Reqnroll bindings, hooks, context injection, level stated) 15
+- Copilot (prompts, kept/changed/rejected decisions, ≥ 2 mutation proofs, class comments) 10
+- Reflection (~half page) and viva 5
+
+Deliverables: `week5-testing` merged into `main` with the TDD history; unit/integration/spec projects (W5.2);
+`TESTING-STRATEGY.md`, `TDD-LOG.md`, `COPILOT-LOG.md`; README "Running the tests" with the real summary;
+`docs/testing/test-run.txt` and screenshots in `docs/screenshots/week5/`.
