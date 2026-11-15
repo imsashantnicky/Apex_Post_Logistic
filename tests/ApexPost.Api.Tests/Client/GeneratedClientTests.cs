@@ -20,14 +20,17 @@ public sealed class GeneratedClientTests(ApiFactory factory) : IClassFixture<Api
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Consumer_scenario_creates_fetches_uploads_two_scans_and_reports_the_unknown_shipment()
+    public async Task RunAsync_ConsumerScenario_CreatesFetchesUploadsTwoScansAndReportsTheUnknownShipment()
     {
+        // Arrange: the demo times its scans with the host clock, so the server never sees them in the future.
         using var http = factory.CreateClient();
         using var output = new StringWriter();
-        var demo = new ShipmentDemo(new ApexPostApiClient(http), output, TimeProvider.System);
+        var demo = new ShipmentDemo(new ApexPostApiClient(http), output, factory.Clock);
 
+        // Act
         var trackingNumber = await demo.RunAsync(Ct);
 
+        // Assert
         var text = output.ToString();
         Assert.Contains("accepted 2, duplicates skipped 0, rejected 0", text, StringComparison.Ordinal);
         Assert.Contains(ShipmentDemo.NotFoundMessage(ShipmentDemo.UnknownTrackingNumber), text, StringComparison.Ordinal);
@@ -55,14 +58,17 @@ public sealed class GeneratedClientTests(ApiFactory factory) : IClassFixture<Api
     }
 
     [Fact]
-    public async Task Describe_returns_the_status_of_a_known_shipment_and_a_friendly_message_for_404()
+    public async Task DescribeAsync_KnownAndUnknownShipment_ReturnsStatusAndFriendly404Message()
     {
+        // Arrange
         using var http = factory.CreateClient();
-        var demo = new ShipmentDemo(new ApexPostApiClient(http), TextWriter.Null, TimeProvider.System);
+        var demo = new ShipmentDemo(new ApexPostApiClient(http), TextWriter.Null, factory.Clock);
 
+        // Act
         var known = await demo.DescribeAsync(Seeded, Ct);
         var unknown = await demo.DescribeAsync(ShipmentDemo.UnknownTrackingNumber, Ct);
 
+        // Assert
         Assert.StartsWith(Seeded + " is ", known, StringComparison.Ordinal);
         Assert.Equal(ShipmentDemo.NotFoundMessage(ShipmentDemo.UnknownTrackingNumber), unknown);
     }
@@ -93,15 +99,18 @@ public sealed class GeneratedClientTests(ApiFactory factory) : IClassFixture<Api
     }
 
     [Fact]
-    public async Task Status_change_sends_the_enum_by_name_as_v2_expects()
+    public async Task ChangeShipmentStatusAsync_StatusEnum_IsSentByNameAsV2Expects()
     {
+        // Arrange
         using var http = factory.CreateClient();
         var client = new ApexPostApiClient(http);
-        var created = await new ShipmentDemo(client, TextWriter.Null, TimeProvider.System).RunAsync(Ct);
+        var created = await new ShipmentDemo(client, TextWriter.Null, factory.Clock).RunAsync(Ct);
 
+        // Act
         var moved = await client.ChangeShipmentStatusAsync(
             created, new UpdateStatusRequest { Status = ShipmentStatus.OutForDelivery }, Ct);
 
+        // Assert
         Assert.Equal(ShipmentStatus.OutForDelivery, moved.Status);
     }
 

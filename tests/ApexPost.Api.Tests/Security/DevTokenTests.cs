@@ -25,16 +25,20 @@ public sealed class DevTokenTests(ApiFactory factory) : IClassFixture<ApiFactory
     [Theory]
     [InlineData(DevelopmentCouriers.First)]
     [InlineData(DevelopmentCouriers.Second)]
-    public async Task Fictional_courier_gets_a_signed_courier_token(string courierId)
+    public async Task PostDevToken_FictionalCourier_ReturnsSignedTokenValidForOneHour(string courierId)
     {
+        // Arrange
         using var anonymous = factory.ClientWith(token: null);
+        var issuedFrom = factory.Clock.GetUtcNow().UtcDateTime;
 
+        // Act
         var response = await anonymous.PostAsJsonAsync(Route, new { courierId }, Ct);
 
+        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<DevTokenResponse>(Ct);
         Assert.Equal(("Bearer", courierId), (body!.TokenType, body.CourierId));
-        Assert.InRange(body.ExpiresAtUtc, DateTime.UtcNow.AddMinutes(55), DateTime.UtcNow.AddMinutes(65));
+        Assert.InRange(body.ExpiresAtUtc, issuedFrom.AddHours(1), factory.Clock.GetUtcNow().UtcDateTime.AddHours(1));
         var jwt = new JsonWebToken(body.AccessToken);
         Assert.Equal(TestTokens.Issuer, jwt.Issuer);
         Assert.Contains(TestTokens.Audience, jwt.Audiences);

@@ -2,16 +2,20 @@ using System.Diagnostics;
 using ApexPost.Courier.Domain.Enums;
 using ApexPost.Courier.Domain.Scans;
 using ApexPost.Courier.Offline.Outbox;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ApexPost.Courier.UnitTests.Offline;
 
 [Trait("Category", "Unit")]
 public sealed class FakeShipmentUploaderTests
 {
+    private static readonly DateTimeOffset ScannedAt = new(2026, 11, 5, 8, 0, 0, TimeSpan.Zero);
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static ShipmentScan Scan(string trackingNumber = "APX-10000001") =>
-        ShipmentScan.CreateNew(trackingNumber, ScanType.Pickup, "CR-101", "BR001", null, TimeProvider.System);
+        ShipmentScan.CreateNew(
+            trackingNumber, ScanType.Pickup, "CR-101", "BR001", null, new FakeTimeProvider(ScannedAt));
 
     [Fact]
     public async Task Upload_succeeds_after_a_simulated_network_delay()

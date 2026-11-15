@@ -35,12 +35,20 @@ public sealed class NotInFutureAttributeTests
     }
 
     [Fact]
-    public void Without_a_TimeProvider_service_the_system_clock_is_used()
+    public void IsValid_WithoutTimeProviderService_FallsBackToTheSystemClock()
     {
+        // Arrange: the subject of this test is the fallback to TimeProvider.System, so it is the one documented
+        // place that reads the real clock (TESTING-STRATEGY.md section 7). The one-hour margin keeps it stable.
         var attribute = new NotInFutureAttribute();
+        var systemNow = TimeProvider.System.GetUtcNow();
 
-        Assert.True(attribute.IsValid(DateTime.UtcNow));
-        Assert.False(attribute.IsValid(DateTime.UtcNow.AddHours(1)));
+        // Act
+        var nowIsValid = attribute.IsValid(systemNow);
+        var anHourAheadIsValid = attribute.IsValid(systemNow.AddHours(1));
+
+        // Assert
+        Assert.True(nowIsValid);
+        Assert.False(anHourAheadIsValid);
     }
 
     [Fact]

@@ -15,6 +15,9 @@ public sealed class AutomaticValidationTests(ApiFactory factory) : IClassFixture
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    /// <summary>"Now" on the host clock; the [NotInFuture] rule on the server reads the same clock.</summary>
+    private DateTime HostNow => factory.Clock.GetUtcNow().UtcDateTime;
+
     [Fact]
     public async Task A_valid_create_body_reaches_the_action()
     {
@@ -52,40 +55,49 @@ public sealed class AutomaticValidationTests(ApiFactory factory) : IClassFixture
     }
 
     [Fact]
-    public async Task A_Delivered_scan_without_a_signature_gets_400_on_that_scan()
+    public async Task PostScans_DeliveredScanWithoutSignature_Returns400OnThatScan()
     {
+        // Arrange
         using var client = factory.CreateClient();
-        var body = new { scans = new[] { Scan(scanType: 3, scannedAtUtc: DateTime.UtcNow.AddMinutes(-5)) } };
+        var body = new { scans = new[] { Scan(scanType: 3, scannedAtUtc: HostNow.AddMinutes(-5)) } };
 
+        // Act
         var problem = await Problem.ReadAsync(
             await client.PostAsJsonAsync("/test/contracts/scans", body, Ct),
             HttpStatusCode.BadRequest);
 
+        // Assert
         Assert.Contains(ContractRules.SignatureMessage, Errors(problem)["Scans[0].RecipientSignatureName"]);
     }
 
     [Fact]
-    public async Task A_scan_from_the_future_gets_400_on_scannedAtUtc()
+    public async Task PostScans_ScanTenMinutesAheadOfTheHostClock_Returns400OnScannedAtUtc()
     {
+        // Arrange
         using var client = factory.CreateClient();
-        var body = new { scans = new[] { Scan(scanType: 1, scannedAtUtc: DateTime.UtcNow.AddMinutes(10)) } };
+        var body = new { scans = new[] { Scan(scanType: 1, scannedAtUtc: HostNow.AddMinutes(10)) } };
 
+        // Act
         var problem = await Problem.ReadAsync(
             await client.PostAsJsonAsync("/test/contracts/scans", body, Ct),
             HttpStatusCode.BadRequest);
 
+        // Assert
         var message = Errors(problem)["Scans[0].ScannedAtUtc"][0];
         Assert.Contains("must not be in the future", message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task A_valid_scan_upload_reaches_the_action()
+    public async Task PostScans_ScanOneMinuteAheadWithinTolerance_ReachesTheAction()
     {
+        // Arrange
         using var client = factory.CreateClient();
-        var body = new { scans = new[] { Scan(scanType: 1, scannedAtUtc: DateTime.UtcNow.AddMinutes(1)) } };
+        var body = new { scans = new[] { Scan(scanType: 1, scannedAtUtc: HostNow.AddMinutes(1)) } };
 
+        // Act
         var response = await client.PostAsJsonAsync("/test/contracts/scans", body, Ct);
 
+        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 

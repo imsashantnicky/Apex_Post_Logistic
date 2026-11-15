@@ -176,7 +176,7 @@ public sealed class V2ContractTests(ApiFactory factory) : IClassFixture<ApiFacto
             scanType,
             courierId = "CR-101",
             location = "Central Hub",
-            scannedAtUtc = DateTime.UtcNow.AddMinutes(-minutesAgo),
+            scannedAtUtc = ApiFactory.FixedNow.UtcDateTime.AddMinutes(-minutesAgo),
         };
         var route = $"{V2Shipments}/{trackingNumber}/scans";
         var response = await client.PostAsJsonAsync(route, new { scans = new[] { scan } }, Ct);

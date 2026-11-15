@@ -117,7 +117,7 @@ public sealed class HttpUploaderEndToEndTests(ApiFactory factory) : IClassFixtur
         type,
         TestTokens.Courier,
         "Central Hub",
-        DateTimeOffset.UtcNow.AddMinutes(-minutesAgo),
+        ApiFactory.FixedNow.AddMinutes(-minutesAgo),
         null,
         SyncStatus.Pending);
 
