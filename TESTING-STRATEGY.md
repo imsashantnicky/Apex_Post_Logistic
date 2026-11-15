@@ -37,17 +37,17 @@ Likelihood and cost are rated Low / Medium / High. "Cost" is the damage if the d
 | # | Risk | Code location | Likelihood | Cost | Test level | Test classes (existing → planned) |
 | --- | --- | --- | --- | --- | --- | --- |
 | R1 | A shipment moves backwards, stays, or leaves Delivered/Failed | `Domain/Tracking/ShipmentStatusRules.cs` (`CanMove`, `StatusFor`), `ShipmentTrackingService.ChangeStatusAsync` / `TryRecordAsync` | Medium | High (wrong tracking shown to customers, delivered parcel re-opened) | Unit (full 6×6 matrix); integration only for 409 wiring | `ShipmentStatusRulesTests` (full 6×6 `MemberData` matrix since step 03), `ShipmentTrackingServiceTests` (exact `InvalidStatusTransitionException` message), `ShipmentEndpointTests.Patch_status_backward_returns_409_invalid_transition` |
-| R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `ShipmentTrackingServiceMoqTests` (duplicate → `SaveChangesAsync` never), `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409`, `TrackingRepositorySqlTests` (two requests pass the check, the unique index refuses the second: `DuplicateKeyException` over `SqlException` 2601, since step 06) → `ShipmentCreation.feature` (later step) |
-| R3 | A re-sent scan is stored twice (offline retries make re-sends normal) | `ShipmentTrackingService.UploadAsync` / `UploadOnceAsync` (`DistinctBy`, `FindStoredScanIdsAsync`, retry on `DuplicateKeyException`), unique scan id index | High | High (history duplicated, status moved twice) | Unit (in-batch duplicates, stored ids), integration (parallel uploads on SQL Server), BDD | `ShipmentScanUploadTests`, `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once`, `HttpUploaderEndToEndTests`, `TrackingRepositorySqlTests` (same scan id in two requests → one row, since step 06), `ShipmentLifecycleEndToEndTests` (second upload counted as duplicates) → `ScanSync.feature` (later step) |
+| R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `ShipmentTrackingServiceMoqTests` (duplicate → `SaveChangesAsync` never), `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409`, `TrackingRepositorySqlTests` (two requests pass the check, the unique index refuses the second: `DuplicateKeyException` over `SqlException` 2601, since step 06) → `ShipmentCreation.feature` (duplicate tracking number refused, step 08) |
+| R3 | A re-sent scan is stored twice (offline retries make re-sends normal) | `ShipmentTrackingService.UploadAsync` / `UploadOnceAsync` (`DistinctBy`, `FindStoredScanIdsAsync`, retry on `DuplicateKeyException`), unique scan id index | High | High (history duplicated, status moved twice) | Unit (in-batch duplicates, stored ids), integration (parallel uploads on SQL Server), BDD | `ShipmentScanUploadTests`, `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once`, `HttpUploaderEndToEndTests`, `TrackingRepositorySqlTests` (same scan id in two requests → one row, since step 06), `ShipmentLifecycleEndToEndTests` (second upload counted as duplicates) → `ScanSync.feature` (lost answer, re-sent scan stored once, step 08) |
 | R4 | A courier uploads scans as another courier, or a role does what it must not | `Application/Tracking/ShipmentTrackingService.CheckBatch`, `Api/Security/ClaimsCurrentCourier.cs`, `Composition/ApiSecurityRegistration.cs` (policies) | Medium | High (forged delivery proof) | Unit (ownership rule with Moq `ICurrentCourier`), integration (real JWT pipeline, 401/403) | `ScanOwnershipTests`, `ShipmentTrackingServiceMoqTests` (Moq `ICurrentCourier`, repository never touched, since step 04), Api `AuthorizationTests`, `AuthenticationTests` (real JWT), `ShipmentLifecycleEndToEndTests` (`TestAuthHandler` scheme: Courier CR-101 flow, 401, 403, since step 06; section 6.3) |
 | R5 | The client retries a 4xx or a non-idempotent request (duplicate PATCH, hammering on 400) | `ApiClient/Resilience/ApexResilience.cs`, `TransientFailure.cs`, `IdempotentRequest.cs` | Medium | Medium (duplicate status change, battery/network waste, locked account) | Unit (fake `HttpMessageHandler`, Moq `Protected()`) | `RetryRuleTests`, `RetryTests`, `CircuitBreakerTests`, `TimeoutTests` (fake clock since step 05), `ApexApiClientHttpHandlerTests` and `HttpShipmentUploaderHttpHandlerTests` (one test per HTTP case, Moq `Protected()` `SendAsync` + `Verify`, since step 05) |
-| R6 | The outbox marks a scan `Synced` that the server did not store, or loses a scan on a network error | `Courier.Offline/Outbox/OutboxService.cs`, `OutboxService.Batches.cs` (`ApplyAsync`) | Medium | High (proof of delivery silently lost) | Integration (real Couchbase in a temp folder); unit with Moq `IShipmentUploader` | `OutboxServiceTests`, `BatchOutboxTests`, `OutboxServiceMoqTests` (Moq uploader and status updater, since step 04) → `ScanSync.feature` (step 06) |
+| R6 | The outbox marks a scan `Synced` that the server did not store, or loses a scan on a network error | `Courier.Offline/Outbox/OutboxService.cs`, `OutboxService.Batches.cs` (`ApplyAsync`) | Medium | High (proof of delivery silently lost) | Integration (real Couchbase in a temp folder); unit with Moq `IShipmentUploader` | `OutboxServiceTests`, `BatchOutboxTests`, `OutboxServiceMoqTests` (Moq uploader and status updater, since step 04) → `ScanSync.feature` (offline scans stay Pending, then Synced; rejected scan Failed, step 08) |
 | R7 | A validation limit is off by one (weight 0.1–30 kg, upload 1–100 scans, page size 1–50, scan time 2 min ahead) | `Api/Contracts/ContractRules.cs`, `TrackingLimits.cs`, `TrackedShipment.MaximumWeightKg`, `NotInFutureAttribute.cs` | High | Medium | Unit (at, below and above each limit) | `ShipmentRequestTests`, `ScanItemTests`, `ScanUploadRequestTests`, `TrackedShipmentTests`, `TrackingLimitsTests` (boundary theories since step 03) |
 | R8 | An unexpected error leaks a stack trace or internal message to callers | `Api/Errors/ApiExceptionHandler.cs` (`StackTraceKey` only in Development), Web `ProblemExceptionHandler` | Low | High (information disclosure) | Integration (Production host) | Api `ProductionErrorTests`, `ExceptionMappingTests`, Web `ExceptionHandlingTests`, `ProblemExceptionHandlerTests` |
 | R9 | The deprecated v1 contract drifts and breaks existing partners | `Api/Contracts/V1/*`, `Controllers/V1/*`, `contracts/v1.json` | Medium | High (partner integrations break) | Integration (JSON snapshot through the real host) | `V1ContractSnapshotTests`, `ContractTrackingTests`, `VersionHeaderTests` |
 | R10 | Week 3 money or stock is wrong (rounding, tax, negative stock, lost update) | `Domain/Common/Money.cs`, `Domain/Inventory/StockItem.cs`, `Application/Services/CheckoutService`, rowversion on `BranchStock` | Low (mature, heavily tested) | High (financial loss) | Unit (rules), integration (concurrency on SQL Server) | `MoneyTests`, `StockRuleTests`, `TaxRuleTests`, `CheckoutServiceTests`, `StockConcurrencyTests`, `BusinessRulesOnSqlTests` – kept; `CounterTransactionRowVersionTests` added in step 06 (stale `rowversion` on CounterTransactions → `ConcurrencyConflictException`) |
 | R11 | A test passes or fails depending on the wall clock | Tests using `DateTime.UtcNow` (section 5) | Medium | Medium (flaky CI, hidden bugs around midnight/expiry) | All | Fixed in step 02: both test hosts run on a fixed `FakeTimeProvider`, test data uses fixed times (section 5.1, finding 3) |
-| R12 | A scan uploaded days late moves a shipment long after the parcel moved on | `Application/Tracking/ScanAgePolicy.cs`, `TrackingOptions.MaxScanAgeHours`, `ShipmentTrackingService.TryRecordAsync` | Medium (devices stay offline) | Medium (wrong status shown, confusing history) | Unit (TDD, at / above the 72 h limit); integration for the API answer | `ScanAgeRuleTests` (TDD, step 07, section 8), `TrackingOptionsRegistrationTests`, `ScanAgeEndpointTests` (API answer) |
+| R12 | A scan uploaded days late moves a shipment long after the parcel moved on | `Application/Tracking/ScanAgePolicy.cs`, `TrackingOptions.MaxScanAgeHours`, `ShipmentTrackingService.TryRecordAsync` | Medium (devices stay offline) | Medium (wrong status shown, confusing history) | Unit (TDD, at / above the 72 h limit); integration for the API answer | `ScanAgeRuleTests` (TDD, step 07, section 8), `TrackingOptionsRegistrationTests`, `ScanAgeEndpointTests` (API answer), `ScanSync.feature` (71 h / 72 h / 73 h outline as the courier sees it, step 08) |
 
 ## 3. Test pyramid
 
@@ -215,7 +215,25 @@ Totals: 197 test classes, 1,194 test methods (968 `[Fact]`, 226 `[Theory]`), 1,9
 0 skipped. Added: `ScanAgeRuleTests` (+4 methods, 7 cases), `TrackingOptionsRegistrationTests` (+3 methods, 4 cases)
 and `ScanAgeEndpointTests` (+2).
 
-### 3.8 Target
+### 3.8 After step 08 (BDD)
+
+Real run on 2026-11-15 (`dotnet build Apex_Post_Logistic.slnx -c Release`: 0 warnings, 0 errors; then
+`dotnet test Apex_Post_Logistic.slnx -c Release --no-build --filter "Category!=Measurement"`, SQL Server tests on
+real throw-away databases, nothing skipped). One new project; every unit and integration row is the same as in 3.7.
+
+| Level | Methods (scenarios) | Executed cases | Share of cases |
+| --- | --- | --- | --- |
+| Unit | 653 | 1,161 | 59.8 % |
+| Integration | 536 | 768 | 39.6 % |
+| Spec (`tests/ApexPost.Specs`) | 7 scenarios (2 of them outlines) | 12 | 0.6 % |
+| **Total** | **1,196 + 5 measurement methods** | **1,941** | 100 % |
+
+Per project (cases): Courier.Offline.Tests 64, Tracking.UnitTests 243, UnitTests 534, Courier.UnitTests 75,
+Courier.ApiClient.Tests 180, Courier.Presentation.Tests 53, Api.Tests 330, Specs 12, IntegrationTests 450;
+**1,941 passed, 0 failed, 0 skipped**. The Spec share is below the ~5 % target on purpose: each scenario shows a
+business outcome whose rules are already proved below (section 9), so more scenarios would only repeat them.
+
+### 3.9 Target
 
 | Level | Target share (executed cases) | What belongs there |
 | --- | --- | --- |
@@ -636,6 +654,9 @@ New classes are not part of the baseline review above; they follow every rule of
 | 07 | Api.Tests | `Hosting/TrackingOptionsRegistrationTests.cs` | Unit | Proves the API binds the "Tracking" section (default 72, configured 48) and refuses `MaxScanAgeHours` 0 and −1 with `OptionsValidationException` and the exact message. A plain `ServiceCollection`, no host. 3 methods, 4 cases (R12) |
 | 07 | Api.Tests | `Endpoints/ScanAgeEndpointTests.cs` | Integration | The rule as a caller sees it, through the real host, its fixed clock and a throw-away SQL Server database: a 73 h old scan → 200 with `rejected: [{ scanId, "Scan is older than 72 hours." }]` and only the fresh scan stored; with `Tracking:MaxScanAgeHours = 24` set on the host, a 25 h old scan → "Scan is older than 24 hours.". 2 methods (R12) |
 
+| 08 | Specs | `Features/ShipmentCreation.feature` (+ `Steps/ShipmentCreationSteps.cs`) | Spec | BDD at API level (section 9): valid registration, duplicate refused, Scenario Outline for invalid weights. 3 scenarios, 6 cases (R2, weight rule) |
+| 08 | Specs | `Features/ScanSync.feature` (+ `Steps/ScanSyncSteps.cs`) | Spec | BDD at service level (section 9): offline scans synced, lost answer → stored once, unknown tracking number rejected, Scenario Outline for scan age. 4 scenarios, 6 cases (R3, R6, R12) |
+
 Step 07 also changed the constructor call (only) of the Week 5 classes `ShipmentTrackingServiceMoqTests` and
 `TrackingRepositorySqlTests`: both pass the `ScanAgePolicy` with its default 72 hours; no assertion changed.
 
@@ -804,25 +825,56 @@ with the reason "Scan is older than 72 hours."; exactly 72 hours is accepted; th
   `REFACTOR:` commits; tests in `ScanAgeRuleTests`, `TrackingOptionsRegistrationTests` and `ScanAgeEndpointTests`.
   The full story with the real failing output and the commit hashes is in `TDD-LOG.md`.
 
-## 9. BDD plan
+## 9. BDD
 
-- New project `tests/ApexPost.Specs` with Reqnroll's xUnit v3 integration (`Reqnroll.xunit.v3`). If that package does
-  not work with this repo's xUnit v3 setup, the step stops and asks before any fallback.
-- **`Features/ShipmentCreation.feature` – API level.** The business outcome of creating a shipment *is* the HTTP answer
-  (created, refused as duplicate, refused as invalid), and the validation lives in the API request DTOs, so the
-  scenarios run through `WebApplicationFactory` with a test database and test authentication. Scenarios: valid
-  creation, duplicate tracking number, Scenario Outline for invalid weights.
-- **`Features/ScanSync.feature` – service level.** The outcome is what happens to the courier's offline scans, which
-  spans the device outbox and the server rules. Real `OutboxService` on Couchbase in a temp folder, real
-  `ShipmentTrackingService` with in-memory repositories, joined by an in-process uploader; `FakeTimeProvider` for
-  time. Scenarios: offline scans uploaded, duplicate skipped, invalid rejected, Scenario Outline for scan age
-  (71 h accepted, 72 h accepted, 73 h rejected).
-- At least one `Background` and one `Scenario Outline` with `Examples`. Business language only – no URLs, JSON or
-  class names in the feature files.
-- State per scenario through context injection (context classes injected into step-definition constructors), never
-  static fields. `[BeforeScenario]` / `[AfterScenario]` hooks create and dispose the factory, database, temp folder
-  and time provider.
-- **No SpecFlow exists in the repository**, so there is nothing to migrate.
+**Done in step 08.** Project `tests/ApexPost.Specs` (in `Apex_Post_Logistic.slnx`, so plain `dotnet test` runs it)
+uses `Reqnroll.xunit.v3` 3.3.4, the latest stable version, with the same `xunit.v3.mtp-off` 4.0.2 runner as every
+other test project; no fallback was needed. Reqnroll turns the `@Spec` tag on each feature into the trait
+`Category=Spec`, so `--filter "Category=Spec"` selects exactly the 12 scenario cases and the CI filter
+`Category!=Measurement` includes them.
+
+| Feature | Level | Real code under test | Replaced | Scenarios |
+| --- | --- | --- | --- | --- |
+| `Features/ShipmentCreation.feature` | **API** | The whole API host (`SpecApiFactory : WebApplicationFactory<Program>`): routing, request DTO validation, the Admin role rule, `ShipmentTrackingService`, EF Core, a throw-away SQL Server database per scenario | Authentication only (`SpecAuthHandler`, registered in `ConfigureTestServices`); the clock (`FakeTimeProvider`) | valid shipment registered as Created and found again; duplicate tracking number refused (409 "Duplicate"); Scenario Outline "Shipments with an invalid weight are refused" (0, 0.05, 30.001, −1 → "Weight must be between 0.1 and 30 kg.") |
+| `Features/ScanSync.feature` | **Service** | Device: real `OutboxService` and `CouchbaseScanRepository` on Couchbase Lite in a temp folder per scenario. Server: real `ShipmentTrackingService` and `ScanAgePolicy` (default 72 h) | The network: `InProcessShipmentUploader` implements the device's `IBatchShipmentUploader` port by calling the service directly (one new service per call, like a request) and can be offline or lose an answer; the server's repositories: the stateful `InMemoryTracking` fake of the service tests (linked source file); the clock: one `FakeTimeProvider` shared by device and server | offline scans wait as Pending and are Synced when the connection returns, shipment In Transit; an answer lost on the way back → the re-sent scan counts as 1 duplicate and is stored once; a scan for an unknown tracking number → Failed with "Unknown tracking number."; Scenario Outline 71 h / 72 h accepted, 73 h → Failed with "Scan is older than 72 hours." |
+
+**Why these levels.** The business outcome of registering a shipment *is* the HTTP answer (registered, refused as a
+duplicate, refused with a message), and the weight rule for callers lives in the API request DTOs, so only the API
+level can show it; a service-level scenario would skip the DTO validation that a dispatcher actually meets. Scan sync
+is about what happens to the courier's scans across two components (device outbox and server rules). HTTP is
+already proved by the step 05 handler tests and the step 06 end-to-end test, so the scenarios join the two real
+components in process: they stay fast (about 20 ms each after the first), need no SQL Server, and can play the
+network (offline, lost answer) and time (71/72/73 hours later) exactly, which a real host cannot do without waiting
+or flakiness.
+
+**Business language.** The feature files contain no URLs, JSON, status codes or class names: "the shipment is
+refused as a duplicate", "the answer to the next sync is lost on the way back", "73 hours pass before the connection
+returns". The status codes, ProblemDetails and sync statuses are checked in the step definitions.
+
+**Bindings.**
+
+- `Background` in both features (dispatcher signed in with the Admin role and an empty register; courier CR-101 with
+  shipment APX-30000001, offline). Two `Scenario Outline`s with `Examples`.
+- **Context injection, no static state:** `Contexts/ShipmentContext` and `Contexts/ScanSyncContext` are created by
+  Reqnroll once per scenario and injected into `Steps/ShipmentCreationSteps`, `Steps/ScanSyncSteps` and
+  `Hooks/ScenarioHooks` through their constructors. The only static members are constants and read-only values.
+- **Hooks:** `ScenarioHooks` has `[BeforeScenario]` / `[AfterScenario]` methods scoped per feature
+  (`[Scope(Feature = …)]`): Shipment creation gets a new `SpecApiFactory` (own database name; the host migrates it on
+  start) and afterwards disposes the client, the last answer and the host and drops the database; Scan sync gets a
+  unique temp folder with a new Couchbase database and afterwards disposes the outbox and the database and deletes
+  the folder. Each context owns its `FakeTimeProvider`, so time never leaks between scenarios.
+- **Reusable parameterised steps:** one step records any scan type for any shipment and place (`a`/`an` handled by
+  one pattern) and serves both `Given` and `When`; "the server holds {int} scan(s) for shipment {string}",
+  "{int} scan(s) is/are waiting to be sent", "the scan for shipment {string} is {string}" (string → `SyncStatus`
+  by Reqnroll's enum conversion) and "the server answers {string}" are shared by several scenarios.
+- **Empty register:** the Development host seeds ten demo shipments, so the Background removes them in the scenario's
+  own database and then proves through the API that the list has 0 shipments.
+- **SQL Server availability:** `SpecApiFactory.CreateHost` calls the shared `SqlTestServer.SkipIfUnavailable()`, so
+  Shipment creation is skipped locally without SQL Server and fails in CI, like every other SQL test. Scan sync
+  needs no SQL Server.
+
+**SpecFlow:** none exists in the repository, so there is nothing to migrate. Reqnroll is the maintained successor of
+SpecFlow and uses the same Gherkin and binding attributes.
 
 ## 10. Copilot plan
 

@@ -359,11 +359,12 @@ dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement" 
   --logger "trx;LogFileName=week5.trx" --logger "console;verbosity=normal"
 ```
 
-The unit level needs nothing installed. `Category=Spec` finds no tests until `tests/ApexPost.Specs` is added
-(Week 5 step 06).
+The unit level needs nothing installed. `Category=Spec` runs the 12 Reqnroll scenario cases of `tests/ApexPost.Specs`
+(`ShipmentCreation.feature` at API level needs SQL Server; `ScanSync.feature` at service level needs nothing);
+[TESTING-STRATEGY.md](TESTING-STRATEGY.md) section 9 explains both levels.
 
 **Visual Studio Test Explorer.** Open `Apex_Post_Logistic.slnx`, build, and open *Test > Test Explorer*. Choose
-*Group By > Traits* to see the `Category` groups (Unit, Integration, Measurement), then run one group with its
+*Group By > Traits* to see the `Category` groups (Unit, Integration, Spec, Measurement), then run one group with its
 context menu. Every `[Theory]` row appears as its own test, for example the 36 rows of
 `CanMove_StatusPairOfTheLifecycleTable_ReturnsTheExpectedAnswer`. Typing `Trait:"Category=Unit"` in the search box
 filters the same way.
