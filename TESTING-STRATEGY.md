@@ -37,11 +37,11 @@ Likelihood and cost are rated Low / Medium / High. "Cost" is the damage if the d
 | # | Risk | Code location | Likelihood | Cost | Test level | Test classes (existing → planned) |
 | --- | --- | --- | --- | --- | --- | --- |
 | R1 | A shipment moves backwards, stays, or leaves Delivered/Failed | `Domain/Tracking/ShipmentStatusRules.cs` (`CanMove`, `StatusFor`), `ShipmentTrackingService.ChangeStatusAsync` / `TryRecordAsync` | Medium | High (wrong tracking shown to customers, delivered parcel re-opened) | Unit (full 6×6 matrix); integration only for 409 wiring | `ShipmentStatusRulesTests` (full 6×6 `MemberData` matrix since step 03), `ShipmentTrackingServiceTests` (exact `InvalidStatusTransitionException` message), `ShipmentEndpointTests.Patch_status_backward_returns_409_invalid_transition` |
-| R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409` → `ShipmentCreation.feature` (step 06) |
+| R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `ShipmentTrackingServiceMoqTests` (duplicate → `SaveChangesAsync` never), `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409` → `ShipmentCreation.feature` (step 06) |
 | R3 | A re-sent scan is stored twice (offline retries make re-sends normal) | `ShipmentTrackingService.UploadAsync` / `UploadOnceAsync` (`DistinctBy`, `FindStoredScanIdsAsync`, retry on `DuplicateKeyException`), unique scan id index | High | High (history duplicated, status moved twice) | Unit (in-batch duplicates, stored ids), integration (parallel uploads on SQL Server), BDD | `ShipmentScanUploadTests`, `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once`, `HttpUploaderEndToEndTests` → `ScanSync.feature` (step 06) |
-| R4 | A courier uploads scans as another courier, or a role does what it must not | `Application/Tracking/ShipmentTrackingService.CheckBatch`, `Api/Security/ClaimsCurrentCourier.cs`, `Composition/ApiSecurityRegistration.cs` (policies) | Medium | High (forged delivery proof) | Unit (ownership rule with Moq `ICurrentCourier`), integration (real JWT pipeline, 401/403) | `ScanOwnershipTests`, Api `AuthorizationTests`, `AuthenticationTests` → Moq tests + `TestAuthHandler` end-to-end test (step 04) |
-| R5 | The client retries a 4xx or a non-idempotent request (duplicate PATCH, hammering on 400) | `ApiClient/Resilience/ApexResilience.cs`, `TransientFailure.cs`, `IdempotentRequest.cs` | Medium | Medium (duplicate status change, battery/network waste, locked account) | Unit (fake `HttpMessageHandler`, Moq `Protected()`) | `RetryRuleTests`, `RetryTests`, `CircuitBreakerTests`, `TimeoutTests` → typed client cases with Moq handler (step 04) |
-| R6 | The outbox marks a scan `Synced` that the server did not store, or loses a scan on a network error | `Courier.Offline/Outbox/OutboxService.cs`, `OutboxService.Batches.cs` (`ApplyAsync`) | Medium | High (proof of delivery silently lost) | Integration (real Couchbase in a temp folder); unit with Moq `IShipmentUploader` | `OutboxServiceTests`, `BatchOutboxTests`, `OutboxTests` (duplicates, see section 5) → `ScanSync.feature` (step 06) |
+| R4 | A courier uploads scans as another courier, or a role does what it must not | `Application/Tracking/ShipmentTrackingService.CheckBatch`, `Api/Security/ClaimsCurrentCourier.cs`, `Composition/ApiSecurityRegistration.cs` (policies) | Medium | High (forged delivery proof) | Unit (ownership rule with Moq `ICurrentCourier`), integration (real JWT pipeline, 401/403) | `ScanOwnershipTests`, `ShipmentTrackingServiceMoqTests` (Moq `ICurrentCourier`, repository never touched, since step 04), Api `AuthorizationTests`, `AuthenticationTests` → `TestAuthHandler` end-to-end test (later step) |
+| R5 | The client retries a 4xx or a non-idempotent request (duplicate PATCH, hammering on 400) | `ApiClient/Resilience/ApexResilience.cs`, `TransientFailure.cs`, `IdempotentRequest.cs` | Medium | Medium (duplicate status change, battery/network waste, locked account) | Unit (fake `HttpMessageHandler`, Moq `Protected()`) | `RetryRuleTests`, `RetryTests`, `CircuitBreakerTests`, `TimeoutTests` → typed client cases with Moq handler (later step) |
+| R6 | The outbox marks a scan `Synced` that the server did not store, or loses a scan on a network error | `Courier.Offline/Outbox/OutboxService.cs`, `OutboxService.Batches.cs` (`ApplyAsync`) | Medium | High (proof of delivery silently lost) | Integration (real Couchbase in a temp folder); unit with Moq `IShipmentUploader` | `OutboxServiceTests`, `BatchOutboxTests`, `OutboxServiceMoqTests` (Moq uploader and status updater, since step 04) → `ScanSync.feature` (step 06) |
 | R7 | A validation limit is off by one (weight 0.1–30 kg, upload 1–100 scans, page size 1–50, scan time 2 min ahead) | `Api/Contracts/ContractRules.cs`, `TrackingLimits.cs`, `TrackedShipment.MaximumWeightKg`, `NotInFutureAttribute.cs` | High | Medium | Unit (at, below and above each limit) | `ShipmentRequestTests`, `ScanItemTests`, `ScanUploadRequestTests`, `TrackedShipmentTests`, `TrackingLimitsTests` (boundary theories since step 03) |
 | R8 | An unexpected error leaks a stack trace or internal message to callers | `Api/Errors/ApiExceptionHandler.cs` (`StackTraceKey` only in Development), Web `ProblemExceptionHandler` | Low | High (information disclosure) | Integration (Production host) | Api `ProductionErrorTests`, `ExceptionMappingTests`, Web `ExceptionHandlingTests`, `ProblemExceptionHandlerTests` |
 | R9 | The deprecated v1 contract drifts and breaks existing partners | `Api/Contracts/V1/*`, `Controllers/V1/*`, `contracts/v1.json` | Medium | High (partner integrations break) | Integration (JSON snapshot through the real host) | `V1ContractSnapshotTests`, `ContractTrackingTests`, `VersionHeaderTests` |
@@ -145,7 +145,24 @@ Totals: 186 test classes, 1,135 test methods (914 `[Fact]`, 221 `[Theory]`), 1,8
 | `ShipmentRequestTests`, `ScanItemTests`: more tracking-number, weight and courier-id rows | 0 | +11 |
 | **Net** | **+15** | **+112** |
 
-### 3.4 Target
+### 3.4 After step 04 (Moq)
+
+Real run on 2026-11-15 (`dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"`). Only
+two new unit classes were added; every other row is the same as in 3.3.
+
+| Project | Unit methods | Unit cases | Integration methods | Integration cases | Measurement methods |
+| --- | --- | --- | --- | --- | --- |
+| `tests/ApexPost.Tracking.UnitTests` | 93 | 236 | 0 | 0 | 0 |
+| `tests/Courier/ApexPost.Courier.UnitTests` | 38 | 66 | 9 | 9 | 0 |
+| other six projects | unchanged | unchanged | unchanged | unchanged | unchanged |
+| **Total** | **627** | **1,129** | **525** | **757** | **5** |
+| **Share** | 54.2 % | 59.9 % | 45.4 % | 40.1 % | 0.4 % of methods |
+
+Totals: 188 test classes, 1,157 test methods (934 `[Fact]`, 223 `[Theory]`), 1,886 executed cases, 0 failed,
+0 skipped. Added: `ShipmentTrackingServiceMoqTests` (+15 methods, +19 cases) and `OutboxServiceMoqTests`
+(+7 methods, +7 cases).
+
+### 3.5 Target
 
 | Level | Target share (executed cases) | What belongs there |
 | --- | --- | --- |
@@ -197,8 +214,45 @@ than it gives.
 
 Interfaces mocked with Moq (step 04): `ITrackedShipmentRepository` (the brief's `IShipmentRepository`),
 `ITrackingQueries`, `ITrackingUnitOfWork`, `ICurrentCourier`, Courier `IScanRepository` / `IScanQueries`,
-`IShipmentUploader`, and `HttpMessageHandler` (protected `SendAsync`). The existing fakes stay; section 6 says what
+`IShipmentUploader`, and `HttpMessageHandler` (protected `SendAsync`). The existing fakes stay; section 4.3 says what
 each mock does **not** prove.
+
+### 4.3 Moq vs fakes (step 04)
+
+**Brief names → real interfaces.** The brief uses generic names; this repository splits them by responsibility:
+
+| Brief | Real interface(s) | Project | Mocked in |
+| --- | --- | --- | --- |
+| `IShipmentRepository` | `ITrackedShipmentRepository` (load + stage), `ITrackingUnitOfWork` (commit), `ITrackingQueries` (read views) | `src/ApexPost.Application/Tracking` | `Services/ShipmentTrackingServiceMoqTests` |
+| (caller identity) | `ICurrentCourier` (courier id claim) | `src/ApexPost.Application/Tracking` | `Services/ShipmentTrackingServiceMoqTests` |
+| `IScanRepository` | `IScanRepository` (CRUD), `IScanQueries` (pending / failed lists), `IScanSyncStatusUpdater` (status write, new in step 04) | `src/Courier/ApexPost.Courier.Domain/Ports` | `Offline/OutboxServiceMoqTests` (queries + status updater; the outbox never calls `IScanRepository`) |
+| `IShipmentUploader` | `IShipmentUploader` (single scan); `IBatchShipmentUploader` extends it | `src/Courier/ApexPost.Courier.Domain/Ports` | `Offline/OutboxServiceMoqTests` (a `Mock<IShipmentUploader>` is not a batch uploader, so the single-scan path runs) |
+
+**Which one, where.**
+
+| Class | Double | Why |
+| --- | --- | --- |
+| `ShipmentTrackingServiceMoqTests` (new) | Moq on all four ports + `FakeTimeProvider` | The questions are interactions: is `SaveChangesAsync` called `Times.Once` / `Times.Never`, which scan ids reach `AddScan` (`It.Is`), is the caller's token passed on, is `DiscardChanges` called after a `DuplicateKeyException` (`ThrowsAsync`, `SetupSequence`), and is the repository not touched at all on a forbidden upload (`VerifyNoOtherCalls`) |
+| `ShipmentTrackingServiceTests`, `ShipmentScanUploadTests`, `ScanOwnershipTests` (kept) | `InMemoryTracking` fake | Multi-step outcomes (create → move → upload → read history) need state that behaves like storage; Moq setups for that would copy the implementation |
+| `OutboxServiceMoqTests` (new) | Moq on `IScanQueries`, `IScanSyncStatusUpdater`, `IShipmentUploader` | Which status each scan gets, that one throwing upload does not stop the others (`Times.Exactly(3)`), that nothing pending means the uploader is never called, the order of sending (`Callback`) and the token rules |
+| `OutboxServiceTests`, `BatchOutboxTests` (kept, integration) | Real Couchbase + fake/scripted uploaders | The status is really written to the document and found again by the next query |
+| BDD `ScanSync.feature` (step 06) | In-memory repositories | Scenarios must read as business steps, not as mock setup |
+
+**What each mock does NOT prove.**
+
+| Mocked interface | What the mock does NOT prove | Where that is proved instead |
+| --- | --- | --- |
+| `ITrackedShipmentRepository` | That `FindAsync` really finds a stored shipment, that `FindStoredScanIdsAsync` translates to valid SQL, that the unique scan-id / tracking-number indexes exist, that `AddScan` maps every column | `IntegrationTests/Tracking/TrackingSqlTests` (real SQL Server), `TrackingModelTests` |
+| `ITrackingUnitOfWork` | That `SaveChangesAsync` commits, that a duplicate key or a rowversion conflict really arrives as `DuplicateKeyException` / `ConcurrencyConflictException`, that `DiscardChanges` really clears the change tracker | `TrackingSqlTests`, Api `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once` |
+| `ITrackingQueries` | That the projection fills every field of `ShipmentView`, paging and ordering in SQL, the latest-scan subquery | `TrackingSqlTests`, Api endpoint tests |
+| `ICurrentCourier` | That the API reads the `courierId` claim from a real token, that a non-courier role is refused by the authorization policy before the service runs | Api `AuthorizationTests`, `AuthenticationTests`, the `TestAuthHandler` end-to-end test (planned for a later step) |
+| `IScanQueries` | That the SQL++ query returns only Pending (or Failed) scans, oldest first, using the index | `Courier.Offline.Tests/Queries/CouchbaseScanQueriesTests` |
+| `IScanSyncStatusUpdater` | That the status is written to the Couchbase document, that an unknown id returns `false`, that the write survives a reopen | `Courier.Offline.Tests/Outbox/OutboxServiceTests`, `Repository/CouchbaseScanRepositoryTests` |
+| `IShipmentUploader` | The HTTP request, JSON, status-code mapping, retries, timeouts and the real server answer (accepted / duplicate / rejected) | `Mobile/ApexPost.Courier.ApiClient.Tests` (HTTP uploader), `HttpUploaderEndToEndTests`, `BatchOutboxTests` |
+
+A mock only answers what the test told it to answer, so a mocked test can pass while the real implementation is
+wrong. That is why every row above has a real-storage or real-HTTP test as well, and why `DbContext` / `DbSet` are
+never mocked (section 6).
 
 ## 5. Existing tests review
 
@@ -482,6 +536,8 @@ New classes are not part of the baseline review above; they follow every rule of
 | Step | Project | Class | Level | Why a new class and not an existing one |
 | --- | --- | --- | --- | --- |
 | 03 | Tracking.UnitTests | `Rules/TrackingLimitsTests.cs` | Unit | `TrackingLimits.CheckPage` / `CheckUpload` had no test of their own; the service tests only showed that *some* bad page or upload fails. This class proves page 0/1, page size 0/1/50/51 and upload 0/1/100/101 with the exact `ValidationFailedException` field and message, once, at the lowest level |
+| 04 | Tracking.UnitTests | `Services/ShipmentTrackingServiceMoqTests.cs` | Unit | The existing service classes use the stateful `InMemoryTracking` fake and prove outcomes; this class proves the *interactions* with Moq (`Verify` with `Times.Once` / `Never` / `Exactly`, `It.Is` on scan ids, token pass-through, `DiscardChanges` after `ThrowsAsync(DuplicateKeyException)`, `VerifyNoOtherCalls` on a forbidden upload). 15 methods, 19 cases (R1–R4) |
+| 04 | Courier.UnitTests | `Offline/OutboxServiceMoqTests.cs` | Unit | `OutboxServiceTests` needs real Couchbase (integration); this class tests the single-scan outbox path with mocked `IScanQueries`, `IScanSyncStatusUpdater` and `IShipmentUploader`: Synced / Failed per scan, one throwing upload does not stop the rest, nothing pending → uploader never called, oldest first with `includeFailed`, token rules. 7 methods, 7 cases (R6) |
 
 ## 6. Data access strategy
 
@@ -526,6 +582,12 @@ they are built: `ApexFactory` and `ApiFactory` skip in `CreateHost` (when a test
 folder): the SQL tests were reported as skipped with the full message while the non-SQL tests in the same project
 passed, and with `CI=true` the same tests failed with "CI must not skip SQL tests". On the step 02 machine the LocalDB
 instance did not start in that run, so the LocalDB success path itself is not yet proved by a run.
+
+### 6.1 Production code changed for testability
+
+| Step | Change | Why | Behaviour change |
+| --- | --- | --- | --- |
+| 04 | New port `IScanSyncStatusUpdater` (`src/Courier/ApexPost.Courier.Domain/Ports/IScanSyncStatusUpdater.cs`, no packages); `CouchbaseScanRepository` implements it; the `OutboxService` constructor takes `IScanSyncStatusUpdater` instead of the concrete `CouchbaseScanRepository` | The outbox could only be built with a real Couchbase database, so it had no unit test and could not be mocked. A separate one-method port was chosen instead of adding the member to `IScanRepository`, which would have broken the other implementation (`InMemoryScanStore` in Presentation.Tests) | None: the method body is unchanged, the harness, `MauiProgram` and the existing tests still pass the same repository object |
 
 ## 7. Conventions
 
