@@ -1,4 +1,3 @@
-using System.Globalization;
 using ApexPost.Api.Contracts;
 using ApexPost.Api.Contracts.V1;
 using ApexPost.Api.Tests.Support;
@@ -18,19 +17,76 @@ public sealed class ShipmentRequestTests
     public void A_complete_update_request_is_valid() =>
         Assert.Empty(ContractValidator.Validate(Requests.Update()));
 
+    /// <summary>
+    /// Weights at, below and above the contract limits 0.1 and 30 kg. The attribute checks only the range: 1.0005 kg
+    /// passes the contract and is refused by the domain (4 decimals, TrackedShipmentTests), which the API turns into
+    /// a 400 "Business rule violated".
+    /// </summary>
+    public static TheoryData<decimal, bool> Weights => new()
+    {
+        { 0m, false },
+        { 0.0999m, false },
+        { 0.1m, true },
+        { 0.1001m, true },
+        { 30m, true },
+        { 30.001m, false },
+        { -1m, false },
+        { 70m, false },
+        { 1.0005m, true },
+    };
+
     [Theory]
     [InlineData("APX-12345678", true)]
+    [InlineData("APX-00000000", true)]
+    [InlineData("apx-12345678", false)]
     [InlineData("APX-1234567", false)]
     [InlineData("APX-123456789", false)]
-    [InlineData("apx-12345678", false)]
+    [InlineData("APX12345678", false)]
     [InlineData("APX-1234567A", false)]
     [InlineData(" APX-12345678", false)]
+    [InlineData("APX-12345678 ", false)]
+    [InlineData("APX-1234 5678", false)]
     [InlineData("", false)]
-    public void Tracking_number_must_be_APX_and_8_digits(string trackingNumber, bool valid)
+    [InlineData(null, false)]
+    public void Validate_TrackingNumber_PassesOnlyForApxAndEightDigits(string? trackingNumber, bool valid)
     {
-        var request = Copy(Requests.Create(), trackingNumber: trackingNumber);
+        // Arrange
+        var request = WithTrackingNumber(trackingNumber);
 
-        Assert.Equal(valid, !ContractValidator.FailedMembers(request).Contains(nameof(request.TrackingNumber)));
+        // Act
+        var failed = ContractValidator.FailedMembers(request);
+
+        // Assert
+        Assert.Equal(valid, !failed.Contains(nameof(request.TrackingNumber)));
+    }
+
+    [Theory]
+    [MemberData(nameof(Weights))]
+    public void Validate_WeightOnCreateAndUpdate_PassesOnlyFromPointOneToThirtyKg(decimal weightKg, bool valid)
+    {
+        // Arrange
+        var create = Copy(Requests.Create(), weightKg: weightKg);
+        var update = new UpdateShipmentRequest
+        {
+            RecipientName = "Ben Sample",
+            RecipientPhone = "020 7946 0102",
+            RecipientAddress = "4 Mill Lane",
+            RecipientCity = "Northgate",
+            WeightKg = weightKg,
+        };
+
+        // Act
+        var createResults = ContractValidator.Validate(create);
+        var updateResults = ContractValidator.Validate(update);
+
+        // Assert
+        Assert.Equal(valid, !createResults.Any(result => result.MemberNames.Contains(nameof(create.WeightKg))));
+        Assert.Equal(valid, !updateResults.Any(result => result.MemberNames.Contains(nameof(update.WeightKg))));
+        if (!valid)
+        {
+            Assert.Contains(createResults, result => result.ErrorMessage == ContractRules.WeightMessage);
+            Assert.Contains(updateResults, result => result.ErrorMessage == ContractRules.WeightMessage);
+        }
     }
 
     [Fact]
@@ -39,30 +95,6 @@ public sealed class ShipmentRequestTests
         var results = ContractValidator.Validate(Copy(Requests.Create(), trackingNumber: "APX-1"));
 
         Assert.Contains(results, result => result.ErrorMessage == ContractRules.TrackingNumberMessage);
-    }
-
-    [Theory]
-    [InlineData("0", false)]
-    [InlineData("0.09", false)]
-    [InlineData("0.1", true)]
-    [InlineData("30", true)]
-    [InlineData("30.001", false)]
-    [InlineData("70", false)]
-    [InlineData("-1", false)]
-    public void Weight_must_be_between_0_1_and_30_kg(string weight, bool valid)
-    {
-        var request = Copy(Requests.Create(), weightKg: decimal.Parse(weight, CultureInfo.InvariantCulture));
-        var update = new UpdateShipmentRequest
-        {
-            RecipientName = "Ben Sample",
-            RecipientPhone = "020 7946 0102",
-            RecipientAddress = "4 Mill Lane",
-            RecipientCity = "Northgate",
-            WeightKg = request.WeightKg,
-        };
-
-        Assert.Equal(valid, !ContractValidator.FailedMembers(request).Contains(nameof(request.WeightKg)));
-        Assert.Equal(valid, !ContractValidator.FailedMembers(update).Contains(nameof(update.WeightKg)));
     }
 
     [Theory]
@@ -134,6 +166,20 @@ public sealed class ShipmentRequestTests
     [Fact]
     public void Status_change_to_a_defined_status_is_valid() =>
         Assert.Empty(ContractValidator.Validate(new UpdateStatusRequest { Status = ShipmentStatus.InTransit }));
+
+    private static CreateShipmentRequest WithTrackingNumber(string? trackingNumber)
+    {
+        var source = Requests.Create();
+        return new CreateShipmentRequest
+        {
+            TrackingNumber = trackingNumber!,
+            RecipientName = source.RecipientName,
+            RecipientPhone = source.RecipientPhone,
+            RecipientAddress = source.RecipientAddress,
+            RecipientCity = source.RecipientCity,
+            WeightKg = source.WeightKg,
+        };
+    }
 
     private static CreateShipmentRequest Copy(
         CreateShipmentRequest source,

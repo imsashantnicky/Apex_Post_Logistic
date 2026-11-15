@@ -37,17 +37,24 @@ public sealed class ScanItemTests
 
     [Theory]
     [InlineData("CR-101", true)]
+    [InlineData("CR-000", true)]
+    [InlineData("CR-099", true)]
+    [InlineData("CR-999", true)]
     [InlineData("CR-10", false)]
+    [InlineData("CR-1000", false)]
     [InlineData("CR-1010", false)]
     [InlineData("cr-101", false)]
     [InlineData("CR101", false)]
     [InlineData("", false)]
-    public void Courier_id_is_CR_and_3_digits(string courierId, bool valid)
+    public void Validate_CourierId_PassesOnlyForCrAndThreeDigits(string courierId, bool valid)
     {
+        // Arrange
         var scan = Copy(Requests.Scan(), courierId: courierId);
 
+        // Act
         var results = ContractValidator.Validate(scan);
 
+        // Assert
         Assert.Equal(valid, !results.Any(result => result.MemberNames.Contains(nameof(scan.CourierId))));
         if (!valid && courierId.Length > 0)
         {
