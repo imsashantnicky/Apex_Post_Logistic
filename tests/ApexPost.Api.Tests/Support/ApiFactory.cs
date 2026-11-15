@@ -1,9 +1,9 @@
 using System.Net.Http.Headers;
 using ApexPost.Infrastructure.Tracking;
+using ApexPost.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,21 +13,17 @@ namespace ApexPost.Api.Tests.Support;
 
 /// <summary>
 /// The real API host on a throw-away SQL Server database of its own, plus <see cref="ThrowingController"/>. The
-/// server comes from ConnectionStrings:ApexPostTestServer (the CI container), or else from the user-secrets shared
-/// with the web project; the development database itself is never touched. In Development the host migrates and
-/// seeds the database by itself; the database is dropped with the factory.
+/// server comes from <see cref="SqlTestServer"/> (CI variable, user-secrets, LocalDB, else the test is skipped); the
+/// development database itself is never touched. In Development the host migrates and seeds the database by itself;
+/// the database is dropped with the factory.
 /// </summary>
 public class ApiFactory : WebApplicationFactory<Program>
 {
-    private const string TestServerName = "ApexPostTestServer";
-    private const string WebUserSecretsId = "8ee05317-5b65-4866-a83b-e9e701628c18";
+    private bool _hostCreated;
 
     public ApiFactory()
     {
-        ConnectionString = new SqlConnectionStringBuilder(ServerConnection())
-        {
-            InitialCatalog = "ApexPostTests_Api_" + Guid.NewGuid().ToString("N"),
-        }.ConnectionString;
+        ConnectionString = SqlTestServer.NewDatabase("Api");
     }
 
     public string ConnectionString { get; }
@@ -44,9 +40,23 @@ public class ApiFactory : WebApplicationFactory<Program>
     public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
-        await using var database = NewContext();
-        await database.Database.EnsureDeletedAsync();
+        if (_hostCreated)
+        {
+            await using var database = NewContext();
+            await database.Database.EnsureDeletedAsync();
+        }
+
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Skips the test when no SQL Server was found; otherwise starts the host, which migrates in Development.
+    /// </summary>
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        SqlTestServer.SkipIfUnavailable();
+        _hostCreated = true;
+        return base.CreateHost(builder);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -79,17 +89,5 @@ public class ApiFactory : WebApplicationFactory<Program>
         var options = new DbContextOptionsBuilder<TrackingDbContext>();
         TrackingDependencyInjection.UseTrackingSqlServer(options, ConnectionString);
         return new TrackingDbContext(options.Options);
-    }
-
-    private static string ServerConnection()
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddUserSecrets(WebUserSecretsId)
-            .AddEnvironmentVariables()
-            .Build();
-        return configuration.GetConnectionString(TestServerName)
-            ?? configuration.GetConnectionString(TrackingDependencyInjection.ConnectionName)
-            ?? throw new InvalidOperationException(
-                $"Set ConnectionStrings:{TestServerName}, or run setup-secrets.bat, to reach a SQL Server.");
     }
 }
