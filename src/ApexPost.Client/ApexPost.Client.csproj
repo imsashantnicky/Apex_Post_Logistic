@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Typed C# client for the ApexPost v2 API. Generated/ApexPostApiClient.g.cs is written by NSwag from
+    contracts/v2.json (nswag.json, scripts/generate-client.ps1/.sh) and committed, so building needs no NSwag.
+    Never edit it: add members in Extensions/ through the generated partial classes and partial methods.
+    Warnings stay errors for hand-written code; Generated/.editorconfig turns analyzers off for that folder only.
+  -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Global banner. Every page puts it on top with BindingContext="{Binding Banner}" (one shared view model). -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ApexPost.Courier.Presentation.ViewModels;assembly=ApexPost.Courier.Presentation"
+             x:Class="ApexPost.Courier.Views.OfflineBanner"
+             x:DataType="vm:ConnectionBannerViewModel">
+    <Border IsVisible="{Binding IsOffline}"
+            Padding="12"
+            BackgroundColor="#FDECEA"
+            Stroke="#B3261E"
+            StrokeShape="RoundRectangle 10">
+        <Label Text="{x:Static vm:ConnectionBannerViewModel.Message}"
+               TextColor="#B3261E"
+               FontAttributes="Bold"
+               SemanticProperties.Description="Server unavailable, working offline" />
+    </Border>
+</ContentView>

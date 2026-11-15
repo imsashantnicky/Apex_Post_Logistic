@@ -352,6 +352,331 @@ plain `dotnet test -c Release` runs 982. Their numbers are in
 The same steps passed from a new clone: [docs/evidence/fresh-clone.txt](docs/evidence/fresh-clone.txt). The checks and
 what could not be verified are in the [checklist](docs/evidence/CHECKLIST.md).
 
+## Week 4 Part A – courier offline store
+
+A courier device saves shipment scans locally in Couchbase Lite (`apexpost_courier`) and uploads them later through
+an outbox. Part A uses a fake uploader; Part D replaces it with the real API. The design is in
+[OFFLINE-DESIGN.md](OFFLINE-DESIGN.md).
+
+| Project | Purpose |
+| --- | --- |
+| `src/Courier/ApexPost.Courier.Domain` | `ShipmentScan`, `ScanRules` (`APX-########`, `CR-###`), enums and ports; no NuGet packages |
+| `src/Courier/ApexPost.Courier.Offline` | `CourierDatabase`, key-value repository, parameterised SQL++ queries, outbox, change listener (`Couchbase.Lite` 3.4.2) |
+| `src/Courier/ApexPost.Courier.Harness` | Console menu that runs the offline workflow |
+| `tests/Courier/ApexPost.Courier.UnitTests`, `tests/ApexPost.Courier.Offline.Tests` | Unit and storage tests; each test opens its own temporary database folder |
+
+### Run the harness
+
+No SQL Server and no secrets are needed.
+
+```bash
+dotnet run --project src/Courier/ApexPost.Courier.Harness
+```
+
+The header shows the database name, its folder (`CouchbaseData/` under the build output) and the number of pending
+scans. Choose **10 Seed Fictional Demo Data** once, then try the menu:
+
+| Option | Action |
+| --- | --- |
+| 1 Add Scan | Saves a new scan as `Pending` |
+| 2 Find by Tracking Number | All scans of one shipment, oldest first (index `idx_scan_trackingNumber`) |
+| 3 List Pending | Scans waiting for upload (index `idx_scan_syncStatus`) |
+| 4 Simulate Sync | Runs the outbox; `APX-99999999` always fails and becomes `Failed` |
+| 5 Delete Scan | Deletes one scan by id |
+| 6 Exit | Removes the listener token and closes the database |
+| 7–11 | Scans per type for a courier, update notes, get by id, seed demo data, show query plans |
+
+Every change is also written by the change listener to the console and to `logs/listener.log` in the folder the harness
+was started from. `CouchbaseData/`, `*.cblite2/` and `logs/` are git-ignored.
+
+### Run the Part A tests
+
+```bash
+dotnet test tests/Courier/ApexPost.Courier.UnitTests -c Release
+dotnet test tests/ApexPost.Courier.Offline.Tests -c Release
+```
+
+Both projects are in `Apex_Post_Logistic.slnx`, so the solution-wide `dotnet test` and CI run them too. Screenshots of
+the harness are listed in [docs/screenshots/week4-partA/](docs/screenshots/week4-partA/README.md).
+
+## Week 4 Part B – shipment tracking API
+
+`src/ApexPost.Api` is an ASP.NET Core Web API with minimal hosting in `Program.cs` (no `Startup.cs`). It registers the
+Week 3 SQL persistence (`AddSqlPersistence`, `AddInfrastructureServices`) and the additive tracking module
+(`AddShipmentTracking`). Every error is ProblemDetails with a `traceId`, written by the global `ApiExceptionHandler`:
+
+| Exception | Status |
+| --- | --- |
+| `NotFoundException` | 404 |
+| `DuplicateKeyException`, `InvalidStatusTransitionException`, `ShipmentLockedException`, `ConcurrencyException` | 409 |
+| `ValidationFailedException` (with `errors` per field), `DomainException` | 400 |
+| `ForbiddenException` | 403 |
+| anything else | 500 with a generic detail |
+
+The stack trace (`stackTrace`) is added in Development only. Endpoints, status codes, the status transition table and
+the idempotency rules of the scan upload are in [API-NOTES.md](API-NOTES.md).
+
+### Set up the user-secrets
+
+The API shares the user-secrets store of `ApexPost.Web` (same `UserSecretsId`), so a connection string set by
+`setup-secrets.bat` works for both. `appsettings.json` holds no connection string. To set it by hand:
+
+```bash
+dotnet user-secrets set ConnectionStrings:ApexPostDb "Server=localhost;Database=ApexPostDb;Trusted_Connection=True;TrustServerCertificate=True" --project src/ApexPost.Api
+dotnet user-secrets list --project src/ApexPost.Api
+```
+
+### Run the API
+
+```bash
+dotnet run --project src/ApexPost.Api --launch-profile https
+```
+
+The API listens on `https://localhost:7310` and `http://localhost:5310`. In Development it applies the tracking
+migrations (history table `__TrackingMigrationsHistory`, never the Week 3 migrations) and adds ten fictional shipments,
+`APX-20000001` to `APX-20000010`, in ten cities and all six statuses. Existing shipments are left alone. Other
+environments neither migrate nor seed.
+
+Open [src/ApexPost.Api/ApexPost.Api.http](src/ApexPost.Api/ApexPost.Api.http) in Visual Studio or in VS Code with the
+REST Client extension and send the requests top to bottom. Every endpoint has at least one success request and its
+failure requests (400, 404, 409, 415). A quick check from the command line:
+
+```bash
+curl -k https://localhost:7310/api/shipments/APX-20000001
+curl -k -i https://localhost:7310/api/shipments/APX-29999999
+```
+
+The first returns 200 with the shipment, the second 404 ProblemDetails.
+
+### Run the Part B tests
+
+```bash
+dotnet test tests/ApexPost.Tracking.UnitTests -c Release
+dotnet test tests/ApexPost.Api.Tests -c Release
+```
+
+The API tests start the API with `WebApplicationFactory` on a throw-away SQL Server database and drop it afterwards.
+The server comes from `ConnectionStrings__ApexPostTestServer` (the CI container) or else from the user-secrets
+connection string. Screenshots of the API are listed in
+[docs/screenshots/week4-partB/](docs/screenshots/week4-partB/README.md).
+
+## Week 4 Part C – API documentation
+
+### OpenAPI, the built-in generator and Swagger UI
+
+Three different things are often all called "Swagger":
+
+| Name | What it is | In this repository |
+| --- | --- | --- |
+| OpenAPI specification | A vendor-neutral standard (JSON or YAML) that describes an HTTP API: paths, verbs, parameters, request and response bodies, status codes. Tools read it to show documentation or generate clients. | One document per version: `/openapi/v1.json` (deprecated) and `/openapi/v2.json`, committed as `contracts/v1.json` and `contracts/v2.json` |
+| Built-in .NET OpenAPI generator | The `Microsoft.AspNetCore.OpenApi` package. `AddOpenApi("v1")` and `AddOpenApi("v2")` (called for each API Explorer group by `Asp.Versioning.OpenApi`) read the controllers, routes and response types at runtime and write an OpenAPI document; `MapOpenApi()` serves it. Document transformers change the result. | `AddApexOpenApi()` and `ApexDocumentTransformer` (title, description with the v1 deprecation notice, version, contact) in `src/ApexPost.Api/OpenApi` |
+| Swagger UI | A web page that only renders an existing OpenAPI document and offers "Try it out". It generates nothing. | `Swashbuckle.AspNetCore.SwaggerUi` at `/swagger`; the drop-down offers "v2" (`/openapi/v2.json`) and "v1 (deprecated)" (`/openapi/v1.json`). The full `Swashbuckle.AspNetCore` package and `AddSwaggerGen` are not used. |
+
+Run the API in Development (`dotnet run --project src/ApexPost.Api --launch-profile https`) and open:
+
+- `https://localhost:7310/openapi/v2.json` and `https://localhost:7310/openapi/v1.json` – the OpenAPI documents
+- `https://localhost:7310/swagger` – Swagger UI on both documents
+
+### Versions and contract tracking
+
+`/api/v2/shipments` is the current contract. `/api/v1/shipments` and the Part B alias `/api/shipments` are deprecated
+and answer with `Deprecation`, `Sunset` and `Link` headers. [VERSIONING.md](VERSIONING.md) lists every v1 → v2 change,
+the deprecation policy and the sunset plan. [API-NOTES.md](API-NOTES.md) compares the v1 and v2 shapes, and
+[src/ApexPost.Api/ApexPost.Api.http](src/ApexPost.Api/ApexPost.Api.http) has a success and a failure request for every
+endpoint in both versions. Screenshots of Part C are listed in
+[docs/screenshots/week4-partC/](docs/screenshots/week4-partC/README.md).
+
+`contracts/v1.json` and `contracts/v2.json` are the published contracts. `ContractTrackingTests` fails when the live
+documents differ from them, so every contract change shows up as a reviewed diff. After an intended change, export
+them again. The API starts in Development, so the user-secret connection string is needed:
+
+```bash
+./scripts/export-contracts.sh      # Linux, macOS, Git Bash
+```
+
+```powershell
+./scripts/export-contracts.ps1     # Windows PowerShell
+```
+
+Both scripts build the API, start it on `http://127.0.0.1:5199`, download both documents, pretty-print them with
+`scripts/format-json.cs` (the same bytes on every OS) and stop the API.
+
+### Generated C# client and console consumer
+
+`src/ApexPost.Client` is a typed C# client for v2, generated by NSwag from `contracts/v2.json`. The generator
+settings are in `src/ApexPost.Client/nswag.json` (System.Text.Json, an `IApexPostApiClient` interface, an injected
+`HttpClient`, `System.DateTime` for UTC times). The output `Generated/ApexPostApiClient.g.cs` is committed and marked
+`<auto-generated>`, so a normal build does not need NSwag. Never edit it by hand: additions go into partial classes
+in `src/ApexPost.Client/Extensions/` (for example `ApexPostApiClient.Partial.cs` reads and writes enums by name).
+`Generated/.editorconfig` turns analyzers off for that folder only; hand-written code keeps warnings as errors.
+
+Regenerate after exporting a changed contract. The scripts run the pinned NSwag CLI (`nswag.consolecore` 14.7.1)
+through `dotnet tool exec`, so nothing is installed:
+
+```bash
+./scripts/generate-client.sh       # Linux, macOS, Git Bash
+```
+
+```powershell
+./scripts/generate-client.ps1      # Windows PowerShell
+```
+
+The exact command in both is `dotnet tool exec nswag.consolecore@14.7.1 --yes -- run src/ApexPost.Client/nswag.json`.
+
+`src/ApexPost.Client.Consumer` is a console app that uses only the generated client. It registers it with
+`services.AddHttpClient<IApexPostApiClient, ApexPostApiClient>()` and reads the base URL from `ApexPostApi:BaseUrl` in
+its `appsettings.json` (default `http://localhost:5310/`, the API's `http` launch profile). It creates a shipment,
+reads it back, uploads two scans with new `scan::{Guid}` ids (Pickup, then InTransit), and asks for the unknown
+`APX-00000000`: the client throws `ApiException` with `StatusCode` 404, and the consumer prints a friendly message.
+
+Since Part D the API needs a bearer token. The demo creates shipments and uploads CR-101 scans, so give it a token
+with both roles through the environment variable `ApexPostApi__AccessToken` (never in `appsettings.json`):
+
+```bash
+dotnet run --project src/ApexPost.Api --launch-profile http        # terminal 1
+export ApexPostApi__AccessToken=$(dotnet user-jwts create --project src/ApexPost.Api \
+  --role Admin --role Courier --claim courierId=CR-101 --output token)
+dotnet run --project src/ApexPost.Client.Consumer                  # terminal 2
+dotnet run --project src/ApexPost.Client.Consumer -- --ApexPostApi:BaseUrl=http://localhost:5199/
+```
+
+`GeneratedClientTests` runs the same scenario against the test host and checks that the client has one method per
+operation in `contracts/v2.json`.
+
+### Development only, and why that is not security
+
+`MapApexDocumentationInDevelopment()` maps both only when the environment is Development. In every other environment
+`/openapi/v1.json` and `/swagger` answer 404; `ProductionDocumentationTests` proves this. Leaving the documentation out
+of Production keeps the surface small and avoids publishing internal details, but it is **not** a security measure:
+anyone can still call the endpoints, guess routes or read a copy of the contract. The endpoints must protect themselves
+with authentication and authorization (Part D adds JWT roles and a partner API key).
+
+## Week 4 Part D – security and the courier app
+
+### JWT bearer authentication and roles
+
+`ApexPost.Api` accepts only requests with a valid JWT (`AddAuthentication().AddJwtBearer()` in
+`Composition/ApiSecurityRegistration.cs`). Issuer, audience, lifetime (30 seconds clock skew) and signing key are all
+validated. Issuer and audiences are read from `Authentication:Schemes:Bearer` in `appsettings.json` (Development:
+`appsettings.Development.json`, issuer `dotnet-user-jwts`). The signing key is only in user-secrets, where
+`dotnet user-jwts` creates and keeps it; it is never in a committed file.
+
+| Endpoint (v1, v1 alias and v2) | Who may call it |
+| --- | --- |
+| `GET` shipments, one shipment, scans | any valid token |
+| `POST .../scans` (upload) | role `Courier`, and only scans whose `courierId` equals the token's `courierId` claim |
+| `PATCH .../status` | role `Courier` |
+| `POST` shipments, `PUT` shipment, `DELETE` shipment | role `Admin` |
+
+401 (no token, expired, bad signature, wrong issuer or audience) and 403 (wrong role) are ProblemDetails with a
+`traceId`, written by `Security/BearerProblemEvents.cs`. The courierId rule is checked in
+`ShipmentTrackingService` (through the `ICurrentCourier` port), not in the controller: a batch with a scan of
+another courier is refused as a whole with 403 and nothing is stored. The OpenAPI documents declare the Bearer scheme,
+so Swagger UI shows an **Authorize** button.
+
+Create tokens for local testing (the first run also creates the signing key in user-secrets):
+
+```bash
+dotnet user-jwts create --project src/ApexPost.Api --role Courier --claim courierId=CR-101
+dotnet user-jwts create --project src/ApexPost.Api --role Admin
+dotnet user-jwts list --project src/ApexPost.Api
+```
+
+In Development, `POST /dev/token` with `{ "courierId": "CR-101" }` (or `CR-102`) returns a one-hour Courier token,
+signed with the same key, for the MAUI login. It is not part of the OpenAPI documents, and outside Development the
+controller is not registered, so the route answers 404. `ApexPost.Api.http` starts with these requests and sends
+`{{courierToken}}` or `{{adminToken}}` with every call.
+
+The tests in `tests/ApexPost.Api.Tests/Security` cover 401 (missing, expired, bad signature, wrong issuer or audience,
+malformed), 403 (wrong role, other courierId, no courierId claim), success for each role and `/dev/token`.
+
+### Partner API key, HTTPS and HSTS
+
+Partners track parcels at `GET /api/v2/partner/shipments/{trackingNumber}` (v2 only, read-only). They send a key in
+the `X-Api-Key` header instead of a user token. `[PartnerApiKey]` runs `Security/PartnerApiKeyFilter.cs`, which
+looks the key up in the `PartnerKeys` configuration section (`PartnerKeys:<PartnerName> = <key>`, user-secrets or
+environment variables only). The comparison is constant time (SHA-256 + `CryptographicOperations.FixedTimeEquals`
+against every configured key). A missing or unknown key gets 401 ProblemDetails with `WWW-Authenticate: ApiKey`. Only
+the partner name is logged, never the key. The answer holds status, destination city and the latest scan, never the
+recipient's name, phone or address.
+
+```bash
+dotnet user-secrets set "PartnerKeys:ParcelTrackDemo" "<a long random value>" --project src/ApexPost.Api
+```
+
+`UseHttpsRedirection()` runs in every environment, and `UseHsts()` (one year, subdomains included) runs outside
+Development. Both OpenAPI documents declare the `Bearer` scheme; v2 also declares `ApiKey` (header `X-Api-Key`), and
+the partner operation requires only that one. In Swagger UI, **Authorize** therefore offers a token field and, in v2,
+a key field. [SECURITY.md](SECURITY.md) explains the design, the OAuth 2.0 flows a real identity provider would use,
+why API keys are weaker, HTTPS/HSTS and the Debug-only localhost certificate exception of the courier app.
+
+### Resilience of the courier app
+
+The typed `ApexApiClient` of the courier app runs every call through a `Microsoft.Extensions.Http.Resilience`
+pipeline (`AddApexResilience()` in `MauiProgram`): total timeout 30 s → retry (3 retries, exponential backoff with
+jitter) → circuit breaker (50 % failures of at least 4 attempts in 30 s, open for 15 s) → attempt timeout 8 s.
+Only network errors, timeouts, 408 and 5xx are retried, never another 4xx, and only for GET/PUT/DELETE and the scan
+upload, which is safe to repeat because the server de-duplicates by scan id. While the circuit is open the app shows
+"Server unavailable – working offline" and scans keep saving locally. Every retry and state change is logged without
+tokens or bodies. [RESILIENCE.md](RESILIENCE.md) explains the values; the tests are in
+`tests/Mobile/ApexPost.Courier.ApiClient.Tests/Resilience`:
+
+```bash
+dotnet test tests/Mobile/ApexPost.Courier.ApiClient.Tests -c Release
+```
+
+### Offline sync in the courier app
+
+The app opens **Sign in** when no token is stored. While the API runs in Development, **Sign in** asks
+`POST /dev/token` for a CR-101 or CR-102 token; any courier token can also be pasted. The token is kept only in
+`SecureStorage`. On the **New Scan** tab the courier records scans (saved on the device as `Pending` first), and the
+**Pending** tab shows the live pending count from the Part A change listener. `HttpShipmentUploader` replaces the fake uploader in the app: the outbox
+sends pending scans in batches of 20 per tracking number. Accepted and duplicate scans become `Synced`, rejected
+scans `Failed`, and a network failure or an open circuit leaves them `Pending`. A sync starts at start-up, after
+sign-in, when the device gets Internet access again, after a new scan and from **Sync now**. A 401 clears the token
+and returns to Sign in. [OFFLINE-DESIGN.md](OFFLINE-DESIGN.md#part-d-batches-through-the-real-api) has the table of
+outcomes.
+
+Run it (Windows; the API must run in Development on `https://localhost:7310`):
+
+```bash
+dotnet run --project src/ApexPost.Api --launch-profile https
+dotnet build src/Mobile/ApexPost.Courier -f net10.0-windows10.0.19041.0 -t:Run
+```
+
+`tests/ApexPost.Courier.Offline.Tests/Outbox/BatchOutboxTests.cs` covers batching and every outcome, and
+`tests/ApexPost.Api.Tests/Sync/HttpUploaderEndToEndTests.cs` runs the real uploader against the API host and its
+SQL Server database.
+
+### Courier app screens (Shell + MVVM)
+
+`AppShell` has a sign-in route and three tabs. Each page is XAML with compiled bindings (`x:DataType`) and a small
+code-behind that only sets its `BindingContext`. The view models live in `src/Mobile/ApexPost.Courier.Presentation`,
+a plain `net10.0` library without MAUI types, so the ubuntu CI job tests them.
+
+| Page | View model | What it does |
+| --- | --- | --- |
+| Sign in | `LoginViewModel` | `POST /dev/token` for a demo courier or a pasted token; the token goes only to SecureStorage |
+| New Scan | `NewScanViewModel`, `ShipmentLookupViewModel` | Checks `APX-########` and the location before saving; courier id from the token; saves as `Pending`; shipment look-up |
+| Pending | `PendingScansViewModel` | Pending scans, oldest first, with a live count from the change listener |
+| Sync Status | `SyncStatusViewModel` | Last sync time and counts, circuit breaker state, last 5 problems, refused scans, **Sync now**, **Sign out** |
+
+`ConnectionBannerViewModel` is one shared instance. Every page shows its banner "Server unavailable – working
+offline" while the circuit is open. API errors are shown with the friendly ProblemDetails text of the client plus
+"Reference: <traceId>", and never with server internals. Events from background threads (listener, circuit breaker,
+outbox) reach the view models through `IUiDispatcher`. The app has its own ports: `IAppNavigator` (Shell routes),
+`ISyncRunner` (`CourierSync`) and `IPendingCountSource` (the listener).
+
+Run it on the Android emulator (start an emulator first; the app uses `https://10.0.2.2:7310/`):
+
+```bash
+dotnet build src/Mobile/ApexPost.Courier -f net10.0-android -t:Run
+```
+
+Tests: `dotnet test tests/Mobile/ApexPost.Courier.Presentation.Tests -c Release`. The steps for recording the demo
+are in [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md), and the screenshot list is in
+[docs/screenshots/week4-partD/README.md](docs/screenshots/week4-partD/README.md).
+
 ## Known limitations
 
 - The allowlists see the address of the direct connection. Behind a proxy that is the proxy, so all callers would

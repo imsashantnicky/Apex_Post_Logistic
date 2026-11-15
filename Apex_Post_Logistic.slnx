@@ -1,12 +1,34 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/ApexPost.Api/ApexPost.Api.csproj" />
     <Project Path="src/ApexPost.Application/ApexPost.Application.csproj" />
+    <Project Path="src/ApexPost.Client.Consumer/ApexPost.Client.Consumer.csproj" />
+    <Project Path="src/ApexPost.Client/ApexPost.Client.csproj" />
     <Project Path="src/ApexPost.Domain/ApexPost.Domain.csproj" />
     <Project Path="src/ApexPost.Infrastructure/ApexPost.Infrastructure.csproj" />
     <Project Path="src/ApexPost.Web/ApexPost.Web.csproj" />
   </Folder>
+  <Folder Name="/src/Courier/">
+    <Project Path="src/Courier/ApexPost.Courier.Domain/ApexPost.Courier.Domain.csproj" />
+    <Project Path="src/Courier/ApexPost.Courier.Harness/ApexPost.Courier.Harness.csproj" />
+    <Project Path="src/Courier/ApexPost.Courier.Offline/ApexPost.Courier.Offline.csproj" />
+  </Folder>
+  <Folder Name="/src/Mobile/">
+    <Project Path="src/Mobile/ApexPost.Courier.ApiClient/ApexPost.Courier.ApiClient.csproj" />
+    <Project Path="src/Mobile/ApexPost.Courier.Presentation/ApexPost.Courier.Presentation.csproj" />
+  </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ApexPost.Api.Tests/ApexPost.Api.Tests.csproj" />
+    <Project Path="tests/ApexPost.Courier.Offline.Tests/ApexPost.Courier.Offline.Tests.csproj" />
     <Project Path="tests/ApexPost.IntegrationTests/ApexPost.IntegrationTests.csproj" />
+    <Project Path="tests/ApexPost.Tracking.UnitTests/ApexPost.Tracking.UnitTests.csproj" />
     <Project Path="tests/ApexPost.UnitTests/ApexPost.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Courier/">
+    <Project Path="tests/Courier/ApexPost.Courier.UnitTests/ApexPost.Courier.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Mobile/">
+    <Project Path="tests/Mobile/ApexPost.Courier.ApiClient.Tests/ApexPost.Courier.ApiClient.Tests.csproj" />
+    <Project Path="tests/Mobile/ApexPost.Courier.Presentation.Tests/ApexPost.Courier.Presentation.Tests.csproj" />
   </Folder>
 </Solution>

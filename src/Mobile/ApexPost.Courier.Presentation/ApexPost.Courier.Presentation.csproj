@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- View models of the courier app. Plain net10.0 without MAUI types, so the screens' logic runs in unit tests
+       on the ubuntu CI job; the MAUI app supplies the dispatcher, navigation and sync implementations. -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Courier\ApexPost.Courier.Offline\ApexPost.Courier.Offline.csproj" />
+    <ProjectReference Include="..\ApexPost.Courier.ApiClient\ApexPost.Courier.ApiClient.csproj" />
+  </ItemGroup>
+
+</Project>

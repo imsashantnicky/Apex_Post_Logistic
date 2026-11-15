@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ApexPost.Courier.Presentation.ViewModels;assembly=ApexPost.Courier.Presentation"
+             xmlns:views="clr-namespace:ApexPost.Courier.Views"
+             x:Class="ApexPost.Courier.Views.NewScanPage"
+             x:DataType="vm:NewScanViewModel"
+             Title="New Scan">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="14">
+
+            <views:OfflineBanner BindingContext="{Binding Banner}" />
+
+            <Border Padding="14" StrokeShape="RoundRectangle 10">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Record a scan" FontAttributes="Bold" FontSize="16" />
+                    <Label Text="Saved on this device as Pending first, then uploaded. Your courier id comes from your sign-in."
+                           FontSize="12" TextColor="{StaticResource Gray500}" />
+
+                    <Label Text="Tracking number" FontSize="13" />
+                    <Entry Text="{Binding TrackingNumber}"
+                           Placeholder="APX-20000001"
+                           MaxLength="12"
+                           SemanticProperties.Description="Tracking number of the scan" />
+                    <Label Text="{Binding TrackingNumberError}" IsVisible="{Binding HasTrackingNumberError}"
+                           FontSize="12" TextColor="#B3261E" />
+
+                    <Label Text="Scan type" FontSize="13" />
+                    <Picker ItemsSource="{Binding ScanTypes}"
+                            SelectedItem="{Binding SelectedScanType}"
+                            SemanticProperties.Description="Scan type" />
+
+                    <Label Text="Location" FontSize="13" />
+                    <Entry Text="{Binding Location}"
+                           Placeholder="For example Central Hub"
+                           SemanticProperties.Description="Location" />
+                    <Label Text="{Binding LocationError}" IsVisible="{Binding HasLocationError}"
+                           FontSize="12" TextColor="#B3261E" />
+
+                    <Label Text="Notes (optional)" FontSize="13" />
+                    <Entry Text="{Binding Notes}" SemanticProperties.Description="Notes" />
+
+                    <Button Text="Save scan" Command="{Binding SaveCommand}" />
+                    <Label Text="{Binding Status}" FontSize="13" TextColor="#1B7F4B">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label" Binding="{Binding StatusIsError}" Value="True">
+                                <Setter Property="TextColor" Value="#B3261E" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Padding="14" StrokeShape="RoundRectangle 10" BindingContext="{Binding Lookup}"
+                    x:DataType="vm:ShipmentLookupViewModel">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Find a shipment" FontAttributes="Bold" />
+                    <Entry Text="{Binding TrackingNumber}"
+                           Placeholder="APX-20000001"
+                           MaxLength="12"
+                           SemanticProperties.Description="Tracking number to look up" />
+                    <Button Text="Look up" Command="{Binding LookupCommand}" />
+                    <Label Text="{Binding Result}" FontSize="14" TextColor="#1B7F4B">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label" Binding="{Binding ResultIsError}" Value="True">
+                                <Setter Property="TextColor" Value="#B3261E" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
