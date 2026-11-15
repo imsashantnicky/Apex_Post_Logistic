@@ -7,6 +7,7 @@ using ApexPost.Api.Tests.Support;
 namespace ApexPost.Api.Tests.Documentation;
 
 /// <summary>Both OpenAPI documents declare and require the JWT bearer scheme (Swagger UI "Authorize").</summary>
+[Trait("Category", "Integration")]
 public sealed class SecuritySchemeTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string PartnerPath = "/api/v2/partner/shipments/{trackingNumber}";

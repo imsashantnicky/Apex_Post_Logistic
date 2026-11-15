@@ -10,6 +10,7 @@ namespace ApexPost.Api.Tests.Versioning;
 /// <summary>
 /// The v2 contract: nested recipient, latestScan (null without scans) and enums as strings, on the same service as v1.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class V2ContractTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static readonly string[] ShipmentShape =

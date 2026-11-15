@@ -7,6 +7,7 @@ using static ApexPost.UnitTests.Support.TestData;
 
 namespace ApexPost.UnitTests.Domain;
 
+[Trait("Category", "Unit")]
 public sealed class EntityTests
 {
     [Fact]

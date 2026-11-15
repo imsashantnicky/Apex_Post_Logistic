@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ApexPost.Courier.Offline.Tests.Listener;
 
+[Trait("Category", "Integration")]
 public sealed class ScanChangeMonitorTests : IDisposable
 {
     private const string Timestamp = "2026-11-05T08:00:00.0000000+00:00";

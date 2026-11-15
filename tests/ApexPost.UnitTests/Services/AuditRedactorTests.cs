@@ -2,6 +2,7 @@ using ApexPost.Application.Services;
 
 namespace ApexPost.UnitTests.Services;
 
+[Trait("Category", "Unit")]
 public sealed class AuditRedactorTests
 {
     private const string Redacted = AuditRedactor.Redacted;

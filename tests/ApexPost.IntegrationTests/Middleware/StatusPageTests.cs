@@ -3,6 +3,7 @@ using ApexPost.IntegrationTests.Support;
 
 namespace ApexPost.IntegrationTests.Middleware;
 
+[Trait("Category", "Integration")]
 public sealed class StatusPageTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     [Fact]

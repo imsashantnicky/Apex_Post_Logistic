@@ -5,6 +5,7 @@ using ApexPost.Application.Tracking;
 namespace ApexPost.Api.Tests.Contracts;
 
 /// <summary>An upload holds 1 to 100 scans.</summary>
+[Trait("Category", "Unit")]
 public sealed class ScanUploadRequestTests
 {
     [Theory]

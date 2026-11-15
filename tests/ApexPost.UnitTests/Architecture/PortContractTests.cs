@@ -7,6 +7,7 @@ namespace ApexPost.UnitTests.Architecture;
 /// The rules of the Week 3 ports, read from the compiled code: every asynchronous port can be cancelled, no port hands
 /// out a query, a repository only stages, and the code around the database never takes a synchronous path.
 /// </summary>
+[Trait("Category", "Unit")]
 public sealed class PortContractTests
 {
     private const string Repositories = "ApexPost.Infrastructure.Repositories";

@@ -3,6 +3,7 @@ using ApexPost.Courier.Offline;
 
 namespace ApexPost.Courier.UnitTests.Architecture;
 
+[Trait("Category", "Unit")]
 public sealed class DomainDependencyTests
 {
     private const string CouchbasePrefix = "Couchbase";

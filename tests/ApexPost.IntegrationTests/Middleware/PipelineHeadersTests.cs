@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ApexPost.IntegrationTests.Middleware;
 
+[Trait("Category", "Integration")]
 public sealed class PipelineHeadersTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string LoginPath = "/Account/Login";

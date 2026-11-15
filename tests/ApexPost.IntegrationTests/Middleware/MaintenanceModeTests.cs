@@ -3,6 +3,7 @@ using ApexPost.IntegrationTests.Support;
 
 namespace ApexPost.IntegrationTests.Middleware;
 
+[Trait("Category", "Integration")]
 public sealed class MaintenanceModeTests(ApexFactory factory) : IClassFixture<ApexFactory>, IDisposable
 {
     public void Dispose() => PipelineOrderTests.SetMaintenance(factory, enabled: false);

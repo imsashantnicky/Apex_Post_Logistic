@@ -4,6 +4,7 @@ using ApexPost.Domain.Tracking;
 namespace ApexPost.Tracking.UnitTests.Domain;
 
 /// <summary>The server copies the device formats; these tests keep the two copies identical.</summary>
+[Trait("Category", "Unit")]
 public sealed class TrackingFormatsTests
 {
     [Fact]

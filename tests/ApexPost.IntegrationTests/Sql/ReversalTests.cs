@@ -6,6 +6,7 @@ using ApexPost.Web.Filters;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>Voids and refunds as stored in SQL Server: who may do them and what is left behind.</summary>
+[Trait("Category", "Integration")]
 public sealed class ReversalTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Sku = "PKG-0011";

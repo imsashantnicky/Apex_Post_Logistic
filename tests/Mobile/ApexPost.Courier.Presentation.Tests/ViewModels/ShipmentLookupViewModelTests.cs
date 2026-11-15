@@ -5,6 +5,7 @@ using ApexPost.Courier.Presentation.ViewModels;
 
 namespace ApexPost.Courier.Presentation.Tests.ViewModels;
 
+[Trait("Category", "Unit")]
 public sealed class ShipmentLookupViewModelTests
 {
     private const string Shipment = """

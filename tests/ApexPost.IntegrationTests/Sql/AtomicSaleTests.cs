@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>Stock, status and payment of a sale are one commit, and a failed commit leaves no trace.</summary>
+[Trait("Category", "Integration")]
 public sealed class AtomicSaleTests(CommandLogFactory factory) : IClassFixture<CommandLogFactory>
 {
     private const string FirstSku = "PKG-0009";

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ApexPost.IntegrationTests.Middleware;
 
+[Trait("Category", "Unit")]
 public sealed class ProblemExceptionHandlerTests
 {
     private const string Internal = "internal detail";

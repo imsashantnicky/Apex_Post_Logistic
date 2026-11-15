@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>The stored procedures on a real server: their results, their errors and their transaction.</summary>
+[Trait("Category", "Integration")]
 public sealed class StoredProcedureTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Branch = "BR001";

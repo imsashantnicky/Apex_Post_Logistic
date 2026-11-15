@@ -4,6 +4,7 @@ using ApexPost.Tracking.UnitTests.Support;
 
 namespace ApexPost.Tracking.UnitTests.Domain;
 
+[Trait("Category", "Unit")]
 public sealed class TrackedShipmentTests
 {
     [Fact]

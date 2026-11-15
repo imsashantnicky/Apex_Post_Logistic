@@ -5,6 +5,7 @@ using ApexPost.Courier.ApiClient.Tests.Support;
 namespace ApexPost.Courier.ApiClient.Tests.Resilience;
 
 /// <summary>Attempt timeout (retried) and total timeout (returned as a Timeout failure).</summary>
+[Trait("Category", "Unit")]
 public sealed class TimeoutTests
 {
     private const string TrackingNumber = "APX-20000005";

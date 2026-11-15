@@ -7,6 +7,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 3: staff transact only at their home branch; auditors and administrators never transact.</summary>
+[Trait("Category", "Unit")]
 public sealed class HomeBranchRuleTests
 {
     [Theory]

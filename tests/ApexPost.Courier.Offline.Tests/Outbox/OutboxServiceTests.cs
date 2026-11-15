@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ApexPost.Courier.Offline.Tests.Outbox;
 
+[Trait("Category", "Integration")]
 public sealed class OutboxServiceTests : IDisposable
 {
     private static readonly DateTimeOffset BaseTime = new(2026, 11, 5, 8, 0, 0, TimeSpan.Zero);

@@ -2,6 +2,7 @@ using ApexPost.Courier.Harness;
 
 namespace ApexPost.Courier.UnitTests.Harness;
 
+[Trait("Category", "Unit")]
 public sealed class TableWriterTests
 {
     [Fact]

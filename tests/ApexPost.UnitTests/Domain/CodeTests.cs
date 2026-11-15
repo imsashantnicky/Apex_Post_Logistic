@@ -5,6 +5,7 @@ using ApexPost.Domain.Inventory;
 
 namespace ApexPost.UnitTests.Domain;
 
+[Trait("Category", "Unit")]
 public sealed class CodeTests
 {
     [Theory]

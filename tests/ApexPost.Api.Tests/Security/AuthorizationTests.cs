@@ -13,6 +13,7 @@ namespace ApexPost.Api.Tests.Security;
 /// ProblemDetails. A courier may upload only its own scans: the tracking service compares each scan's courierId
 /// with the token's courierId claim and answers 403 for any other.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class AuthorizationTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

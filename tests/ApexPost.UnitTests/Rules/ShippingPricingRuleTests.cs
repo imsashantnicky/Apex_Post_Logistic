@@ -10,6 +10,7 @@ namespace ApexPost.UnitTests.Rules;
 /// Rule 8: price = (zone base rate + zone rate per kg * chargeable kg) * level multiplier,
 /// chargeable kg = max(actual, volumetric). Test zone: base 5.00, per kg 1.50.
 /// </summary>
+[Trait("Category", "Unit")]
 public sealed class ShippingPricingRuleTests
 {
     [Theory]

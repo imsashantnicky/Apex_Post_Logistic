@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Unit")]
 public sealed class Pbkdf2PasswordHasherTests
 {
     private const string Password = "correct horse battery";

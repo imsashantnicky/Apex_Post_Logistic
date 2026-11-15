@@ -6,6 +6,7 @@ using Microsoft.Data.SqlClient;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>The real application on the role of sql/security, and what that role must not be able to do.</summary>
+[Trait("Category", "Integration")]
 public sealed class LeastPrivilegeTests(LeastPrivilegeFactory factory) : IClassFixture<LeastPrivilegeFactory>
 {
     private const int PermissionDenied = 229;

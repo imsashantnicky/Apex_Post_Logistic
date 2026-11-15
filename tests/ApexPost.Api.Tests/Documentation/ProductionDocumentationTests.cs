@@ -8,6 +8,7 @@ namespace ApexPost.Api.Tests.Documentation;
 /// Outside Development neither the OpenAPI document nor Swagger UI is mapped. This keeps the attack surface small;
 /// it is not what protects the endpoints.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class ProductionDocumentationTests(ProductionApiFactory factory) : IClassFixture<ProductionApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

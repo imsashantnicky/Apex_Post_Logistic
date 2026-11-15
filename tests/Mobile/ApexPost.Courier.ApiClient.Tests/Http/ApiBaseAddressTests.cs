@@ -2,6 +2,7 @@ using ApexPost.Courier.ApiClient.Http;
 
 namespace ApexPost.Courier.ApiClient.Tests.Http;
 
+[Trait("Category", "Unit")]
 public sealed class ApiBaseAddressTests
 {
     private const string Android = "https://10.0.2.2:7310";

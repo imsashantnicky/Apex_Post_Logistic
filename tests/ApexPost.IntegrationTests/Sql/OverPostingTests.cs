@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>Fields a form does not offer never reach a row, however they are added to the post.</summary>
+[Trait("Category", "Integration")]
 public sealed class OverPostingTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Attacker = "attacker";

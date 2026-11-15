@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ApexPost.IntegrationTests.Security;
 
+[Trait("Category", "Integration")]
 public sealed class IntegrationEndpointTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string OriginHeader = "Origin";

@@ -13,6 +13,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Services;
 
+[Trait("Category", "Unit")]
 public sealed class ReportServiceTests
 {
     private static readonly DateOnly Today = DateOnly.FromDateTime(TestData.Now.UtcDateTime);

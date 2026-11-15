@@ -8,6 +8,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 namespace ApexPost.UnitTests.Services;
 
 /// <summary>Rule 5: voids and refunds need the Branch Manager of the branch and a reason; stock comes back.</summary>
+[Trait("Category", "Unit")]
 public sealed class ReversalServiceTests
 {
     private static readonly ReversalCommand Reason = new() { Reason = "Customer changed their mind" };

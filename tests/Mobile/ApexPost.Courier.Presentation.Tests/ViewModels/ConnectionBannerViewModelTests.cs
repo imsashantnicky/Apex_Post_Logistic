@@ -6,6 +6,7 @@ using Polly.CircuitBreaker;
 
 namespace ApexPost.Courier.Presentation.Tests.ViewModels;
 
+[Trait("Category", "Unit")]
 public sealed class ConnectionBannerViewModelTests
 {
     private readonly CircuitStateTracker _circuit = new();

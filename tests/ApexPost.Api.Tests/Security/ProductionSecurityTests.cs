@@ -7,6 +7,7 @@ using ApexPost.Api.Tests.Support;
 namespace ApexPost.Api.Tests.Security;
 
 /// <summary>Outside Development there is no /dev/token, and tokens are still required and checked.</summary>
+[Trait("Category", "Integration")]
 public sealed class ProductionSecurityTests(ProductionApiFactory factory) : IClassFixture<ProductionApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

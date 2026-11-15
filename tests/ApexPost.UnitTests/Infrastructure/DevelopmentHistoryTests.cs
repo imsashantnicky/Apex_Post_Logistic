@@ -7,6 +7,7 @@ using ApexPost.Infrastructure.Seeding;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Unit")]
 public sealed class DevelopmentHistoryTests
 {
     private const string ClosedBranch = DemoBranches.ClosedBranch;

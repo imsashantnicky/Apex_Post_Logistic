@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ApexPost.IntegrationTests.Architecture;
 
+[Trait("Category", "Unit")]
 public sealed class ControllerLayeringTests
 {
     private const string InfrastructureAssembly = "ApexPost.Infrastructure";

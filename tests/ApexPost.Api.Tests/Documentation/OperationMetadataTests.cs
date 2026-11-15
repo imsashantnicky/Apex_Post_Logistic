@@ -9,6 +9,7 @@ namespace ApexPost.Api.Tests.Documentation;
 /// Reads /openapi/v1.json and checks the metadata of every API operation: a stable operationId (the route name),
 /// summary, description, tag and exactly the documented response codes, errors as application/problem+json.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class OperationMetadataTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string ProblemJson = "application/problem+json";

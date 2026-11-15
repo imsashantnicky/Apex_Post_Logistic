@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ApexPost.Courier.ApiClient.Tests.Auth;
 
 /// <summary>The same registration as <c>MauiProgram</c>, with the fake handler as the primary handler.</summary>
+[Trait("Category", "Unit")]
 public sealed class HttpClientFactoryWiringTests
 {
     [Fact]

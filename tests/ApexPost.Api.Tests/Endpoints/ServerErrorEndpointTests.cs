@@ -9,6 +9,7 @@ namespace ApexPost.Api.Tests.Endpoints;
 /// When the service fails unexpectedly, every real endpoint answers 500 ProblemDetails from the global handler with
 /// a generic detail and a trace id, and never shows the exception message.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class ServerErrorEndpointTests(FailingServiceApiFactory factory) : IClassFixture<FailingServiceApiFactory>
 {
     private const string Shipment = "/api/shipments/APX-20000001";

@@ -3,6 +3,7 @@ using ApexPost.IntegrationTests.Support;
 
 namespace ApexPost.IntegrationTests.Security;
 
+[Trait("Category", "Integration")]
 public sealed class RateLimitingTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string LoginPath = "/Account/Login";

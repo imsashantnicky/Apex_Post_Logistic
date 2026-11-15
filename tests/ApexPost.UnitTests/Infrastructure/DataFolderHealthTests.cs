@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Integration")]
 public sealed class DataFolderHealthTests : IDisposable
 {
     private readonly TempDataFolder _folder = new();

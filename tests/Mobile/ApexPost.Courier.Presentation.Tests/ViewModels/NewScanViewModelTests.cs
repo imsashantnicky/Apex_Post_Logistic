@@ -7,6 +7,7 @@ using ApexPost.Courier.Presentation.ViewModels;
 
 namespace ApexPost.Courier.Presentation.Tests.ViewModels;
 
+[Trait("Category", "Unit")]
 public sealed class NewScanViewModelTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 7, 9, 30, 0, TimeSpan.Zero);

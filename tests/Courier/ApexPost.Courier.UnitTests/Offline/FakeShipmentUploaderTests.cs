@@ -5,6 +5,7 @@ using ApexPost.Courier.Offline.Outbox;
 
 namespace ApexPost.Courier.UnitTests.Offline;
 
+[Trait("Category", "Unit")]
 public sealed class FakeShipmentUploaderTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

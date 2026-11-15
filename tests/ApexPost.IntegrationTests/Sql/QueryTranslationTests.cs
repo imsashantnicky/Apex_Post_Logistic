@@ -12,6 +12,7 @@ namespace ApexPost.IntegrationTests.Sql;
 /// LINQ query services run on SQL Server and are compared with hand-written SQL over the seeded history. A query EF Core
 /// cannot translate fails here at run time, which an in-memory fake would never show.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class QueryTranslationTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Branch = "BR001";

@@ -10,6 +10,7 @@ namespace ApexPost.Api.Tests.Contracts;
 /// Through the real host, [ApiController] answers an invalid body with 400 ValidationProblemDetails by itself,
 /// including the custom rules on nested scans; a valid body reaches the action.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class AutomaticValidationTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

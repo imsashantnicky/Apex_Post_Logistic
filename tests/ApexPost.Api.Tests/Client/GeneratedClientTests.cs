@@ -12,6 +12,7 @@ namespace ApexPost.Api.Tests.Client;
 /// end, enums travel by name, errors arrive as <see cref="ApiException"/> with the status code, and the client still
 /// has one method per operation of the committed contract.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class GeneratedClientTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string Seeded = "APX-20000001";

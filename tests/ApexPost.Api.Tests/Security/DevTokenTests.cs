@@ -15,6 +15,7 @@ namespace ApexPost.Api.Tests.Security;
 /// POST /dev/token signs a one-hour Courier token for the fictional couriers in Development, with the same issuer,
 /// audience and key the bearer handler checks; the token is then refused or accepted like any other.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class DevTokenTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string Route = "/" + DevTokenController.Route;

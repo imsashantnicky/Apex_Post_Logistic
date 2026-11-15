@@ -17,6 +17,7 @@ namespace ApexPost.Api.Tests.Sync;
 /// The courier app's <see cref="HttpShipmentUploader"/> with the same handler chain as the app (auth header,
 /// resilience) against the real API host and its SQL Server database: the Part D sync end to end.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class HttpUploaderEndToEndTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

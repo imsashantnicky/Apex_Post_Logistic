@@ -5,6 +5,7 @@ using ApexPost.Api.Tests.Support;
 namespace ApexPost.Api.Tests.Contracts;
 
 /// <summary>The custom [NotInFuture] rule on its own: tolerance, kinds of time and the clock it uses.</summary>
+[Trait("Category", "Unit")]
 public sealed class NotInFutureAttributeTests
 {
     private static readonly DateTimeOffset Now = FixedTimeProvider.DefaultNow;

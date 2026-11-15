@@ -12,6 +12,7 @@ namespace ApexPost.IntegrationTests.Workflows;
 /// One sale from the browser to the database and into the report: every row it should leave, the exact change of the
 /// report totals worked out by hand, and who may reverse it.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed partial class SaleToReportTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Clerk = "clerk1.br004@apexpost.test";
