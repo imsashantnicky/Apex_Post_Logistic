@@ -32,7 +32,7 @@ public sealed class ShipmentTrackingServiceMoqTests
                 It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<string>(StringComparer.Ordinal));
         _service = new ShipmentTrackingService(
-            _shipments.Object, _queries.Object, _unitOfWork.Object, _courier.Object, _time);
+            _shipments.Object, _queries.Object, _unitOfWork.Object, _courier.Object, _time, TestData.ScanAge());
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

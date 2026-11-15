@@ -16,14 +16,17 @@ public static class TrackingDependencyInjection
     public const string ConnectionName = DependencyInjection.SqlConnectionName;
 
     /// <summary>
-    /// Registers <see cref="TrackingDbContext"/>, its repository, queries and unit of work (all scoped) and
-    /// <see cref="IShipmentTrackingService"/>. The connection string is read when a context is built, from
-    /// user-secrets or the environment.
+    /// Registers <see cref="TrackingDbContext"/>, its repository, queries and unit of work (all scoped),
+    /// <see cref="IShipmentTrackingService"/> and the singleton <see cref="ScanAgePolicy"/> (its
+    /// <see cref="TrackingOptions"/> keep their defaults unless the host binds them). The connection string is read
+    /// when a context is built, from user-secrets or the environment.
     /// </summary>
     public static IServiceCollection AddShipmentTracking(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         services.TryAddSingleton(TimeProvider.System);
+        services.AddOptions<TrackingOptions>();
+        services.TryAddSingleton<ScanAgePolicy>();
         services.AddDbContext<TrackingDbContext>(options =>
             UseTrackingSqlServer(options, configuration.GetConnectionString(ConnectionName)));
         services.AddScoped<ITrackedShipmentRepository, TrackedShipmentRepository>();

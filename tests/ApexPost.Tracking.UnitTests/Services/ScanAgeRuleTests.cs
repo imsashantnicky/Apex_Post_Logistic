@@ -20,7 +20,7 @@ public sealed class ScanAgeRuleTests
 
     public ScanAgeRuleTests()
     {
-        _service = new ShipmentTrackingService(_store, _store, _store, new FixedCourier(), _time);
+        _service = new ShipmentTrackingService(_store, _store, _store, new FixedCourier(), _time, TestData.ScanAge());
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

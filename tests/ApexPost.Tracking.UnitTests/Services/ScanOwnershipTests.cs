@@ -101,5 +101,5 @@ public sealed class ScanOwnershipTests
     }
 
     private ShipmentTrackingService ServiceFor(string? courierId) =>
-        new(_store, _store, _store, new FixedCourier(courierId), new FixedTimeProvider());
+        new(_store, _store, _store, new FixedCourier(courierId), new FixedTimeProvider(), TestData.ScanAge());
 }

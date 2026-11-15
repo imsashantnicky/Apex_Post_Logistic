@@ -8,14 +8,16 @@ namespace ApexPost.Application.Tracking;
 /// <summary>
 /// The tracking use cases. Reads go through <see cref="ITrackingQueries"/>; every write loads the shipment through
 /// the repository, applies the domain rules and commits once through <see cref="ITrackingUnitOfWork"/>. A scan
-/// upload is accepted only from the courier who recorded every scan in it (<see cref="ICurrentCourier"/>).
+/// upload is accepted only from the courier who recorded every scan in it (<see cref="ICurrentCourier"/>), and a scan
+/// that is too old is rejected (<see cref="ScanAgePolicy"/>).
 /// </summary>
 public sealed class ShipmentTrackingService(
     ITrackedShipmentRepository shipments,
     ITrackingQueries queries,
     ITrackingUnitOfWork unitOfWork,
     ICurrentCourier courier,
-    TimeProvider time) : IShipmentTrackingService
+    TimeProvider time,
+    ScanAgePolicy scanAge) : IShipmentTrackingService
 {
     private const string UnknownTrackingNumber = "Unknown tracking number.";
     private const string NotACourier = "Only a signed-in courier can upload scans.";
@@ -211,9 +213,9 @@ public sealed class ShipmentTrackingService(
             return $"The scan is for {scan.TrackingNumber}, not for shipment {onlyShipment}.";
         }
 
-        if (Now - scan.ScannedAtUtc > TimeSpan.FromHours(72))
+        if (scanAge.RejectionFor(scan.ScannedAtUtc, Now) is { } tooOld)
         {
-            return "Scan is older than 72 hours.";
+            return tooOld;
         }
 
         if (!loaded.TryGetValue(scan.TrackingNumber, out var shipment))

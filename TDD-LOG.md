@@ -109,3 +109,36 @@ Real output:
   Passed ApexPost.Tracking.UnitTests.Services.ScanAgeRuleTests.UploadScansAsync_ScanExactly72HoursOld_AcceptsScan [5 ms]
 Total tests: 3
 ```
+
+## 5. Refactoring 1 – the limit moves into `TrackingOptions`
+
+GREEN left a literal `72` and a fixed text inside the service. The refactor removes them without changing behaviour:
+
+| File | Change |
+| --- | --- |
+| `src/ApexPost.Application/Tracking/TrackingOptions.cs` (new) | "Tracking" section, `MaxScanAgeHours` (default `DefaultMaxScanAgeHours = 72`) |
+| `src/ApexPost.Application/Tracking/ScanAgePolicy.cs` (new) | Takes `IOptions<TrackingOptions>` by constructor injection; `RejectionFor(scannedAtUtc, uploadedAtUtc)` returns `"Scan is older than {hours} hours."` or `null`. Same strict `>` as GREEN |
+| `src/ApexPost.Application/Tracking/ShipmentTrackingService.cs` | Constructor takes `ScanAgePolicy`; `TryRecordAsync` asks the policy instead of comparing with `72` |
+| `src/ApexPost.Infrastructure/Tracking/TrackingDependencyInjection.cs` | `AddShipmentTracking` registers `TrackingOptions` and `ScanAgePolicy` (singleton: it holds only the limit) |
+| `src/ApexPost.Api/Composition/ApiRegistration.cs` | Binds the "Tracking" section and validates `MaxScanAgeHours >= 1` with `ValidateOnStart`, so a bad value stops the host instead of rejecting every scan |
+
+```csharp
+public sealed class ScanAgePolicy(IOptions<TrackingOptions> options)
+{
+    private readonly int _maxAgeHours = options.Value.MaxScanAgeHours;
+
+    public string? RejectionFor(DateTime scannedAtUtc, DateTime uploadedAtUtc) =>
+        uploadedAtUtc - scannedAtUtc > TimeSpan.FromHours(_maxAgeHours)
+            ? $"Scan is older than {_maxAgeHours} hours."
+            : null;
+}
+```
+
+No behaviour change: the three `ScanAgeRuleTests` were not edited except for the constructor call, and still pass.
+The new constructor parameter meant that six places that build the service by hand now pass
+`TestData.ScanAge()` (or `new ScanAgePolicy(Options.Create(new TrackingOptions()))` in the SQL tests): the three
+existing service classes, the Moq class and the two SQL classes. Only the construction changed, no assertion; each is
+recorded in the review table of `TESTING-STRATEGY.md` (5.2 / 5.3).
+
+Result: `dotnet build Apex_Post_Logistic.slnx -c Release` 0 warnings, 0 errors; full suite 1,919 passed, 0 failed,
+0 skipped (1,917 + the 2 boundary tests).

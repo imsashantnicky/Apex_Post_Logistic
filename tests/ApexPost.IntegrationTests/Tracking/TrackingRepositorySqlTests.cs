@@ -5,6 +5,7 @@ using ApexPost.Domain.Tracking;
 using ApexPost.Infrastructure.Tracking;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 
@@ -172,7 +173,8 @@ public sealed class TrackingRepositorySqlTests(TrackingDatabase database) : ICla
             new SqlTrackingQueries(context),
             new TrackingUnitOfWork(context),
             Mock.Of<ICurrentCourier>(courier => courier.CourierId == TrackingTestData.CourierId),
-            new FakeTimeProvider(TrackingTestData.Now));
+            new FakeTimeProvider(TrackingTestData.Now),
+            new ScanAgePolicy(Options.Create(new TrackingOptions())));
 
     private static async Task StageScanAsync(TrackingDbContext context, string trackingNumber, string scanId)
     {
