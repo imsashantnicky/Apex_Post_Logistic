@@ -40,3 +40,6 @@ VIVA.md
 
 # Week 4 courier: change listener log (logs/listener.log)
 **/logs/
+
+# Reqnroll: code generated from .feature files at build time
+*.feature.cs
