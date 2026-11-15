@@ -24,8 +24,10 @@ testability or for the TDD rule, and every change is recorded.
 | Integration | `tests/ApexPost.IntegrationTests`, `tests/ApexPost.Api.Tests`, `tests/ApexPost.Courier.Offline.Tests` (real embedded Couchbase), plus SQL tests moved out of unit projects |
 | BDD | `tests/ApexPost.Specs` (new, Reqnroll) |
 
-Some projects hold tests of both levels today (for example Couchbase tests inside `ApexPost.Courier.UnitTests`).
-The `Category` trait, not the project name, decides the level; `TESTING-STRATEGY.md` section 5 lists each class.
+Since step 02 every test class carries a `Category` trait, and the trait, not the project name, decides the level
+(`TESTING-STRATEGY.md` section 5 lists each class). The SQL tracking tests now live in `ApexPost.IntegrationTests/Tracking`
+and every Couchbase class except `CourierHarnessTests` lives in `ApexPost.Courier.Offline.Tests`. Shared test packages
+are in `tests/Directory.Build.props`; the one SQL Server lookup for all SQL fixtures is `tests/Common/SqlTestServer.cs`.
 
 ## Branches
 
@@ -46,3 +48,4 @@ dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category=Unit"
 | Date | Step | Progress |
 | --- | --- | --- |
 | 2026-11-15 | 01 | Strategy: `week5-testing` created from `main`; `CLAUDE.md` with the Week 5 section committed; CI runs on `week5-*` branches; `TESTING-STRATEGY.md` written from a count of the real tests (1,134 test methods in 8 projects, 190 classes) before any new test. |
+| 2026-11-15 | 02 | Restructure: shared test packages (Moq 4.21.0, TimeProvider.Testing 11.0.0, coverlet.collector 10.1.0); one SQL Server lookup (`SqlTestServer`: env var → user-secrets → LocalDB → skip, fails in CI); `TrackingSqlTests` moved to IntegrationTests; Courier duplicates merged by level (5 classes removed, unique cases kept); `Category` trait on all 185 classes; both test hosts on a fixed `FakeTimeProvider`. Full suite before 1,769 passed / 0 failed / 0 skipped, after 1,748 / 0 / 0 (−34 duplicate cases, +13 kept unique cases). No production code changed. |
