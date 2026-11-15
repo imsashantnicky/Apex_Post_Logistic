@@ -40,7 +40,7 @@ Likelihood and cost are rated Low / Medium / High. "Cost" is the damage if the d
 | R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `ShipmentTrackingServiceMoqTests` (duplicate → `SaveChangesAsync` never), `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409` → `ShipmentCreation.feature` (step 06) |
 | R3 | A re-sent scan is stored twice (offline retries make re-sends normal) | `ShipmentTrackingService.UploadAsync` / `UploadOnceAsync` (`DistinctBy`, `FindStoredScanIdsAsync`, retry on `DuplicateKeyException`), unique scan id index | High | High (history duplicated, status moved twice) | Unit (in-batch duplicates, stored ids), integration (parallel uploads on SQL Server), BDD | `ShipmentScanUploadTests`, `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once`, `HttpUploaderEndToEndTests` → `ScanSync.feature` (step 06) |
 | R4 | A courier uploads scans as another courier, or a role does what it must not | `Application/Tracking/ShipmentTrackingService.CheckBatch`, `Api/Security/ClaimsCurrentCourier.cs`, `Composition/ApiSecurityRegistration.cs` (policies) | Medium | High (forged delivery proof) | Unit (ownership rule with Moq `ICurrentCourier`), integration (real JWT pipeline, 401/403) | `ScanOwnershipTests`, `ShipmentTrackingServiceMoqTests` (Moq `ICurrentCourier`, repository never touched, since step 04), Api `AuthorizationTests`, `AuthenticationTests` → `TestAuthHandler` end-to-end test (later step) |
-| R5 | The client retries a 4xx or a non-idempotent request (duplicate PATCH, hammering on 400) | `ApiClient/Resilience/ApexResilience.cs`, `TransientFailure.cs`, `IdempotentRequest.cs` | Medium | Medium (duplicate status change, battery/network waste, locked account) | Unit (fake `HttpMessageHandler`, Moq `Protected()`) | `RetryRuleTests`, `RetryTests`, `CircuitBreakerTests`, `TimeoutTests` → typed client cases with Moq handler (later step) |
+| R5 | The client retries a 4xx or a non-idempotent request (duplicate PATCH, hammering on 400) | `ApiClient/Resilience/ApexResilience.cs`, `TransientFailure.cs`, `IdempotentRequest.cs` | Medium | Medium (duplicate status change, battery/network waste, locked account) | Unit (fake `HttpMessageHandler`, Moq `Protected()`) | `RetryRuleTests`, `RetryTests`, `CircuitBreakerTests`, `TimeoutTests` (fake clock since step 05), `ApexApiClientHttpHandlerTests` and `HttpShipmentUploaderHttpHandlerTests` (one test per HTTP case, Moq `Protected()` `SendAsync` + `Verify`, since step 05) |
 | R6 | The outbox marks a scan `Synced` that the server did not store, or loses a scan on a network error | `Courier.Offline/Outbox/OutboxService.cs`, `OutboxService.Batches.cs` (`ApplyAsync`) | Medium | High (proof of delivery silently lost) | Integration (real Couchbase in a temp folder); unit with Moq `IShipmentUploader` | `OutboxServiceTests`, `BatchOutboxTests`, `OutboxServiceMoqTests` (Moq uploader and status updater, since step 04) → `ScanSync.feature` (step 06) |
 | R7 | A validation limit is off by one (weight 0.1–30 kg, upload 1–100 scans, page size 1–50, scan time 2 min ahead) | `Api/Contracts/ContractRules.cs`, `TrackingLimits.cs`, `TrackedShipment.MaximumWeightKg`, `NotInFutureAttribute.cs` | High | Medium | Unit (at, below and above each limit) | `ShipmentRequestTests`, `ScanItemTests`, `ScanUploadRequestTests`, `TrackedShipmentTests`, `TrackingLimitsTests` (boundary theories since step 03) |
 | R8 | An unexpected error leaks a stack trace or internal message to callers | `Api/Errors/ApiExceptionHandler.cs` (`StackTraceKey` only in Development), Web `ProblemExceptionHandler` | Low | High (information disclosure) | Integration (Production host) | Api `ProductionErrorTests`, `ExceptionMappingTests`, Web `ExceptionHandlingTests`, `ProblemExceptionHandlerTests` |
@@ -162,7 +162,24 @@ Totals: 188 test classes, 1,157 test methods (934 `[Fact]`, 223 `[Theory]`), 1,8
 0 skipped. Added: `ShipmentTrackingServiceMoqTests` (+15 methods, +19 cases) and `OutboxServiceMoqTests`
 (+7 methods, +7 cases).
 
-### 3.5 Target
+### 3.5 After step 05 (HTTP handler)
+
+Real run on 2026-11-15 (`dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"`). Three
+new unit classes in one project; every other row is the same as in 3.4.
+
+| Project | Unit methods | Unit cases | Integration methods | Integration cases | Measurement methods |
+| --- | --- | --- | --- | --- | --- |
+| `tests/Mobile/ApexPost.Courier.ApiClient.Tests` | 93 | 180 | 0 | 0 | 0 |
+| other seven projects | unchanged | unchanged | unchanged | unchanged | unchanged |
+| **Total** | **646** | **1,150** | **525** | **757** | **5** |
+| **Share** | 54.9 % | 60.3 % | 44.6 % | 39.7 % | 0.4 % of methods |
+
+Totals: 191 test classes, 1,176 test methods (952 `[Fact]`, 224 `[Theory]`), 1,907 executed cases, 0 failed,
+0 skipped. Added: `ApexApiClientHttpHandlerTests` (+8), `HttpShipmentUploaderHttpHandlerTests` (+8),
+`NetworkGuardHandlerTests` (+3 methods, +5 cases). `TimeoutTests` was rewritten on a fake clock with the same two
+methods.
+
+### 3.6 Target
 
 | Level | Target share (executed cases) | What belongs there |
 | --- | --- | --- |
@@ -253,6 +270,41 @@ each mock does **not** prove.
 A mock only answers what the test told it to answer, so a mocked test can pass while the real implementation is
 wrong. That is why every row above has a real-storage or real-HTTP test as well, and why `DbContext` / `DbSet` are
 never mocked (section 6).
+
+### 4.4 HTTP handler tests for the typed client (step 05)
+
+`ApexApiClient` and `HttpShipmentUploader` each have one test per HTTP case. Both run through the real registration
+of `MauiProgram` (`AddHttpClient` + `AuthHeaderHandler` + `AddApexResilience`) with a fake primary handler
+(`Support/ResilientClient.cs`), so every case also shows what the retry and the breaker do with it.
+
+| Case | `ApexApiClientHttpHandlerTests` | `HttpShipmentUploaderHttpHandlerTests` |
+| --- | --- | --- |
+| 200 + v2 JSON, string enums | `GetShipmentAsync_Http200WithV2Json_…`: `"InTransit"` → `ShipmentStatus.InTransit`, nested recipient, 1 attempt | `UploadBatchAsync_Http200WithV2Json_…`: `Completed` with the rejected reason; request `scanType` sent as `"Pickup"` |
+| 404 | NotFound, server detail, `StatusCode` 404, 1 attempt (4xx never retried) | `Refused` with the server detail, 1 attempt |
+| 500 | Retried per policy: 1 + `MaxRetryAttempts` (= 4) attempts, then `Server` failure with the fixed text; the leaked exception text is not shown | 4 attempts with the same body (scan ids make the repeat safe), then `Retryable` with the fixed text |
+| Attempt timeout | Every attempt hangs; the test advances a `FakeTimeProvider` by `AttemptTimeout` after each attempt reaches the handler; 4 attempts, then `Timeout` failure | 4 attempts, then `Retryable` with `FailureMessages.Timeout` |
+| Caller cancellation | Cancel while the attempt hangs → `OperationCanceledException` thrown, 1 attempt (no retry) | Same: the exception reaches the outbox, 1 attempt |
+| ProblemDetails | 409 problem → `Conflict`, the server detail as the message, trace id kept | `Refused` with the server detail |
+| ValidationProblemDetails | 400 → `Validation`, "Please check: …" from the field errors, `FieldErrors` filled | `Refused` with the same "Please check: …" text |
+| Moq `Protected()` | `UploadScansAsync_MoqHandler_…`: `Setup<Task<HttpResponseMessage>>("SendAsync", …)` + `Verify(Times.Once(), ItExpr.Is<HttpRequestMessage>(…))` on method POST, host, path, `Bearer moq-token`, and the `JsonContent` value (scan id); the serialized JSON is also parsed | `UploadAsync_MoqHandler_…`: same `Verify` on the full URL, `Bearer` token, `application/json` and the scan id and courier id in the body; `Times.Once()` also proves a 200 is not retried |
+
+**No real network.** Every fake handler sits behind `Support/NetworkGuardHandler.cs` (`ClientFactory.Create`,
+`ResilientClient`, `HttpClientFactoryWiringTests`, and the Moq tests). The base address is `https://apexpost.test/`;
+`.test` is a reserved top-level domain that never resolves. The guard fails the test (`Assert.Fail`) when a request
+names any other host or when the handler chain below it ends in a real `HttpClientHandler` / `SocketsHttpHandler`.
+`NetworkGuardHandlerTests` proves both checks. The guard throws an xUnit `FailException`, which neither the client
+nor Polly catches, so a leak cannot be turned into a "Network" failure and pass silently.
+
+**No waiting.** `ResilientClient.NoDelaySettings` keeps the production retry count and breaker values but sets the
+retry delay to zero and long timeouts (8 s per attempt, 5 min total) that only fire when a test advances a
+`FakeTimeProvider`. `ResilientClient` registers that clock in DI, and the resilience pipeline takes its
+`TimeProvider` from there. `ScriptedHttpHandler.Entered` (a semaphore released per attempt) tells the test when to
+advance. The 16 case tests and the two timeout tests take no wall-clock time for delays or timeouts.
+
+**What the Moq handler does NOT prove.** It returns whatever the setup says, so it does not prove that the real API
+sends that answer, uses those status codes or field names, or accepts the request. That is proved by the API tests
+(`ApexPost.Api.Tests`, `V2ContractTests`) and the end-to-end `HttpUploaderEndToEndTests`, which send the real client
+to the in-process API. It also says nothing about TLS, DNS or proxies, which need a real network that tests never use (section 11).
 
 ## 5. Existing tests review
 
@@ -418,10 +470,10 @@ their numbers after the merge.
 | Courier.UnitTests | `Scans/ShipmentScanTests.cs` | 9 | 21 | Unit | modified (step 02, 03) | Merged with the duplicate Offline.Tests class: took over its unique cases (scan:: + Guid id, two ids differ, starts Pending, injection-style tracking number); the clock is a fixed `FakeTimeProvider`; renamed with AAA. Step 03: exact `ArgumentException` message and parameter for a wrong tracking number and courier id, courier rows `CR-000`/`CR-099`/`CR-999` valid and `CR-99`/`CR-1000` invalid, blank (`ArgumentException`) and null (`ArgumentNullException`) tracking number, undefined scan type, and `Restore` with a wrong id |
 | Courier.ApiClient.Tests | `Auth/AccessTokenClaimsTests.cs` | 3 | 11 | Unit | kept | Auth header handler and token claims with a fake handler (R4) |
 | Courier.ApiClient.Tests | `Auth/AuthHeaderHandlerTests.cs` | 4 | 6 | Unit | kept | Auth header handler and token claims with a fake handler (R4) |
-| Courier.ApiClient.Tests | `Auth/HttpClientFactoryWiringTests.cs` | 1 | 1 | Unit | kept | Auth header handler and token claims with a fake handler (R4) |
-| Courier.ApiClient.Tests | `Client/ApexApiClientTests.cs` | 10 | 13 | Unit | kept | Typed client results and ProblemDetails parsing with a fake handler |
+| Courier.ApiClient.Tests | `Auth/HttpClientFactoryWiringTests.cs` | 1 | 1 | Unit | modified (step 05) | The fake primary handler now sits behind `NetworkGuardHandler` and the expected URL is `https://apexpost.test/...` (was `localhost:7310`); renamed `AddHttpClient_TypedClientFromFactory_HasBaseAddressAndAuthHandler` with AAA (R4) |
+| Courier.ApiClient.Tests | `Client/ApexApiClientTests.cs` | 10 | 13 | Unit | modified (step 05) | Kept for routes, query strings, field mapping, input checks and exceptions without the pipeline; `ClientFactory` now puts `NetworkGuardHandler` in front of the fake, so the one URL assertion changed to `https://apexpost.test/...` and that method was renamed `GetShipmentAsync_V2Json_ReadsStringEnumsNestedRecipientAndCallsTheFakeHost` with AAA. The HTTP case matrix through the full pipeline is in the new `ApexApiClientHttpHandlerTests` |
 | Courier.ApiClient.Tests | `Client/DevelopmentTokenTests.cs` | 3 | 3 | Unit | kept | Typed client results and ProblemDetails parsing with a fake handler |
-| Courier.ApiClient.Tests | `Client/ProblemDetailsTests.cs` | 6 | 13 | Unit | kept | Typed client results and ProblemDetails parsing with a fake handler |
+| Courier.ApiClient.Tests | `Client/ProblemDetailsTests.cs` | 6 | 13 | Unit | kept | Detailed ProblemDetails parsing (fixed texts per status, unreadable bodies, null field messages) without the pipeline. Overlap with `ApexApiClientHttpHandlerTests` (404, 409, 400) is deliberate: this class checks parsing edge cases, the new class checks the case through retry/breaker (no retry on 4xx). Runs behind `NetworkGuardHandler` since step 05 (helper change only) |
 | Courier.ApiClient.Tests | `Client/ResponseRobustnessTests.cs` | 4 | 13 | Unit | kept | Typed client results and ProblemDetails parsing with a fake handler |
 | Courier.ApiClient.Tests | `Http/ApiBaseAddressTests.cs` | 3 | 7 | Unit | kept | Base address rules and DEBUG-only development hosts |
 | Courier.ApiClient.Tests | `Http/DevelopmentHostsTests.cs` | 3 | 9 | Unit | kept | Base address rules and DEBUG-only development hosts |
@@ -429,9 +481,9 @@ their numbers after the merge.
 | Courier.ApiClient.Tests | `Resilience/CircuitBreakerTests.cs` | 5 | 5 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
 | Courier.ApiClient.Tests | `Resilience/ResilienceLoggingTests.cs` | 3 | 3 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
 | Courier.ApiClient.Tests | `Resilience/RetryRuleTests.cs` | 6 | 19 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
-| Courier.ApiClient.Tests | `Resilience/RetryTests.cs` | 8 | 16 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
-| Courier.ApiClient.Tests | `Resilience/TimeoutTests.cs` | 2 | 2 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
-| Courier.ApiClient.Tests | `Sync/HttpShipmentUploaderTests.cs` | 8 | 24 | Unit | kept | HttpShipmentUploader batch mapping and outcomes with a fake handler (R3, R6) |
+| Courier.ApiClient.Tests | `Resilience/RetryTests.cs` | 8 | 16 | Unit | kept | Retry rules per status, method and marking (R5). Runs behind `NetworkGuardHandler` since step 05 (helper change only). Its caller-cancellation test still uses a 100 ms wall-clock `CancelAfter`; it would only flake if the first attempt needed more than 100 ms to reach the handler (never seen), and the deterministic version is in the two new HTTP case classes |
+| Courier.ApiClient.Tests | `Resilience/TimeoutTests.cs` | 2 | 2 | Unit | modified (step 05) | Both tests ran on real 200 ms / 300 ms timers and the total-timeout test expected exactly 2 attempts; it failed once in the first step-05 run on a cold start. Now Polly runs on a `FakeTimeProvider` and the test advances the clock after each attempt reaches the handler (`ScriptedHttpHandler.Entered`), retry delay zero. Same two behaviours, renamed with AAA (R5, R11) |
+| Courier.ApiClient.Tests | `Sync/HttpShipmentUploaderTests.cs` | 8 | 24 | Unit | kept | Batch mapping, every field of the request, the failure-kind → outcome table, circuit open, input checks (R3, R6). Runs behind `NetworkGuardHandler` since step 05 (helper change only). The per-HTTP-case tests (timeout, caller cancel, ProblemDetails, Moq `Verify`) are in the new `HttpShipmentUploaderHttpHandlerTests` |
 | Courier.Presentation.Tests | `Mvvm/AsyncCommandTests.cs` | 3 | 3 | Unit | kept | Plain C# MVVM helper; kept, not extended (UI out of scope) |
 | Courier.Presentation.Tests | `Mvvm/ObservableObjectTests.cs` | 1 | 1 | Unit | kept | Plain C# MVVM helper; kept, not extended (UI out of scope) |
 | Courier.Presentation.Tests | `ViewModels/ConnectionBannerViewModelTests.cs` | 5 | 7 | Unit | kept | Plain view-model logic with fakes, no MAUI types; kept, not extended (UI out of scope) |
@@ -538,6 +590,9 @@ New classes are not part of the baseline review above; they follow every rule of
 | 03 | Tracking.UnitTests | `Rules/TrackingLimitsTests.cs` | Unit | `TrackingLimits.CheckPage` / `CheckUpload` had no test of their own; the service tests only showed that *some* bad page or upload fails. This class proves page 0/1, page size 0/1/50/51 and upload 0/1/100/101 with the exact `ValidationFailedException` field and message, once, at the lowest level |
 | 04 | Tracking.UnitTests | `Services/ShipmentTrackingServiceMoqTests.cs` | Unit | The existing service classes use the stateful `InMemoryTracking` fake and prove outcomes; this class proves the *interactions* with Moq (`Verify` with `Times.Once` / `Never` / `Exactly`, `It.Is` on scan ids, token pass-through, `DiscardChanges` after `ThrowsAsync(DuplicateKeyException)`, `VerifyNoOtherCalls` on a forbidden upload). 15 methods, 19 cases (R1–R4) |
 | 04 | Courier.UnitTests | `Offline/OutboxServiceMoqTests.cs` | Unit | `OutboxServiceTests` needs real Couchbase (integration); this class tests the single-scan outbox path with mocked `IScanQueries`, `IScanSyncStatusUpdater` and `IShipmentUploader`: Synced / Failed per scan, one throwing upload does not stop the rest, nothing pending → uploader never called, oldest first with `includeFailed`, token rules. 7 methods, 7 cases (R6) |
+| 05 | Courier.ApiClient.Tests | `Client/ApexApiClientHttpHandlerTests.cs` | Unit | The client's HTTP cases were spread over four classes by mechanism, without the full pipeline for 404/409/400 and without any Moq handler. One test per case through auth + resilience: 200 v2 JSON, 404, 500 retried then failure, every attempt timing out, caller cancel, 409 ProblemDetails, 400 ValidationProblemDetails, and Moq `Protected()` `SendAsync` with `Verify` (section 4.4). 8 methods, 8 cases (R5) |
+| 05 | Courier.ApiClient.Tests | `Sync/HttpShipmentUploaderHttpHandlerTests.cs` | Unit | The uploader had no test for attempt timeout, caller cancellation, ProblemDetails text or the 500 attempt count. Same 8 cases as above, asserting what the outbox gets (`Completed` / `Refused` / `Retryable` + message, or the exception). 8 methods, 8 cases (R3, R5, R6) |
+| 05 | Courier.ApiClient.Tests | `Http/NetworkGuardHandlerTests.cs` | Unit | Proves the guard every client test now runs behind: fake host passes; `localhost`, a `.example` host and `10.0.2.2` fail the test before the fake is called; a real `SocketsHttpHandler` below the guard fails the test without sending. 3 methods, 5 cases |
 
 ## 6. Data access strategy
 
@@ -614,7 +669,7 @@ instance did not start in that run, so the LocalDB success path itself is not ye
 - **Shared test packages:** `tests/Directory.Build.props` adds Moq, `Microsoft.Extensions.TimeProvider.Testing` and
   `coverlet.collector` (exact versions) to every test project and imports the root `Directory.Build.props` first, so
   `TreatWarningsAsErrors` and NuGet audit stay on. Production projects do not get these packages.
-- **No real network, fictional data, no secrets:** fake or Moq `HttpMessageHandler`; in-process hosts; `CR-101`,
+- **No real network, fictional data, no secrets:** fake or Moq `HttpMessageHandler` behind `NetworkGuardHandler` (base address `https://apexpost.test`, section 4.4); in-process hosts; `CR-101`,
   `APX-10000001`, `@apexpost.test`; keys and connection strings only from test configuration or user-secrets.
 - **Commands:**
 

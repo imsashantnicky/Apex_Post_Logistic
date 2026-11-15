@@ -53,4 +53,23 @@ public static class SampleJson
           "traceId": "00-abc-def-02"
         }
         """;
+
+    public const string ServerProblem = """
+        {
+          "title": "An error occurred while processing your request.",
+          "status": 500,
+          "detail": "System.InvalidOperationException: connection pool exhausted at Line 42",
+          "traceId": "00-abc-def-03"
+        }
+        """;
+
+    public const string ConflictProblem = """
+        {
+          "type": "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+          "title": "Conflict",
+          "status": 409,
+          "detail": "Cannot move shipment APX-20000005 from Delivered to InTransit.",
+          "traceId": "00-abc-def-04"
+        }
+        """;
 }

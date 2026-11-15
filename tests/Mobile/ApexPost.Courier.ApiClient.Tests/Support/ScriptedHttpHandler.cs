@@ -18,6 +18,21 @@ public sealed class ScriptedHttpHandler(Func<int, CancellationToken, Task<HttpRe
 
     public ConcurrentQueue<string?> Authorizations { get; } = new();
 
+    /// <summary>Released once each time an attempt reaches the handler, so a test can wait for it.</summary>
+    public SemaphoreSlim Entered { get; } = new(0);
+
+    /// <summary>Every attempt hangs until its token is cancelled (attempt timeout or caller).</summary>
+    public static ScriptedHttpHandler Hanging() =>
+        new(async (_, ct) =>
+        {
+            await Task.Delay(Timeout.Infinite, ct);
+            throw new InvalidOperationException("Unreachable: an infinite delay only ends by cancellation.");
+        });
+
+    /// <summary>Every attempt gets <paramref name="status"/> with <paramref name="body"/> as ProblemDetails.</summary>
+    public static ScriptedHttpHandler Problem(HttpStatusCode status, string body) =>
+        new((_, _) => Task.FromResult(FakeHttpMessageHandler.Response(status, body, SampleJson.ProblemJson)));
+
     /// <summary>Answers with the statuses in order; the last one repeats. 200 answers carry <paramref name="okBody"/>.</summary>
     public static ScriptedHttpHandler Statuses(string okBody, params HttpStatusCode[] statuses) =>
         new((attempt, _) =>
@@ -52,6 +67,17 @@ public sealed class ScriptedHttpHandler(Func<int, CancellationToken, Task<HttpRe
         var attempt = Interlocked.Increment(ref _attempts);
         Authorizations.Enqueue(request.Headers.Authorization?.ToString());
         Bodies.Enqueue(request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken));
+        Entered.Release();
         return await respond(attempt, cancellationToken);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            Entered.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }
