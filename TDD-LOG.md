@@ -142,3 +142,35 @@ recorded in the review table of `TESTING-STRATEGY.md` (5.2 / 5.3).
 
 Result: `dotnet build Apex_Post_Logistic.slnx -c Release` 0 warnings, 0 errors; full suite 1,919 passed, 0 failed,
 0 skipped (1,917 + the 2 boundary tests).
+
+## 6. Refactoring 2 – cleanup, API-level proof and an `.http` example
+
+| File | Change |
+| --- | --- |
+| `src/ApexPost.Application/Tracking/ScanAgePolicy.cs` | The limit (`TimeSpan`) and the reason text are built once in the constructor (invariant culture) instead of on every scan. Same strict `>` |
+| `src/ApexPost.Application/Tracking/IShipmentTrackingService.cs` | The XML comment of `UploadScansAsync` now lists the scan age rejection next to the other per-scan reasons |
+| `tests/.../Services/ScanAgeRuleTests.cs` | The three facts share `UploadAsync`, `AssertAccepted` and `AssertRejected` helpers; their inputs and assertions are unchanged. New theory `UploadScansAsync_ConfiguredLimit_AcceptsAtLimitAndRejectsOneSecondOlder` (24 h and 96 h: at the limit accepted, one second older rejected with "Scan is older than 24 hours." / "… 96 hours.") |
+| `tests/ApexPost.Api.Tests/Hosting/TrackingOptionsRegistrationTests.cs` (new) | `AddApexApi` binds the "Tracking" section: default 72, configured 48; 0 and −1 throw `OptionsValidationException` with "Tracking:MaxScanAgeHours must be 1 or more." |
+| `tests/ApexPost.Api.Tests/Endpoints/ScanAgeEndpointTests.cs` (new) | Through the real host (fixed clock, throw-away SQL Server database): a 73 h old scan and a fresh one → 200, `accepted: 1`, `rejected: [{ scanId, reason: "Scan is older than 72 hours." }]`, only the fresh scan in the history. With `Tracking:MaxScanAgeHours = 24` on the host, a 25 h old scan → "Scan is older than 24 hours." |
+| `src/ApexPost.Api/ApexPost.Api.http` | New v1 and v2 examples: a scan from 4 days / 73 hours ago answered with 200 and the rejection reason. The scans that the file expects to be accepted used fixed dates (2026-11-01); the new rule would reject them a few days later, so they now use `{{$datetime iso8601 -N m}}` (same order inside each batch) |
+| `API-NOTES.md` | The per-item rejection list of the idempotent upload names the scan age rule |
+
+Honest note: the new tests in this commit were written after the production code they check, so they are not TDD.
+The configured-limit theory and the registration tests passed on the first run; they guard the refactored
+configuration path. The TDD part of this log is sections 2 to 4.
+
+Result: 0 warnings, 0 errors; full suite 1,929 passed, 0 failed, 0 skipped (1,919 + 4 unit cases in
+`ScanAgeRuleTests`, 4 in `TrackingOptionsRegistrationTests`, 2 in `ScanAgeEndpointTests`).
+
+## 7. Production code changed for testability, and why
+
+| Change | Why |
+| --- | --- |
+| None was needed for the first test | `ShipmentTrackingService` already took a `TimeProvider`, so a `FakeTimeProvider` could fix the upload time; the scan time comes from the request. This seam was added in Week 4, which made the RED test possible without touching production code |
+| `ScanAgePolicy` injected by constructor into `ShipmentTrackingService` | The limit can be set per test (`TestData.ScanAge(24)`) and per deployment, without a static setting or a hidden `DateTime.UtcNow`. The policy is a concrete class without an interface: there is one implementation, and tests build it with `Options.Create(...)` |
+| `IOptions<TrackingOptions>` instead of a constant | The brief asks for a configurable limit; options also let the host validate the value at start-up (`ValidateOnStart`) |
+| `TrackingOptions.DefaultMaxScanAgeHours` public constant | Tests and the default share one number instead of repeating `72` |
+
+Existing behaviour that did not change: every upload that does not contain a scan older than the limit gives the
+same answer as before; all earlier tests pass with their assertions unchanged (only six constructor calls gained the
+policy argument, recorded in `TESTING-STRATEGY.md` 5.2 / 5.3).

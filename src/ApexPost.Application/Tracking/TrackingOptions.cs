@@ -1,6 +1,6 @@
 namespace ApexPost.Application.Tracking;
 
-/// <summary>The "Tracking" configuration section: limits of the tracking service that a deployment may change.</summary>
+/// <summary>The "Tracking" configuration section: tracking limits that a deployment may change.</summary>
 public sealed class TrackingOptions
 {
     public const string SectionName = "Tracking";
