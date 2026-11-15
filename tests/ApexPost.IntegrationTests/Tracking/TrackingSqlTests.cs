@@ -1,37 +1,45 @@
+using System.Globalization;
 using ApexPost.Application.Exceptions;
 using ApexPost.Application.Tracking;
 using ApexPost.Domain.Tracking;
 using ApexPost.Infrastructure.Tracking;
-using ApexPost.Tracking.UnitTests.Support;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Time.Testing;
+using Moq;
 
-namespace ApexPost.Tracking.UnitTests.Infrastructure;
+namespace ApexPost.IntegrationTests.Tracking;
 
-/// <summary>The service on SQL Server: migrations, query translation, unique indexes and the version check.</summary>
+/// <summary>
+/// The tracking service on SQL Server: migrations, query translation, unique indexes and the version check. Moved
+/// here from ApexPost.Tracking.UnitTests in Week 5 step 02 because it opens a real database (integration level).
+/// </summary>
+[Trait("Category", "Integration")]
 public sealed class TrackingSqlTests(TrackingDatabase database) : IClassFixture<TrackingDatabase>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task A_shipment_and_its_scans_round_trip_through_SQL_Server()
+    public async Task UploadScansAsync_ShipmentAndScansOnSqlServer_RoundTripAndSkipDuplicates()
     {
+        // Arrange
         var trackingNumber = NewTrackingNumber();
         ScanUpload[] batch =
         [
-            TestData.Scan(ScanType.Pickup, trackingNumber),
-            TestData.Scan(ScanType.InTransit, trackingNumber, minutesAfterNow: 15),
+            TrackingTestData.Scan(ScanType.Pickup, trackingNumber),
+            TrackingTestData.Scan(ScanType.InTransit, trackingNumber, minutesAfterNow: 15),
         ];
-
         await using (var context = database.NewContext())
         {
             var service = Service(context);
-            await service.CreateAsync(trackingNumber, TestData.Command(), Ct);
+            await service.CreateAsync(trackingNumber, TrackingTestData.Command(), Ct);
             Assert.Equal(2, (await service.UploadScansAsync(batch, Ct)).Accepted);
         }
 
         await using (var context = database.NewContext())
         {
             var service = Service(context);
+
+            // Act
             var view = await service.GetAsync(trackingNumber, Ct);
             var again = await service.UploadScansAsync(batch, Ct);
             var page = await service.ListAsync(
@@ -41,6 +49,7 @@ public sealed class TrackingSqlTests(TrackingDatabase database) : IClassFixture<
                 "HARBOUR POINT",
                 Ct);
 
+            // Assert
             Assert.Equal(ShipmentStatus.InTransit, view.Status);
             Assert.Equal(TrackedShipment.FirstVersion + 1, view.Version);
             Assert.Equal(batch[1].ScanId, view.LatestScan?.ScanId);
@@ -52,25 +61,31 @@ public sealed class TrackingSqlTests(TrackingDatabase database) : IClassFixture<
     }
 
     [Fact]
-    public async Task The_unique_tracking_number_index_becomes_DuplicateKeyException()
+    public async Task SaveChangesAsync_SecondShipmentWithSameTrackingNumber_ThrowsDuplicateKeyException()
     {
+        // Arrange
         var trackingNumber = NewTrackingNumber();
         await using var first = database.NewContext();
         await using var second = database.NewContext();
-        first.Shipments.Add(TestData.Shipment(trackingNumber));
-        second.Shipments.Add(TestData.Shipment(trackingNumber));
+        first.Shipments.Add(TrackingTestData.Shipment(trackingNumber));
+        second.Shipments.Add(TrackingTestData.Shipment(trackingNumber));
         await new TrackingUnitOfWork(first).SaveChangesAsync(Ct);
 
-        await Assert.ThrowsAsync<DuplicateKeyException>(() => new TrackingUnitOfWork(second).SaveChangesAsync(Ct));
+        // Act
+        var save = () => new TrackingUnitOfWork(second).SaveChangesAsync(Ct);
+
+        // Assert
+        await Assert.ThrowsAsync<DuplicateKeyException>(save);
     }
 
     [Fact]
-    public async Task A_stale_shipment_version_becomes_ConcurrencyConflictException()
+    public async Task SaveChangesAsync_StaleShipmentVersion_ThrowsConcurrencyConflictException()
     {
+        // Arrange
         var trackingNumber = NewTrackingNumber();
         await using (var setup = database.NewContext())
         {
-            await Service(setup).CreateAsync(trackingNumber, TestData.Command(), Ct);
+            await Service(setup).CreateAsync(trackingNumber, TrackingTestData.Command(), Ct);
         }
 
         await using var first = database.NewContext();
@@ -81,28 +96,38 @@ public sealed class TrackingSqlTests(TrackingDatabase database) : IClassFixture<
         await new TrackingUnitOfWork(second).SaveChangesAsync(Ct);
         mine.MoveTo(ShipmentStatus.InTransit);
 
-        await Assert.ThrowsAsync<ConcurrencyConflictException>(() =>
-            new TrackingUnitOfWork(first).SaveChangesAsync(Ct));
+        // Act
+        var save = () => new TrackingUnitOfWork(first).SaveChangesAsync(Ct);
+
+        // Assert
+        await Assert.ThrowsAsync<ConcurrencyConflictException>(save);
     }
 
     [Fact]
-    public async Task Only_the_tracking_history_table_is_written()
+    public async Task MigrateAsync_TrackingMigrations_WriteOnlyTheTrackingHistoryTable()
     {
+        // Arrange
         await using var context = database.NewContext();
 
+        // Act
         var applied = await context.Database.GetAppliedMigrationsAsync(Ct);
         var weekThreeHistory = await context.Database
             .SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name = '__EFMigrationsHistory'")
             .SingleAsync(Ct);
 
+        // Assert
         Assert.Equal(context.Database.GetMigrations(), applied);
         Assert.Equal(0, weekThreeHistory);
     }
 
     private static ShipmentTrackingService Service(TrackingDbContext context) =>
-        new(new TrackedShipmentRepository(context), new SqlTrackingQueries(context), new TrackingUnitOfWork(context),
-            new FixedCourier(), new FixedTimeProvider());
+        new(
+            new TrackedShipmentRepository(context),
+            new SqlTrackingQueries(context),
+            new TrackingUnitOfWork(context),
+            Mock.Of<ICurrentCourier>(courier => courier.CourierId == TrackingTestData.CourierId),
+            new FakeTimeProvider(TrackingTestData.Now));
 
     private static string NewTrackingNumber() =>
-        "APX-" + Random.Shared.Next(10_000_000, 99_999_999).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        "APX-" + Random.Shared.Next(10_000_000, 99_999_999).ToString(CultureInfo.InvariantCulture);
 }
