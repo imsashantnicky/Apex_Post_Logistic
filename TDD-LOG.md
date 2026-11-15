@@ -65,3 +65,24 @@ Real output of
 
 Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 83 ms - ApexPost.Tracking.UnitTests.dll (net10.0)
 ```
+
+## 3. Minimal implementation (GREEN)
+
+The smallest change that makes the test pass: one check in `ShipmentTrackingService.TryRecordAsync`, placed before
+the shipment is loaded, so an old scan costs no database read. The number 72 and the text are hard-coded on purpose;
+moving them out is the refactoring's job, not GREEN's.
+
+```csharp
+if (Now - scan.ScannedAtUtc > TimeSpan.FromHours(72))
+{
+    return "Scan is older than 72 hours.";
+}
+```
+
+`Now` already comes from the injected `TimeProvider`, so the test controls the upload time without any new seam.
+The rejected scan follows the existing path: it is listed in `rejected` with its reason, the rest of the batch is
+still handled, and nothing is saved when no scan is accepted.
+
+Result after GREEN: the new test passes, and the full suite
+(`dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"`) has 1,917 passed, 0 failed,
+0 skipped. No existing test uploaded a scan older than 72 hours, so none had to change.

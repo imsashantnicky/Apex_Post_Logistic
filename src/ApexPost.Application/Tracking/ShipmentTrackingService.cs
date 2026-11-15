@@ -211,6 +211,11 @@ public sealed class ShipmentTrackingService(
             return $"The scan is for {scan.TrackingNumber}, not for shipment {onlyShipment}.";
         }
 
+        if (Now - scan.ScannedAtUtc > TimeSpan.FromHours(72))
+        {
+            return "Scan is older than 72 hours.";
+        }
+
         if (!loaded.TryGetValue(scan.TrackingNumber, out var shipment))
         {
             shipment = await shipments.FindAsync(scan.TrackingNumber, cancellationToken).ConfigureAwait(false);
