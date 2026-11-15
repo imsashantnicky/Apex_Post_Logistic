@@ -10,23 +10,26 @@ namespace ApexPost.Courier.ApiClient.Tests.Auth;
 public sealed class HttpClientFactoryWiringTests
 {
     [Fact]
-    public async Task The_typed_client_from_the_factory_has_the_base_address_and_the_auth_handler()
+    public async Task AddHttpClient_TypedClientFromFactory_HasBaseAddressAndAuthHandler()
     {
+        // Arrange
         var inner = FakeHttpMessageHandler.Returning(HttpStatusCode.OK, SampleJson.Shipment, SampleJson.Json);
         var services = new ServiceCollection();
         services.AddSingleton<IAccessTokenStore>(new InMemoryTokenStore("factory-token"));
         services.AddTransient<AuthHeaderHandler>();
         services.AddHttpClient<ApexApiClient>(client => client.BaseAddress = ClientFactory.BaseAddress)
             .AddHttpMessageHandler<AuthHeaderHandler>()
-            .ConfigurePrimaryHttpMessageHandler(() => inner);
+            .ConfigurePrimaryHttpMessageHandler(() => new NetworkGuardHandler(inner));
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
-
         var client = provider.GetRequiredService<ApexApiClient>();
+
+        // Act
         var result = await client.GetShipmentAsync("APX-20000005", TestContext.Current.CancellationToken);
 
+        // Assert
         Assert.True(result.IsSuccess);
         var sent = Assert.Single(inner.Requests);
         Assert.Equal("Bearer factory-token", sent.Authorization);
-        Assert.Equal("https://localhost:7310/api/v2/shipments/APX-20000005", sent.Uri.AbsoluteUri);
+        Assert.Equal("https://apexpost.test/api/v2/shipments/APX-20000005", sent.Uri.AbsoluteUri);
     }
 }
