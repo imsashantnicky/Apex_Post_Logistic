@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ApexPost.Api.Tests.Errors;
 
 /// <summary>Outside Development the API shows no stack trace and never prepares the database by itself.</summary>
+[Trait("Category", "Integration")]
 public sealed class ProductionErrorTests(ProductionApiFactory factory) : IClassFixture<ProductionApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

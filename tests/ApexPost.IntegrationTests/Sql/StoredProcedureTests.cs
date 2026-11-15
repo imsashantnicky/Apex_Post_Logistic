@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>The stored procedures on a real server: their results, their errors and their transaction.</summary>
+[Trait("Category", "Integration")]
 public sealed class StoredProcedureTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Branch = "BR001";
@@ -30,7 +31,7 @@ public sealed class StoredProcedureTests(ApexFactory factory) : IClassFixture<Ap
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static DateTimeOffset Now => DateTimeOffset.UtcNow;
+    private DateTimeOffset Now => factory.Clock.GetUtcNow();
 
     [Fact]
     public async Task Daily_sales_equals_a_sum_worked_out_independently()
@@ -131,26 +132,30 @@ public sealed class StoredProcedureTests(ApexFactory factory) : IClassFixture<Ap
     }
 
     [Fact]
-    public async Task An_adjustment_by_the_brief_signature_takes_the_time_of_the_server()
+    public async Task UspAdjustStock_BriefSignatureWithoutTime_StampsTheServerTime()
     {
+        // Arrange: the procedure uses SYSUTCDATETIME(), so it is compared with the server clock, not this machine's.
         const string sku = "STA-0007";
         await factory.SetQuantityAsync(sku, 10);
         var manager = await factory.StaffAsync(DemoAccounts.Manager);
         await using var database = factory.OpenDatabase();
-        var before = DateTimeOffset.UtcNow.AddMinutes(-1);
+        var before = await ServerTimeAsync(database);
 
+        // Act
         await database.Database.ExecuteSqlAsync(
             $"""
             EXEC dbo.usp_AdjustStock @BranchCode = {Branch}, @Sku = {sku}, @Delta = {-3}, @Reason = {Reason},
                 @ChangedBy = {manager.Id}
             """,
             Ct);
+        var after = await ServerTimeAsync(database);
 
+        // Assert
         var row = Assert.Single(await HistoryAsync(database, sku));
         Assert.Equal(7, await factory.QuantityAsync(sku));
         Assert.Equal(-3, row.Change);
         Assert.Equal(manager.Id, row.StaffId);
-        Assert.InRange(row.AdjustedAt, before, DateTimeOffset.UtcNow.AddMinutes(1));
+        Assert.InRange(row.AdjustedAt, before, after);
     }
 
     [Fact]
@@ -320,7 +325,7 @@ public sealed class StoredProcedureTests(ApexFactory factory) : IClassFixture<Ap
     private static SqlParameter BranchParameter(string? branch) =>
         new("@BranchCode", SqlDbType.VarChar, 5) { Value = (object?)branch ?? DBNull.Value };
 
-    private static Task<int> AdjustAsync(ApexPostDbContext database, string sku, int change, Guid staffId) =>
+    private Task<int> AdjustAsync(ApexPostDbContext database, string sku, int change, Guid staffId) =>
         new SqlStockAdjuster(database).AdjustAsync(
             new BranchCode(Branch),
             new Sku(sku),
@@ -329,6 +334,12 @@ public sealed class StoredProcedureTests(ApexFactory factory) : IClassFixture<Ap
             staffId,
             Now,
             Ct);
+
+    /// <summary>The SQL Server clock (datetime2, the same precision as SYSUTCDATETIME() in the procedure).</summary>
+    private static Task<DateTimeOffset> ServerTimeAsync(ApexPostDbContext database) =>
+        database.Database
+            .SqlQuery<DateTimeOffset>($"SELECT TODATETIMEOFFSET(SYSUTCDATETIME(), 0) AS [Value]")
+            .SingleAsync(Ct);
 
     private static Task<List<StockAdjustmentRecord>> HistoryAsync(ApexPostDbContext database, string sku)
     {

@@ -9,6 +9,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Integration")]
 public sealed class DemoDataSeederTests : IDisposable
 {
     private readonly TempDataFolder _folder = new();

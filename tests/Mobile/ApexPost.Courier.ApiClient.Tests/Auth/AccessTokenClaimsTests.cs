@@ -4,6 +4,7 @@ using ApexPost.Courier.ApiClient.Auth;
 
 namespace ApexPost.Courier.ApiClient.Tests.Auth;
 
+[Trait("Category", "Unit")]
 public sealed class AccessTokenClaimsTests
 {
     [Fact]

@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <Compile Include="..\ApexPost.UnitTests\Architecture\CodeUsage.cs" Link="Architecture\CodeUsage.cs" />
+    <!-- One shared SQL Server lookup for every SQL fixture (TESTING-STRATEGY.md section 6). -->
+    <Compile Include="..\Common\SqlTestServer.cs" Link="Support\SqlTestServer.cs" />
   </ItemGroup>
 
   <ItemGroup>

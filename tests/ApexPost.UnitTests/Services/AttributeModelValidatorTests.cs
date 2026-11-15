@@ -4,6 +4,7 @@ using ApexPost.Application.Validation;
 
 namespace ApexPost.UnitTests.Services;
 
+[Trait("Category", "Unit")]
 public sealed class AttributeModelValidatorTests
 {
     [Fact]

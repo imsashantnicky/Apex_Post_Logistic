@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>Stock, status and payment of a sale are one commit, and a failed commit leaves no trace.</summary>
+[Trait("Category", "Integration")]
 public sealed class AtomicSaleTests(CommandLogFactory factory) : IClassFixture<CommandLogFactory>
 {
     private const string FirstSku = "PKG-0009";
@@ -89,8 +90,9 @@ public sealed class AtomicSaleTests(CommandLogFactory factory) : IClassFixture<C
     }
 
     [Fact]
-    public async Task A_line_cannot_slip_into_a_basket_that_was_paid_meanwhile()
+    public async Task SaveChangesAsync_LineForABasketPaidMeanwhile_ThrowsDbUpdateConcurrencyException()
     {
+        // Arrange
         const string sku = "STA-0003";
         using var clerk = await CounterBrowser.SignInAsync(factory, DemoAccounts.Clerk);
         var counter = await Counter.OpenAsync(clerk);
@@ -99,15 +101,19 @@ public sealed class AtomicSaleTests(CommandLogFactory factory) : IClassFixture<C
         var key = Guid.Parse(counter.Id);
         var transaction = await stale.Set<CounterTransaction>().SingleAsync(item => item.Id == key, Ct);
         using var paid = await counter.PayAsync();
+        stale.Entry(transaction).Property("ModifiedAtUtc").CurrentValue = factory.Clock.GetUtcNow().UtcDateTime;
 
-        stale.Entry(transaction).Property("ModifiedAtUtc").CurrentValue = DateTime.UtcNow;
+        // Act
+        var save = () => stale.SaveChangesAsync(Ct);
 
-        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => stale.SaveChangesAsync(Ct));
+        // Assert
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(save);
     }
 
     [Fact]
-    public async Task A_failed_save_after_a_set_based_update_rolls_the_update_back()
+    public async Task ExecuteInTransactionAsync_SaveFailsAfterSetBasedUpdate_RollsTheUpdateBack()
     {
+        // Arrange
         const decimal original = 123.45m;
         var sku = new Sku("OFF-0001");
         await SetPriceAsync(sku, original);
@@ -117,10 +123,11 @@ public sealed class AtomicSaleTests(CommandLogFactory factory) : IClassFixture<C
         var staff = scope.ServiceProvider.GetRequiredService<IStaffRepository>();
         var existing = await factory.StaffAsync(DemoAccounts.Clerk);
 
-        await Assert.ThrowsAsync<DuplicateKeyException>(() => unitOfWork.ExecuteInTransactionAsync(
+        // Act
+        var revise = () => unitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                await products.RevisePricesAsync(null, 10m, DateTimeOffset.UtcNow, token);
+                await products.RevisePricesAsync(null, 10m, factory.Clock.GetUtcNow(), token);
                 staff.Add(new Staff(
                     Guid.NewGuid(),
                     "Copy",
@@ -128,14 +135,17 @@ public sealed class AtomicSaleTests(CommandLogFactory factory) : IClassFixture<C
                     StaffRole.CounterClerk,
                     existing.HomeBranch));
             },
-            Ct));
+            Ct);
 
+        // Assert
+        await Assert.ThrowsAsync<DuplicateKeyException>(revise);
         Assert.Equal(new Money(original), await PriceOfAsync(sku));
     }
 
     [Fact]
-    public async Task Work_that_throws_inside_a_transaction_leaves_the_prices_alone()
+    public async Task ExecuteInTransactionAsync_WorkThrows_LeavesThePricesAlone()
     {
+        // Arrange
         const decimal original = 234.56m;
         var sku = new Sku("OFF-0002");
         await SetPriceAsync(sku, original);
@@ -143,14 +153,17 @@ public sealed class AtomicSaleTests(CommandLogFactory factory) : IClassFixture<C
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         var products = scope.ServiceProvider.GetRequiredService<IProductRepository>();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.ExecuteInTransactionAsync(
+        // Act
+        var revise = () => unitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
-                await products.RevisePricesAsync(null, 10m, DateTimeOffset.UtcNow, token);
+                await products.RevisePricesAsync(null, 10m, factory.Clock.GetUtcNow(), token);
                 throw new InvalidOperationException("The rest of the use case failed.");
             },
-            Ct));
+            Ct);
 
+        // Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(revise);
         Assert.Equal(new Money(original), await PriceOfAsync(sku));
     }
 

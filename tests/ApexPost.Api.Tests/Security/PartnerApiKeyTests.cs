@@ -9,6 +9,7 @@ namespace ApexPost.Api.Tests.Security;
 /// GET /api/v2/partner/shipments/{trackingNumber} needs a partner key in X-Api-Key: 200 with a known key, 401
 /// ProblemDetails (WWW-Authenticate: ApiKey) without one or with an unknown one. A user token does not open it.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class PartnerApiKeyTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string InTransitShipment = "APX-20000005";

@@ -8,6 +8,10 @@ Baseline run (2026-11-15, `dotnet build Apex_Post_Logistic.slnx -c Release` then
 `dotnet test Apex_Post_Logistic.slnx -c Release --no-build --filter "Category!=Measurement"`):
 build 0 warnings, 0 errors; **1,769 test cases passed, 0 failed, 0 skipped**, run against a local SQL Server.
 
+After step 02 (restructure, same commands, same machine): build 0 warnings, 0 errors; **1,748 test cases passed,
+0 failed, 0 skipped**. The 21 fewer cases are the removed Courier duplicates (34 cases) minus the unique cases kept
+from them (13 cases); the 4 SQL tracking tests moved project but still run. Section 3.2 has the details.
+
 ## 1. Scope
 
 **In scope** – code with business rules or contracts that other parts depend on:
@@ -32,21 +36,21 @@ Likelihood and cost are rated Low / Medium / High. "Cost" is the damage if the d
 
 | # | Risk | Code location | Likelihood | Cost | Test level | Test classes (existing → planned) |
 | --- | --- | --- | --- | --- | --- | --- |
-| R1 | A shipment moves backwards, stays, or leaves Delivered/Failed | `Domain/Tracking/ShipmentStatusRules.cs` (`CanMove`, `StatusFor`), `ShipmentTrackingService.ChangeStatusAsync` / `TryRecordAsync` | Medium | High (wrong tracking shown to customers, delivered parcel re-opened) | Unit (full 6×6 matrix); integration only for 409 wiring | `ShipmentStatusRulesTests` (only 4 `InlineData` rows today), `ShipmentTrackingServiceTests`, `ShipmentEndpointTests.Patch_status_backward_returns_409_invalid_transition` → full `TheoryData` matrix (step 03) |
-| R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409` → `ShipmentCreation.feature` (step 06) |
+| R1 | A shipment moves backwards, stays, or leaves Delivered/Failed | `Domain/Tracking/ShipmentStatusRules.cs` (`CanMove`, `StatusFor`), `ShipmentTrackingService.ChangeStatusAsync` / `TryRecordAsync` | Medium | High (wrong tracking shown to customers, delivered parcel re-opened) | Unit (full 6×6 matrix); integration only for 409 wiring | `ShipmentStatusRulesTests` (full 6×6 `MemberData` matrix since step 03), `ShipmentTrackingServiceTests` (exact `InvalidStatusTransitionException` message), `ShipmentEndpointTests.Patch_status_backward_returns_409_invalid_transition` |
+| R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `ShipmentTrackingServiceMoqTests` (duplicate → `SaveChangesAsync` never), `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409` → `ShipmentCreation.feature` (step 06) |
 | R3 | A re-sent scan is stored twice (offline retries make re-sends normal) | `ShipmentTrackingService.UploadAsync` / `UploadOnceAsync` (`DistinctBy`, `FindStoredScanIdsAsync`, retry on `DuplicateKeyException`), unique scan id index | High | High (history duplicated, status moved twice) | Unit (in-batch duplicates, stored ids), integration (parallel uploads on SQL Server), BDD | `ShipmentScanUploadTests`, `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once`, `HttpUploaderEndToEndTests` → `ScanSync.feature` (step 06) |
-| R4 | A courier uploads scans as another courier, or a role does what it must not | `Application/Tracking/ShipmentTrackingService.CheckBatch`, `Api/Security/ClaimsCurrentCourier.cs`, `Composition/ApiSecurityRegistration.cs` (policies) | Medium | High (forged delivery proof) | Unit (ownership rule with Moq `ICurrentCourier`), integration (real JWT pipeline, 401/403) | `ScanOwnershipTests`, Api `AuthorizationTests`, `AuthenticationTests` → Moq tests + `TestAuthHandler` end-to-end test (step 04) |
-| R5 | The client retries a 4xx or a non-idempotent request (duplicate PATCH, hammering on 400) | `ApiClient/Resilience/ApexResilience.cs`, `TransientFailure.cs`, `IdempotentRequest.cs` | Medium | Medium (duplicate status change, battery/network waste, locked account) | Unit (fake `HttpMessageHandler`, Moq `Protected()`) | `RetryRuleTests`, `RetryTests`, `CircuitBreakerTests`, `TimeoutTests` → typed client cases with Moq handler (step 04) |
-| R6 | The outbox marks a scan `Synced` that the server did not store, or loses a scan on a network error | `Courier.Offline/Outbox/OutboxService.cs`, `OutboxService.Batches.cs` (`ApplyAsync`) | Medium | High (proof of delivery silently lost) | Integration (real Couchbase in a temp folder); unit with Moq `IShipmentUploader` | `OutboxServiceTests`, `BatchOutboxTests`, `OutboxTests` (duplicates, see section 5) → `ScanSync.feature` (step 06) |
-| R7 | A validation limit is off by one (weight 0.1–30 kg, upload 1–100 scans, page size 1–50, scan time 2 min ahead) | `Api/Contracts/ContractRules.cs`, `TrackingLimits.cs`, `TrackedShipment.MaximumWeightKg`, `NotInFutureAttribute.cs` | High | Medium | Unit (at, below and above each limit) | `ShipmentRequestTests`, `ScanItemTests`, `ScanUploadRequestTests`, `TrackedShipmentTests` → parameterized boundary theories (step 03) |
+| R4 | A courier uploads scans as another courier, or a role does what it must not | `Application/Tracking/ShipmentTrackingService.CheckBatch`, `Api/Security/ClaimsCurrentCourier.cs`, `Composition/ApiSecurityRegistration.cs` (policies) | Medium | High (forged delivery proof) | Unit (ownership rule with Moq `ICurrentCourier`), integration (real JWT pipeline, 401/403) | `ScanOwnershipTests`, `ShipmentTrackingServiceMoqTests` (Moq `ICurrentCourier`, repository never touched, since step 04), Api `AuthorizationTests`, `AuthenticationTests` → `TestAuthHandler` end-to-end test (later step) |
+| R5 | The client retries a 4xx or a non-idempotent request (duplicate PATCH, hammering on 400) | `ApiClient/Resilience/ApexResilience.cs`, `TransientFailure.cs`, `IdempotentRequest.cs` | Medium | Medium (duplicate status change, battery/network waste, locked account) | Unit (fake `HttpMessageHandler`, Moq `Protected()`) | `RetryRuleTests`, `RetryTests`, `CircuitBreakerTests`, `TimeoutTests` (fake clock since step 05), `ApexApiClientHttpHandlerTests` and `HttpShipmentUploaderHttpHandlerTests` (one test per HTTP case, Moq `Protected()` `SendAsync` + `Verify`, since step 05) |
+| R6 | The outbox marks a scan `Synced` that the server did not store, or loses a scan on a network error | `Courier.Offline/Outbox/OutboxService.cs`, `OutboxService.Batches.cs` (`ApplyAsync`) | Medium | High (proof of delivery silently lost) | Integration (real Couchbase in a temp folder); unit with Moq `IShipmentUploader` | `OutboxServiceTests`, `BatchOutboxTests`, `OutboxServiceMoqTests` (Moq uploader and status updater, since step 04) → `ScanSync.feature` (step 06) |
+| R7 | A validation limit is off by one (weight 0.1–30 kg, upload 1–100 scans, page size 1–50, scan time 2 min ahead) | `Api/Contracts/ContractRules.cs`, `TrackingLimits.cs`, `TrackedShipment.MaximumWeightKg`, `NotInFutureAttribute.cs` | High | Medium | Unit (at, below and above each limit) | `ShipmentRequestTests`, `ScanItemTests`, `ScanUploadRequestTests`, `TrackedShipmentTests`, `TrackingLimitsTests` (boundary theories since step 03) |
 | R8 | An unexpected error leaks a stack trace or internal message to callers | `Api/Errors/ApiExceptionHandler.cs` (`StackTraceKey` only in Development), Web `ProblemExceptionHandler` | Low | High (information disclosure) | Integration (Production host) | Api `ProductionErrorTests`, `ExceptionMappingTests`, Web `ExceptionHandlingTests`, `ProblemExceptionHandlerTests` |
 | R9 | The deprecated v1 contract drifts and breaks existing partners | `Api/Contracts/V1/*`, `Controllers/V1/*`, `contracts/v1.json` | Medium | High (partner integrations break) | Integration (JSON snapshot through the real host) | `V1ContractSnapshotTests`, `ContractTrackingTests`, `VersionHeaderTests` |
 | R10 | Week 3 money or stock is wrong (rounding, tax, negative stock, lost update) | `Domain/Common/Money.cs`, `Domain/Inventory/StockItem.cs`, `Application/Services/CheckoutService`, rowversion on `BranchStock` | Low (mature, heavily tested) | High (financial loss) | Unit (rules), integration (concurrency on SQL Server) | `MoneyTests`, `StockRuleTests`, `TaxRuleTests`, `CheckoutServiceTests`, `StockConcurrencyTests`, `BusinessRulesOnSqlTests` – kept, not extended |
-| R11 | A test passes or fails depending on the wall clock | Tests using `DateTime.UtcNow` (section 5) | Medium | Medium (flaky CI, hidden bugs around midnight/expiry) | All | Fixed in step 02 (`FakeTimeProvider` / fixed times) |
+| R11 | A test passes or fails depending on the wall clock | Tests using `DateTime.UtcNow` (section 5) | Medium | Medium (flaky CI, hidden bugs around midnight/expiry) | All | Fixed in step 02: both test hosts run on a fixed `FakeTimeProvider`, test data uses fixed times (section 5.1, finding 3) |
 
 ## 3. Test pyramid
 
-### 3.1 Current state (counted, commit 51ed2f3)
+### 3.1 Baseline (counted, commit 51ed2f3, before step 02)
 
 "Methods" counts `[Fact]` and `[Theory]` attributes. "Cases" counts executed test cases (a theory row is one case),
 taken from a TRX run of the baseline. The level comes from what a class really touches, not from the project name:
@@ -75,7 +79,107 @@ database, 4 in `ApexPost.Tracking.UnitTests` open SQL Server, and 37 in `ApexPos
 files (Week 2 JSON store). The other way round, 61 methods in the integration projects need no host or database
 (validation attributes, mappers, reflection guards).
 
-### 3.2 Target
+### 3.2 After step 02 (restructure)
+
+Same counting rules. Methods are counted from the source; cases come from real runs with
+`--filter "Category=Unit"` and `--filter "Category=Integration"` (every class now carries the trait, so the filter and
+the level are the same thing).
+
+| Project | Unit methods | Unit cases | Integration methods | Integration cases | Measurement methods |
+| --- | --- | --- | --- | --- | --- |
+| `tests/ApexPost.UnitTests` | 328 | 489 | 37 | 45 | 5 |
+| `tests/ApexPost.Tracking.UnitTests` | 67 | 130 | 0 | 0 | 0 |
+| `tests/Courier/ApexPost.Courier.UnitTests` | 27 | 45 | 9 | 9 | 0 |
+| `tests/Mobile/ApexPost.Courier.ApiClient.Tests` | 74 | 159 | 0 | 0 | 0 |
+| `tests/Mobile/ApexPost.Courier.Presentation.Tests` | 42 | 53 | 0 | 0 | 0 |
+| `tests/ApexPost.IntegrationTests` | 7 | 13 | 284 | 431 | 0 |
+| `tests/ApexPost.Api.Tests` | 45 | 102 | 138 | 208 | 0 |
+| `tests/ApexPost.Courier.Offline.Tests` | 0 | 0 | 57 | 64 | 0 |
+| **Total** | **590** | **991** | **525** | **757** | **5** |
+| **Share** | 52.7 % | 56.7 % | 46.9 % | 43.3 % | 0.4 % of methods |
+
+Totals: 8 test projects, 185 test classes (all with a `Category` trait), 1,120 test methods (911 `[Fact]`,
+209 `[Theory]`), 1,748 executed cases. What changed and why:
+
+| Change | Methods | Cases |
+| --- | --- | --- |
+| `TrackingSqlTests` moved from Tracking.UnitTests to IntegrationTests (same level, now in the right project) | 0 | 0 |
+| 5 duplicate classes removed from Courier.Offline.Tests (section 5.2) | −20 | −34 |
+| Unique cases of those classes kept in the merged classes (3 scan-id/Pending facts and 1 injection row in `ShipmentScanTests`, reopen in `CouchbaseScanRepositoryTests`, courier-id injection, 5 more injection rows and the 2-row Explain theory in `CouchbaseScanQueriesTests`) | +6 | +13 |
+| **Net** | **−14** | **−21** |
+
+The level of a project and of its classes now agree, with two documented exceptions: `CourierHarnessTests`
+(Integration, stays in Courier.UnitTests because the harness is `internal`) and the Week 2 JSON-file classes in
+`ApexPost.UnitTests` (Integration, kept in place as decided in step 01). The shares barely moved because this step
+removed duplicates on both levels; the unit share rises in step 03 (parameterized boundary theories).
+
+### 3.3 After step 03 (unit tests)
+
+Same counting rules; cases from real runs on 2026-11-15. Only unit classes changed, so the integration columns are
+the same as in 3.2.
+
+| Project | Unit methods | Unit cases | Integration methods | Integration cases | Measurement methods |
+| --- | --- | --- | --- | --- | --- |
+| `tests/ApexPost.UnitTests` | 328 | 489 | 37 | 45 | 5 |
+| `tests/ApexPost.Tracking.UnitTests` | 78 | 217 | 0 | 0 | 0 |
+| `tests/Courier/ApexPost.Courier.UnitTests` | 31 | 59 | 9 | 9 | 0 |
+| `tests/Mobile/ApexPost.Courier.ApiClient.Tests` | 74 | 159 | 0 | 0 | 0 |
+| `tests/Mobile/ApexPost.Courier.Presentation.Tests` | 42 | 53 | 0 | 0 | 0 |
+| `tests/ApexPost.IntegrationTests` | 7 | 13 | 284 | 431 | 0 |
+| `tests/ApexPost.Api.Tests` | 45 | 113 | 138 | 208 | 0 |
+| `tests/ApexPost.Courier.Offline.Tests` | 0 | 0 | 57 | 64 | 0 |
+| **Total** | **605** | **1,103** | **525** | **757** | **5** |
+| **Share** | 53.3 % | 59.3 % | 46.3 % | 40.7 % | 0.4 % of methods |
+
+Totals: 186 test classes, 1,135 test methods (914 `[Fact]`, 221 `[Theory]`), 1,860 executed cases, 0 failed,
+0 skipped. What changed (+15 methods, +112 cases):
+
+| Change | Methods | Cases |
+| --- | --- | --- |
+| `ShipmentStatusRulesTests` replaced: full 6×6 matrix, completeness guard, undefined statuses, `IsFinal`, `StatusFor` with message | +1 | +24 |
+| `TrackedShipmentTests`: wider tracking-number theory, `decimal` weight `TheoryData` on `Create` and `Replace`, exact messages | +3 | +26 |
+| `TrackingFormatsTests`: missing format rows, courier `CR-099` / `CR-1000` | 0 | +15 |
+| `TrackingLimitsTests` (new): page 0/1, page size 0/1/50/51, upload 0/1/100/101 with field and message | +7 | +21 |
+| `ShipmentTrackingServiceTests`: Failed → Delivered row for `InvalidStatusTransitionException` | 0 | +1 |
+| `ShipmentScanTests` (courier): courier-id boundaries, blank/null tracking number, undefined scan type, wrong id on `Restore` | +4 | +14 |
+| `ShipmentRequestTests`, `ScanItemTests`: more tracking-number, weight and courier-id rows | 0 | +11 |
+| **Net** | **+15** | **+112** |
+
+### 3.4 After step 04 (Moq)
+
+Real run on 2026-11-15 (`dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"`). Only
+two new unit classes were added; every other row is the same as in 3.3.
+
+| Project | Unit methods | Unit cases | Integration methods | Integration cases | Measurement methods |
+| --- | --- | --- | --- | --- | --- |
+| `tests/ApexPost.Tracking.UnitTests` | 93 | 236 | 0 | 0 | 0 |
+| `tests/Courier/ApexPost.Courier.UnitTests` | 38 | 66 | 9 | 9 | 0 |
+| other six projects | unchanged | unchanged | unchanged | unchanged | unchanged |
+| **Total** | **627** | **1,129** | **525** | **757** | **5** |
+| **Share** | 54.2 % | 59.9 % | 45.4 % | 40.1 % | 0.4 % of methods |
+
+Totals: 188 test classes, 1,157 test methods (934 `[Fact]`, 223 `[Theory]`), 1,886 executed cases, 0 failed,
+0 skipped. Added: `ShipmentTrackingServiceMoqTests` (+15 methods, +19 cases) and `OutboxServiceMoqTests`
+(+7 methods, +7 cases).
+
+### 3.5 After step 05 (HTTP handler)
+
+Real run on 2026-11-15 (`dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"`). Three
+new unit classes in one project; every other row is the same as in 3.4.
+
+| Project | Unit methods | Unit cases | Integration methods | Integration cases | Measurement methods |
+| --- | --- | --- | --- | --- | --- |
+| `tests/Mobile/ApexPost.Courier.ApiClient.Tests` | 93 | 180 | 0 | 0 | 0 |
+| other seven projects | unchanged | unchanged | unchanged | unchanged | unchanged |
+| **Total** | **646** | **1,150** | **525** | **757** | **5** |
+| **Share** | 54.9 % | 60.3 % | 44.6 % | 39.7 % | 0.4 % of methods |
+
+Totals: 191 test classes, 1,176 test methods (952 `[Fact]`, 224 `[Theory]`), 1,907 executed cases, 0 failed,
+0 skipped. Added: `ApexApiClientHttpHandlerTests` (+8), `HttpShipmentUploaderHttpHandlerTests` (+8),
+`NetworkGuardHandlerTests` (+3 methods, +5 cases). `TimeoutTests` was rewritten on a fake clock with the same two
+methods.
+
+### 3.6 Target
 
 | Level | Target share (executed cases) | What belongs there |
 | --- | --- | --- |
@@ -127,8 +231,80 @@ than it gives.
 
 Interfaces mocked with Moq (step 04): `ITrackedShipmentRepository` (the brief's `IShipmentRepository`),
 `ITrackingQueries`, `ITrackingUnitOfWork`, `ICurrentCourier`, Courier `IScanRepository` / `IScanQueries`,
-`IShipmentUploader`, and `HttpMessageHandler` (protected `SendAsync`). The existing fakes stay; section 6 says what
+`IShipmentUploader`, and `HttpMessageHandler` (protected `SendAsync`). The existing fakes stay; section 4.3 says what
 each mock does **not** prove.
+
+### 4.3 Moq vs fakes (step 04)
+
+**Brief names → real interfaces.** The brief uses generic names; this repository splits them by responsibility:
+
+| Brief | Real interface(s) | Project | Mocked in |
+| --- | --- | --- | --- |
+| `IShipmentRepository` | `ITrackedShipmentRepository` (load + stage), `ITrackingUnitOfWork` (commit), `ITrackingQueries` (read views) | `src/ApexPost.Application/Tracking` | `Services/ShipmentTrackingServiceMoqTests` |
+| (caller identity) | `ICurrentCourier` (courier id claim) | `src/ApexPost.Application/Tracking` | `Services/ShipmentTrackingServiceMoqTests` |
+| `IScanRepository` | `IScanRepository` (CRUD), `IScanQueries` (pending / failed lists), `IScanSyncStatusUpdater` (status write, new in step 04) | `src/Courier/ApexPost.Courier.Domain/Ports` | `Offline/OutboxServiceMoqTests` (queries + status updater; the outbox never calls `IScanRepository`) |
+| `IShipmentUploader` | `IShipmentUploader` (single scan); `IBatchShipmentUploader` extends it | `src/Courier/ApexPost.Courier.Domain/Ports` | `Offline/OutboxServiceMoqTests` (a `Mock<IShipmentUploader>` is not a batch uploader, so the single-scan path runs) |
+
+**Which one, where.**
+
+| Class | Double | Why |
+| --- | --- | --- |
+| `ShipmentTrackingServiceMoqTests` (new) | Moq on all four ports + `FakeTimeProvider` | The questions are interactions: is `SaveChangesAsync` called `Times.Once` / `Times.Never`, which scan ids reach `AddScan` (`It.Is`), is the caller's token passed on, is `DiscardChanges` called after a `DuplicateKeyException` (`ThrowsAsync`, `SetupSequence`), and is the repository not touched at all on a forbidden upload (`VerifyNoOtherCalls`) |
+| `ShipmentTrackingServiceTests`, `ShipmentScanUploadTests`, `ScanOwnershipTests` (kept) | `InMemoryTracking` fake | Multi-step outcomes (create → move → upload → read history) need state that behaves like storage; Moq setups for that would copy the implementation |
+| `OutboxServiceMoqTests` (new) | Moq on `IScanQueries`, `IScanSyncStatusUpdater`, `IShipmentUploader` | Which status each scan gets, that one throwing upload does not stop the others (`Times.Exactly(3)`), that nothing pending means the uploader is never called, the order of sending (`Callback`) and the token rules |
+| `OutboxServiceTests`, `BatchOutboxTests` (kept, integration) | Real Couchbase + fake/scripted uploaders | The status is really written to the document and found again by the next query |
+| BDD `ScanSync.feature` (step 06) | In-memory repositories | Scenarios must read as business steps, not as mock setup |
+
+**What each mock does NOT prove.**
+
+| Mocked interface | What the mock does NOT prove | Where that is proved instead |
+| --- | --- | --- |
+| `ITrackedShipmentRepository` | That `FindAsync` really finds a stored shipment, that `FindStoredScanIdsAsync` translates to valid SQL, that the unique scan-id / tracking-number indexes exist, that `AddScan` maps every column | `IntegrationTests/Tracking/TrackingSqlTests` (real SQL Server), `TrackingModelTests` |
+| `ITrackingUnitOfWork` | That `SaveChangesAsync` commits, that a duplicate key or a rowversion conflict really arrives as `DuplicateKeyException` / `ConcurrencyConflictException`, that `DiscardChanges` really clears the change tracker | `TrackingSqlTests`, Api `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once` |
+| `ITrackingQueries` | That the projection fills every field of `ShipmentView`, paging and ordering in SQL, the latest-scan subquery | `TrackingSqlTests`, Api endpoint tests |
+| `ICurrentCourier` | That the API reads the `courierId` claim from a real token, that a non-courier role is refused by the authorization policy before the service runs | Api `AuthorizationTests`, `AuthenticationTests`, the `TestAuthHandler` end-to-end test (planned for a later step) |
+| `IScanQueries` | That the SQL++ query returns only Pending (or Failed) scans, oldest first, using the index | `Courier.Offline.Tests/Queries/CouchbaseScanQueriesTests` |
+| `IScanSyncStatusUpdater` | That the status is written to the Couchbase document, that an unknown id returns `false`, that the write survives a reopen | `Courier.Offline.Tests/Outbox/OutboxServiceTests`, `Repository/CouchbaseScanRepositoryTests` |
+| `IShipmentUploader` | The HTTP request, JSON, status-code mapping, retries, timeouts and the real server answer (accepted / duplicate / rejected) | `Mobile/ApexPost.Courier.ApiClient.Tests` (HTTP uploader), `HttpUploaderEndToEndTests`, `BatchOutboxTests` |
+
+A mock only answers what the test told it to answer, so a mocked test can pass while the real implementation is
+wrong. That is why every row above has a real-storage or real-HTTP test as well, and why `DbContext` / `DbSet` are
+never mocked (section 6).
+
+### 4.4 HTTP handler tests for the typed client (step 05)
+
+`ApexApiClient` and `HttpShipmentUploader` each have one test per HTTP case. Both run through the real registration
+of `MauiProgram` (`AddHttpClient` + `AuthHeaderHandler` + `AddApexResilience`) with a fake primary handler
+(`Support/ResilientClient.cs`), so every case also shows what the retry and the breaker do with it.
+
+| Case | `ApexApiClientHttpHandlerTests` | `HttpShipmentUploaderHttpHandlerTests` |
+| --- | --- | --- |
+| 200 + v2 JSON, string enums | `GetShipmentAsync_Http200WithV2Json_…`: `"InTransit"` → `ShipmentStatus.InTransit`, nested recipient, 1 attempt | `UploadBatchAsync_Http200WithV2Json_…`: `Completed` with the rejected reason; request `scanType` sent as `"Pickup"` |
+| 404 | NotFound, server detail, `StatusCode` 404, 1 attempt (4xx never retried) | `Refused` with the server detail, 1 attempt |
+| 500 | Retried per policy: 1 + `MaxRetryAttempts` (= 4) attempts, then `Server` failure with the fixed text; the leaked exception text is not shown | 4 attempts with the same body (scan ids make the repeat safe), then `Retryable` with the fixed text |
+| Attempt timeout | Every attempt hangs; the test advances a `FakeTimeProvider` by `AttemptTimeout` after each attempt reaches the handler; 4 attempts, then `Timeout` failure | 4 attempts, then `Retryable` with `FailureMessages.Timeout` |
+| Caller cancellation | Cancel while the attempt hangs → `OperationCanceledException` thrown, 1 attempt (no retry) | Same: the exception reaches the outbox, 1 attempt |
+| ProblemDetails | 409 problem → `Conflict`, the server detail as the message, trace id kept | `Refused` with the server detail |
+| ValidationProblemDetails | 400 → `Validation`, "Please check: …" from the field errors, `FieldErrors` filled | `Refused` with the same "Please check: …" text |
+| Moq `Protected()` | `UploadScansAsync_MoqHandler_…`: `Setup<Task<HttpResponseMessage>>("SendAsync", …)` + `Verify(Times.Once(), ItExpr.Is<HttpRequestMessage>(…))` on method POST, host, path, `Bearer moq-token`, and the `JsonContent` value (scan id); the serialized JSON is also parsed | `UploadAsync_MoqHandler_…`: same `Verify` on the full URL, `Bearer` token, `application/json` and the scan id and courier id in the body; `Times.Once()` also proves a 200 is not retried |
+
+**No real network.** Every fake handler sits behind `Support/NetworkGuardHandler.cs` (`ClientFactory.Create`,
+`ResilientClient`, `HttpClientFactoryWiringTests`, and the Moq tests). The base address is `https://apexpost.test/`;
+`.test` is a reserved top-level domain that never resolves. The guard fails the test (`Assert.Fail`) when a request
+names any other host or when the handler chain below it ends in a real `HttpClientHandler` / `SocketsHttpHandler`.
+`NetworkGuardHandlerTests` proves both checks. The guard throws an xUnit `FailException`, which neither the client
+nor Polly catches, so a leak cannot be turned into a "Network" failure and pass silently.
+
+**No waiting.** `ResilientClient.NoDelaySettings` keeps the production retry count and breaker values but sets the
+retry delay to zero and long timeouts (8 s per attempt, 5 min total) that only fire when a test advances a
+`FakeTimeProvider`. `ResilientClient` registers that clock in DI, and the resilience pipeline takes its
+`TimeProvider` from there. `ScriptedHttpHandler.Entered` (a semaphore released per attempt) tells the test when to
+advance. The 16 case tests and the two timeout tests take no wall-clock time for delays or timeouts.
+
+**What the Moq handler does NOT prove.** It returns whatever the setup says, so it does not prove that the real API
+sends that answer, uses those status codes or field names, or accepts the request. That is proved by the API tests
+(`ApexPost.Api.Tests`, `V2ContractTests`) and the end-to-end `HttpUploaderEndToEndTests`, which send the real client
+to the in-process API. It also says nothing about TLS, DNS or proxies, which need a real network that tests never use (section 11).
 
 ## 5. Existing tests review
 
@@ -136,16 +312,17 @@ One row per existing test class (190 classes, 1,134 methods). Level as defined i
 **kept / modified / removed / replaced / moved**; "planned in step NN" means the change happens in a later step and
 this table is updated then.
 
-Two changes apply to *every* class and are not repeated in each row: in step 02 every class gets
-`[Trait("Category", "Unit" | "Integration" | "Measurement")]` (today only the 4 `Measurement` classes have a trait),
-and any class touched later is renamed to `Method_Scenario_ExpectedResult` style (section 7).
+Two changes apply to *every* class and are not repeated in each row: since step 02 every class carries
+`[Trait("Category", "Unit" | "Integration" | "Measurement")]` with the level of this table (before, only the 4
+`Measurement` classes had one), and changed test methods are renamed to `Method_Scenario_ExpectedResult` style
+(section 7). A trait alone does not count as "modified".
 
 ### 5.1 Findings evaluated
 
 1. **SQL Server tests inside a unit project.** `ApexPost.Tracking.UnitTests/Infrastructure/TrackingSqlTests` opens a
    real SQL Server database (`TrackingDatabase` fixture) – it is an integration test in a unit project, and it fails
    with `InvalidOperationException` instead of skipping when no server is configured. → **moved** to
-   `tests/ApexPost.IntegrationTests/Tracking/` with the shared SQL helper (step 02).
+   `tests/ApexPost.IntegrationTests/Tracking/` with the shared SQL helper (done in step 02).
    `TrackingModelTests` only reads EF model metadata with `Server=unused` and never connects → **kept** as unit.
    The same is true for `ApexPost.UnitTests` `GeneratedSqlTests`, `MigrationScriptTests` and `DevelopmentSeederTests`
    (connection strings that are never opened or point to an unreachable port on purpose) → kept as unit.
@@ -162,19 +339,36 @@ and any class touched later is renamed to `Method_Scenario_ExpectedResult` style
    | `Offline/OutboxServiceTests` | `Outbox/OutboxTests` (and `BatchOutboxTests`) | synced not uploaded again, failed only on retry, second run while busy |
    | `Offline/ScanChangeMonitorTests` / `CourierDatabaseTests.Dispose_with_registered_listener_tokens_closes_cleanly` | `Listener/ListenerDisposeTests` | listener clean-up on dispose (partial overlap) |
 
-   Plan (step 03): Courier.UnitTests keeps only real unit classes; the Couchbase classes **move** to
-   `ApexPost.Courier.Offline.Tests` (the integration project for Couchbase); inside each pair the unique cases are
-   merged into one class and the duplicate cases are **removed**.
+   Done in step 02 (planned for step 03 at first, brought forward because the step 02 brief asks for it):
+   Courier.UnitTests keeps the pure-logic classes (scan rules, document mapper, fake uploader, table writer, the
+   reflection guard moved in from Offline.Tests); the Couchbase classes **moved** to `ApexPost.Courier.Offline.Tests`
+   (the integration project for Couchbase); inside each pair the unique cases were merged into the Part A class and
+   the duplicate class was **removed**. Two choices differ from the first plan: `IndexTests` is removed, not merged
+   into `CourierDatabaseTests`, because its Explain theory is a query concern and went to `CouchbaseScanQueriesTests`;
+   and `CourierHarnessTests` stays in Courier.UnitTests (Integration trait) because the harness is `internal` and
+   only that project has `InternalsVisibleTo`.
 3. **Tests that read the wall clock.** `DateTime.UtcNow` / `DateTimeOffset.UtcNow` appear in Api
    `AutomaticValidationTests`, `NotInFutureAttributeTests`, `AuthorizationTests`, `DevTokenTests`, `V2ContractTests`,
    `HttpUploaderEndToEndTests` and the helpers `Support/ApiClient.cs`, `Support/TestTokens.cs`; and in Week 3
    `AtomicSaleTests`, `OverPostingTests`, `StoredProcedureTests`, `ReportPagesTests`, `SaleToReportTests` and the
    helper `Support/CapturedLogs.cs`. No production code uses `DateTime.UtcNow` (all services take `TimeProvider` or
-   `IClock`). Plan (step 02): the API test host gets a fixed `TimeProvider`; scan times and token expiry are computed
-   from it; SQL default-value checks compare with the server's own `SELECT SYSUTCDATETIME()` instead of the test
-   machine's clock; `CapturedLogs` waits with a `CancellationTokenSource` timeout. The one test whose *subject* is the
-   system clock fallback (`NotInFutureAttributeTests.Without_a_TimeProvider_service_the_system_clock_is_used`) uses
-   `TimeProvider.System` with a one-hour margin and is documented as the only exception.
+   `IClock`); `TimeProvider.System` is registered only in composition roots. Done in step 02:
+   - `ApexFactory` (Week 3 host) and `ApiFactory` (API host) replace `TimeProvider` with a `FakeTimeProvider` that
+     starts at a fixed fictional instant (`FixedNow`, 2026-11-05) and moves 1 ms per read, so rows still get distinct,
+     ordered times. Report "today", audit columns, price revisions, scan times, test tokens and the dev-token expiry
+     are all computed from it.
+   - IdentityModel checks token lifetime against the wall clock and has no public clock to inject, so the API test
+     host replaces only `TokenValidationParameters.LifetimeValidator` with the same rule (expiry required, 30 s skew,
+     same exception types) on the fake clock. Signature, issuer, audience and role checks stay the real ones.
+   - The stored procedure that stamps its own time is compared with `SELECT SYSUTCDATETIME()` before and after the
+     call. `OverPostingTests` compares with the host clock instead, because that column is set by the audit
+     interceptor from `TimeProvider`, not by a database default.
+   - `CapturedLogs` waits with a `CancellationTokenSource` timeout; `TimeProvider.System` in `GeneratedClientTests`,
+     `FakeShipmentUploaderTests` and `ShipmentScanTests` was replaced by the host clock or a fixed `FakeTimeProvider`.
+   - The one test whose *subject* is the system-clock fallback
+     (`NotInFutureAttributeTests.IsValid_WithoutTimeProviderService_FallsBackToTheSystemClock`) reads
+     `TimeProvider.System` with a one-hour margin and is the only documented exception.
+   No production code had to change for this.
 4. **HTTP validation tests that repeat attribute unit tests.** `AutomaticValidationTests` sends invalid bodies through
    the host to a probe controller. Its weight/phone/tracking-number and "scan from the future" cases repeat
    `ShipmentRequestTests` and `ScanItemTests`, which already prove every rule with `Validator`. What only the host can
@@ -185,11 +379,14 @@ and any class touched later is renamed to `Method_Scenario_ExpectedResult` style
 5. **Presentation view-model tests versus scope.** The 9 classes test plain C# (commands, banners, sync status) with
    fakes, no MAUI types. → **kept, not extended** (UI is out of scope; the logic is cheap to keep green).
 6. **Status-transition coverage.** `ShipmentStatusRulesTests` has 4 `InlineData` rows; the full 6×6 matrix (36 pairs)
-   is not proved. → **replaced** by a `TheoryData<ShipmentStatus, ShipmentStatus, bool>` matrix test (step 03).
+   is not proved. → **replaced** by a `TheoryData<ShipmentStatus, ShipmentStatus, bool>` matrix test (done in step 03).
 
 ### 5.2 Review table
 
-Decisions: 166 kept, 15 modified, 6 moved, 2 removed, 1 replaced (190 classes). "Methods" and "Cases" as in 3.1.
+Decisions after step 03: 157 kept, 20 modified, 7 moved, 5 removed, 1 replaced (190 classes of the baseline; a moved
+class is listed under its new project and path). Step 02 had 163 / 14 / 7 / 5 / 1 and step 01 166 / 15 / 6 / 2 / 1; the differences are explained in
+the rows that say "Was …". "Methods" and "Cases" are the baseline numbers of 3.1, except for merged classes, which show
+their numbers after the merge.
 
 | Project | Class | Methods | Cases | Level | Decision | Reason |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -252,31 +449,31 @@ Decisions: 166 kept, 15 modified, 6 moved, 2 removed, 1 replaced (190 classes). 
 | UnitTests | `Services/StockServiceTests.cs` | 8 | 9 | Unit | kept | Week 3 application service with in-memory fakes; rule-level checks (R10) |
 | UnitTests | `Services/TaxPreviewTests.cs` | 4 | 4 | Unit | kept | Week 3 application service with in-memory fakes; rule-level checks (R10) |
 | UnitTests | `Services/UnitOfWorkBoundaryTests.cs` | 15 | 15 | Unit | kept | Week 3 application service with in-memory fakes; rule-level checks (R10) |
-| Tracking.UnitTests | `Domain/TrackedShipmentTests.cs` | 9 | 23 | Unit | kept | Tracking domain invariant at unit level (R7) |
-| Tracking.UnitTests | `Domain/TrackingFormatsTests.cs` | 4 | 12 | Unit | kept | Tracking domain invariant at unit level (R7) |
+| Tracking.UnitTests | `Domain/TrackedShipmentTests.cs` | 9 | 23 | Unit | modified (step 03) | Tracking-number theory widened (lower case, 7/9 digits, missing dash, spaces, empty, null) with the exact `DomainException` message; the two `double` weight theories replaced by `decimal` `TheoryData` (0 / 0.0999 / 0.1 / 30 / 30.001 / -1 / 4 decimals) on `Create` and `Replace`; MoveTo split into forward and backward with the exact message; final-shipment `Replace` checks Delivered and Failed with the message. Changed methods renamed with AAA (R1, R7) |
+| Tracking.UnitTests | `Domain/TrackingFormatsTests.cs` | 4 | 12 | Unit | modified (step 03) | The two format theories got the missing rows (lower case, missing dash, inner/trailing space, empty; courier `CR-099`, `CR-000`, `CR-999` valid, `CR-1000` and `CR-99` invalid) and still compare with the device rule; renamed with AAA (R7) |
 | Tracking.UnitTests | `Domain/TrackingScanTests.cs` | 4 | 7 | Unit | kept | Tracking domain invariant at unit level (R7) |
 | Tracking.UnitTests | `Infrastructure/TrackingModelTests.cs` | 5 | 6 | Unit | kept | Reads EF model metadata with Server=unused and never connects, so it is a unit test |
-| Tracking.UnitTests | `Infrastructure/TrackingSqlTests.cs` | 4 | 4 | Integration | moved - planned in step 02 | Opens a real SQL Server database inside a unit project and throws instead of skipping; moves to IntegrationTests/Tracking with the shared SQL helper |
-| Tracking.UnitTests | `Rules/ShipmentStatusRulesTests.cs` | 5 | 28 | Unit | replaced - planned in step 03 | Only 4 InlineData rows; replaced by a full 6x6 TheoryData matrix with Method_Scenario_ExpectedResult names (R1) |
+| IntegrationTests | `Tracking/TrackingSqlTests.cs` (was Tracking.UnitTests `Infrastructure/`) | 4 | 4 | Integration | moved (step 02) | Opens a real SQL Server database, so it left the unit project; its fixture `Tracking/TrackingDatabase.cs` uses the shared `SqlTestServer` (skips instead of throwing), a fixed `FakeTimeProvider` and a Moq courier; renamed with AAA |
+| Tracking.UnitTests | `Rules/ShipmentStatusRulesTests.cs` | 5 | 28 | Unit | replaced (step 03) | 22 hand-picked rows replaced by the full 6x6 table written out by hand (36 `MemberData` rows, 14 allowed), a guard that the table lists each of the 36 pairs once, undefined statuses, `IsFinal` for all 6 statuses, `StatusFor` for all 4 scan types and the exact `DomainException` message for an undefined scan type; all names Method_Scenario_ExpectedResult with AAA (R1) |
 | Tracking.UnitTests | `Services/ScanOwnershipTests.cs` | 6 | 8 | Unit | kept | Tracking service rules with the stateful InMemoryTracking fake (R1-R4); Moq tests are added in new classes (step 04) |
 | Tracking.UnitTests | `Services/ShipmentScanUploadTests.cs` | 5 | 6 | Unit | kept | Tracking service rules with the stateful InMemoryTracking fake (R1-R4); Moq tests are added in new classes (step 04) |
-| Tracking.UnitTests | `Services/ShipmentTrackingServiceTests.cs` | 29 | 40 | Unit | kept | Tracking service rules with the stateful InMemoryTracking fake (R1-R4); Moq tests are added in new classes (step 04) |
-| Courier.UnitTests | `Harness/CourierHarnessTests.cs` | 9 | 9 | Integration | kept | Runs the harness on real Couchbase (Integration trait); stays because only this project references the Harness |
+| Tracking.UnitTests | `Services/ShipmentTrackingServiceTests.cs` | 29 | 40 | Unit | modified (step 03) | Two methods changed: the `InvalidStatusTransitionException` theory now asserts the exact message and has a Failed → Delivered row; the undefined-status test asserts the `ValidationFailedException` field `status`, its message and that nothing is saved. Both renamed with AAA. Page and upload limits stay here only as wiring (3 + 2 rows); their boundaries are proved in `TrackingLimitsTests`. Moq tests come in new classes (step 04) (R1-R4) |
+| Courier.UnitTests | `Harness/CourierHarnessTests.cs` | 9 | 9 | Integration | kept | Runs the harness on real Couchbase and carries the Integration trait. It stays here because the harness is `internal` and only this project has `InternalsVisibleTo`; moving it would need a production change for no gain |
 | Courier.UnitTests | `Harness/TableWriterTests.cs` | 2 | 4 | Unit | kept | Pure text formatting of the harness tables |
-| Courier.UnitTests | `Offline/CouchbaseScanQueriesTests.cs` | 10 | 10 | Integration | moved - planned in step 03 | Real Couchbase; moves to Courier.Offline.Tests and absorbs ScanQueryTests (duplicate query cases removed) |
-| Courier.UnitTests | `Offline/CouchbaseScanRepositoryTests.cs` | 13 | 14 | Integration | moved - planned in step 03 | Real Couchbase; moves to Courier.Offline.Tests and absorbs KeyValueCrudTests (duplicate CRUD cases removed) |
-| Courier.UnitTests | `Offline/CourierDatabaseTests.cs` | 6 | 6 | Integration | moved - planned in step 03 | Real Couchbase; moves to Courier.Offline.Tests and absorbs IndexTests (duplicate index cases removed) |
-| Courier.UnitTests | `Offline/FakeShipmentUploaderTests.cs` | 5 | 6 | Unit | kept | Part A fake uploader rules (demo failures) without a database |
-| Courier.UnitTests | `Offline/OutboxServiceTests.cs` | 8 | 8 | Integration | moved - planned in step 03 | Real Couchbase; moves to Courier.Offline.Tests next to BatchOutboxTests; covers both OutboxTests cases |
-| Courier.UnitTests | `Offline/ScanChangeMonitorTests.cs` | 6 | 6 | Integration | moved - planned in step 03 | Real Couchbase listener; moves to Courier.Offline.Tests next to ListenerDisposeTests |
+| Courier.Offline.Tests | `Queries/CouchbaseScanQueriesTests.cs` (was Courier.UnitTests `Offline/`) | 12 | 18 | Integration | moved (step 02) | Real Couchbase; moved to the Couchbase integration project and merged with ScanQueryTests and IndexTests: the single injection case became a 6-row theory (its own input + the 5 of ScanQueryTests), plus the courier-id injection case and the `SEARCH _ USING INDEX` Explain theory; renamed with AAA |
+| Courier.Offline.Tests | `Repository/CouchbaseScanRepositoryTests.cs` (was Courier.UnitTests `Offline/`) | 14 | 15 | Integration | moved (step 02) | Real Couchbase; moved and merged with KeyValueCrudTests (its unique reopen case added); renamed with AAA |
+| Courier.Offline.Tests | `Lifecycle/CourierDatabaseTests.cs` (was Courier.UnitTests `Offline/`) | 6 | 6 | Integration | moved (step 02) | Real Couchbase; moved unchanged except namespace and trait. It already covers both IndexTests duplicates (indexes created, reopen creates none) |
+| Courier.UnitTests | `Offline/FakeShipmentUploaderTests.cs` | 5 | 6 | Unit | modified (step 02) | Part A fake uploader rules without a database; its scan helper used `TimeProvider.System`, now a fixed `FakeTimeProvider` (helper only, test methods unchanged) |
+| Courier.Offline.Tests | `Outbox/OutboxServiceTests.cs` (was Courier.UnitTests `Offline/`) | 8 | 8 | Integration | moved (step 02) | Real Couchbase; moved unchanged next to BatchOutboxTests; covers both OutboxTests cases (R6) |
+| Courier.Offline.Tests | `Listener/ScanChangeMonitorTests.cs` (was Courier.UnitTests `Offline/`) | 6 | 6 | Integration | moved (step 02) | Real Couchbase listener; moved unchanged next to ListenerDisposeTests |
 | Courier.UnitTests | `Offline/ScanDocumentMapperTests.cs` | 8 | 11 | Unit | kept | Exact JSON field names and round trip of the scan document (shared contract) |
-| Courier.UnitTests | `Scans/ShipmentScanTests.cs` | 6 | 17 | Unit | modified - planned in step 03 | Duplicate of Offline.Tests Domain/ShipmentScanTests; becomes the single class, takes over its unique cases (scan:: id, unique ids, starts Pending) |
+| Courier.UnitTests | `Scans/ShipmentScanTests.cs` | 9 | 21 | Unit | modified (step 02, 03) | Merged with the duplicate Offline.Tests class: took over its unique cases (scan:: + Guid id, two ids differ, starts Pending, injection-style tracking number); the clock is a fixed `FakeTimeProvider`; renamed with AAA. Step 03: exact `ArgumentException` message and parameter for a wrong tracking number and courier id, courier rows `CR-000`/`CR-099`/`CR-999` valid and `CR-99`/`CR-1000` invalid, blank (`ArgumentException`) and null (`ArgumentNullException`) tracking number, undefined scan type, and `Restore` with a wrong id |
 | Courier.ApiClient.Tests | `Auth/AccessTokenClaimsTests.cs` | 3 | 11 | Unit | kept | Auth header handler and token claims with a fake handler (R4) |
 | Courier.ApiClient.Tests | `Auth/AuthHeaderHandlerTests.cs` | 4 | 6 | Unit | kept | Auth header handler and token claims with a fake handler (R4) |
-| Courier.ApiClient.Tests | `Auth/HttpClientFactoryWiringTests.cs` | 1 | 1 | Unit | kept | Auth header handler and token claims with a fake handler (R4) |
-| Courier.ApiClient.Tests | `Client/ApexApiClientTests.cs` | 10 | 13 | Unit | kept | Typed client results and ProblemDetails parsing with a fake handler |
+| Courier.ApiClient.Tests | `Auth/HttpClientFactoryWiringTests.cs` | 1 | 1 | Unit | modified (step 05) | The fake primary handler now sits behind `NetworkGuardHandler` and the expected URL is `https://apexpost.test/...` (was `localhost:7310`); renamed `AddHttpClient_TypedClientFromFactory_HasBaseAddressAndAuthHandler` with AAA (R4) |
+| Courier.ApiClient.Tests | `Client/ApexApiClientTests.cs` | 10 | 13 | Unit | modified (step 05) | Kept for routes, query strings, field mapping, input checks and exceptions without the pipeline; `ClientFactory` now puts `NetworkGuardHandler` in front of the fake, so the one URL assertion changed to `https://apexpost.test/...` and that method was renamed `GetShipmentAsync_V2Json_ReadsStringEnumsNestedRecipientAndCallsTheFakeHost` with AAA. The HTTP case matrix through the full pipeline is in the new `ApexApiClientHttpHandlerTests` |
 | Courier.ApiClient.Tests | `Client/DevelopmentTokenTests.cs` | 3 | 3 | Unit | kept | Typed client results and ProblemDetails parsing with a fake handler |
-| Courier.ApiClient.Tests | `Client/ProblemDetailsTests.cs` | 6 | 13 | Unit | kept | Typed client results and ProblemDetails parsing with a fake handler |
+| Courier.ApiClient.Tests | `Client/ProblemDetailsTests.cs` | 6 | 13 | Unit | kept | Detailed ProblemDetails parsing (fixed texts per status, unreadable bodies, null field messages) without the pipeline. Overlap with `ApexApiClientHttpHandlerTests` (404, 409, 400) is deliberate: this class checks parsing edge cases, the new class checks the case through retry/breaker (no retry on 4xx). Runs behind `NetworkGuardHandler` since step 05 (helper change only) |
 | Courier.ApiClient.Tests | `Client/ResponseRobustnessTests.cs` | 4 | 13 | Unit | kept | Typed client results and ProblemDetails parsing with a fake handler |
 | Courier.ApiClient.Tests | `Http/ApiBaseAddressTests.cs` | 3 | 7 | Unit | kept | Base address rules and DEBUG-only development hosts |
 | Courier.ApiClient.Tests | `Http/DevelopmentHostsTests.cs` | 3 | 9 | Unit | kept | Base address rules and DEBUG-only development hosts |
@@ -284,9 +481,9 @@ Decisions: 166 kept, 15 modified, 6 moved, 2 removed, 1 replaced (190 classes). 
 | Courier.ApiClient.Tests | `Resilience/CircuitBreakerTests.cs` | 5 | 5 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
 | Courier.ApiClient.Tests | `Resilience/ResilienceLoggingTests.cs` | 3 | 3 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
 | Courier.ApiClient.Tests | `Resilience/RetryRuleTests.cs` | 6 | 19 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
-| Courier.ApiClient.Tests | `Resilience/RetryTests.cs` | 8 | 16 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
-| Courier.ApiClient.Tests | `Resilience/TimeoutTests.cs` | 2 | 2 | Unit | kept | Polly retry / circuit breaker / timeout with scripted handlers (R5) |
-| Courier.ApiClient.Tests | `Sync/HttpShipmentUploaderTests.cs` | 8 | 24 | Unit | kept | HttpShipmentUploader batch mapping and outcomes with a fake handler (R3, R6) |
+| Courier.ApiClient.Tests | `Resilience/RetryTests.cs` | 8 | 16 | Unit | kept | Retry rules per status, method and marking (R5). Runs behind `NetworkGuardHandler` since step 05 (helper change only). Its caller-cancellation test still uses a 100 ms wall-clock `CancelAfter`; it would only flake if the first attempt needed more than 100 ms to reach the handler (never seen), and the deterministic version is in the two new HTTP case classes |
+| Courier.ApiClient.Tests | `Resilience/TimeoutTests.cs` | 2 | 2 | Unit | modified (step 05) | Both tests ran on real 200 ms / 300 ms timers and the total-timeout test expected exactly 2 attempts; it failed once in the first step-05 run on a cold start. Now Polly runs on a `FakeTimeProvider` and the test advances the clock after each attempt reaches the handler (`ScriptedHttpHandler.Entered`), retry delay zero. Same two behaviours, renamed with AAA (R5, R11) |
+| Courier.ApiClient.Tests | `Sync/HttpShipmentUploaderTests.cs` | 8 | 24 | Unit | kept | Batch mapping, every field of the request, the failure-kind → outcome table, circuit open, input checks (R3, R6). Runs behind `NetworkGuardHandler` since step 05 (helper change only). The per-HTTP-case tests (timeout, caller cancel, ProblemDetails, Moq `Verify`) are in the new `HttpShipmentUploaderHttpHandlerTests` |
 | Courier.Presentation.Tests | `Mvvm/AsyncCommandTests.cs` | 3 | 3 | Unit | kept | Plain C# MVVM helper; kept, not extended (UI out of scope) |
 | Courier.Presentation.Tests | `Mvvm/ObservableObjectTests.cs` | 1 | 1 | Unit | kept | Plain C# MVVM helper; kept, not extended (UI out of scope) |
 | Courier.Presentation.Tests | `ViewModels/ConnectionBannerViewModelTests.cs` | 5 | 7 | Unit | kept | Plain view-model logic with fakes, no MAUI types; kept, not extended (UI out of scope) |
@@ -321,7 +518,7 @@ Decisions: 166 kept, 15 modified, 6 moved, 2 removed, 1 replaced (190 classes). 
 | IntegrationTests | `Security/PageMarkupTests.cs` | 5 | 18 | Integration | kept | Auth, IP allowlist, API key and rate limit need the real pipeline |
 | IntegrationTests | `Security/RateLimitingTests.cs` | 4 | 4 | Integration | kept | Auth, IP allowlist, API key and rate limit need the real pipeline |
 | IntegrationTests | `Security/SensitiveDataTests.cs` | 2 | 2 | Integration | kept | Auth, IP allowlist, API key and rate limit need the real pipeline |
-| IntegrationTests | `Sql/AtomicSaleTests.cs` | 6 | 6 | Integration | modified - planned in step 02 | Uses DateTime.UtcNow as an arbitrary value; replace with a fixed time |
+| IntegrationTests | `Sql/AtomicSaleTests.cs` | 6 | 6 | Integration | modified (step 02) | `DateTime.UtcNow` / `DateTimeOffset.UtcNow` were arbitrary values; now the host clock (3 tests renamed with AAA) |
 | IntegrationTests | `Sql/AuditPersistenceTests.cs` | 4 | 4 | Integration | kept | Real SQL Server behaviour (constraints, rowversion, procedures, translation) no unit test can prove (R10) |
 | IntegrationTests | `Sql/BusinessRulesOnSqlTests.cs` | 9 | 21 | Integration | kept | Week 3 rules enforced by SQL CHECK/UNIQUE constraints (R10) |
 | IntegrationTests | `Sql/CommandCountTests.cs` | 5 | 14 | Integration | kept | Real SQL Server behaviour (constraints, rowversion, procedures, translation) no unit test can prove (R10) |
@@ -330,27 +527,27 @@ Decisions: 166 kept, 15 modified, 6 moved, 2 removed, 1 replaced (190 classes). 
 | IntegrationTests | `Sql/EfMappingTests.cs` | 16 | 35 | Integration | kept | Real SQL Server behaviour (constraints, rowversion, procedures, translation) no unit test can prove (R10) |
 | IntegrationTests | `Sql/ErrorMappingTests.cs` | 7 | 7 | Integration | kept | Real SQL Server behaviour (constraints, rowversion, procedures, translation) no unit test can prove (R10) |
 | IntegrationTests | `Sql/LeastPrivilegeTests.cs` | 6 | 21 | Integration | kept | Real SQL Server behaviour (constraints, rowversion, procedures, translation) no unit test can prove (R10) |
-| IntegrationTests | `Sql/OverPostingTests.cs` | 2 | 2 | Integration | modified - planned in step 02 | Compares a DB default with the test machine clock; compare with SELECT SYSUTCDATETIME() instead |
+| IntegrationTests | `Sql/OverPostingTests.cs` | 2 | 2 | Integration | modified (step 02) | CreatedAtUtc is set by the audit interceptor from `TimeProvider`, not by a DB default, so it is compared with the host clock (exact window) and not with `SYSUTCDATETIME()` as first planned; renamed with AAA |
 | IntegrationTests | `Sql/PriceRevisionTests.cs` | 5 | 6 | Integration | kept | Real SQL Server behaviour (constraints, rowversion, procedures, translation) no unit test can prove (R10) |
 | IntegrationTests | `Sql/QueryTranslationTests.cs` | 11 | 11 | Integration | kept | Real SQL Server behaviour (constraints, rowversion, procedures, translation) no unit test can prove (R10) |
 | IntegrationTests | `Sql/ReversalTests.cs` | 7 | 9 | Integration | kept | Real SQL Server behaviour (constraints, rowversion, procedures, translation) no unit test can prove (R10) |
 | IntegrationTests | `Sql/StockConcurrencyTests.cs` | 5 | 5 | Integration | kept | rowversion lost-update protection on BranchStock (R10) |
-| IntegrationTests | `Sql/StoredProcedureTests.cs` | 15 | 15 | Integration | modified - planned in step 02 | Now = DateTimeOffset.UtcNow and a clock window; use fixed times and the server's SYSUTCDATETIME() |
+| IntegrationTests | `Sql/StoredProcedureTests.cs` | 15 | 15 | Integration | modified (step 02) | Adjustment times come from the host clock; the server-time test compares with `SELECT SYSUTCDATETIME()` before and after the call (renamed with AAA) |
 | IntegrationTests | `Sql/WriteOrderTests.cs` | 2 | 2 | Integration | kept | Real SQL Server behaviour (constraints, rowversion, procedures, translation) no unit test can prove (R10) |
 | IntegrationTests | `Workflows/BranchAdministrationTests.cs` | 7 | 8 | Integration | kept | End-to-end Week 3 page flow; the only tests of the server-rendered pages |
 | IntegrationTests | `Workflows/CounterWorkflowTests.cs` | 14 | 14 | Integration | kept | End-to-end Week 3 page flow; the only tests of the server-rendered pages |
 | IntegrationTests | `Workflows/NotificationPageTests.cs` | 3 | 3 | Integration | kept | End-to-end Week 3 page flow; the only tests of the server-rendered pages |
-| IntegrationTests | `Workflows/ReportPagesTests.cs` | 9 | 9 | Integration | modified - planned in step 02 | "Today" from DateTime.UtcNow can flip at midnight; use the factory's fixed clock |
-| IntegrationTests | `Workflows/SaleToReportTests.cs` | 8 | 8 | Integration | modified - planned in step 02 | "Today" from DateTime.UtcNow can flip at midnight; use the factory's fixed clock |
+| IntegrationTests | `Workflows/ReportPagesTests.cs` | 9 | 9 | Integration | modified (step 02) | "Today" is `ApexFactory.Today` (the host clock date), so it cannot flip at midnight (helper only) |
+| IntegrationTests | `Workflows/SaleToReportTests.cs` | 8 | 8 | Integration | modified (step 02) | Report date from `ApexFactory.Today` (helper only) |
 | IntegrationTests | `Workflows/StaffAdministrationTests.cs` | 11 | 11 | Integration | kept | End-to-end Week 3 page flow; the only tests of the server-rendered pages |
 | Api.Tests | `Client/ApexPostApiOptionsTests.cs` | 3 | 5 | Unit | kept | Generated client options defaults, no host needed |
-| Api.Tests | `Client/GeneratedClientTests.cs` | 7 | 7 | Integration | kept | Generated NSwag client against the in-process API (contract wiring) |
-| Api.Tests | `Contracts/AutomaticValidationTests.cs` | 7 | 7 | Integration | modified - planned in step 03 | Rule cases repeat ShipmentRequestTests/ScanItemTests and use DateTime.UtcNow; keep one valid and one invalid body per request type plus the nested Delivered-signature case |
-| Api.Tests | `Contracts/NotInFutureAttributeTests.cs` | 7 | 7 | Unit | modified - planned in step 02 | Uses DateTime.UtcNow; switch to a fixed TimeProvider; the system-clock fallback test keeps TimeProvider.System with a 1 h margin (documented exception) |
-| Api.Tests | `Contracts/ScanItemTests.cs` | 11 | 36 | Unit | kept | Request DTO validation with Validator, the lowest level for these rules (R7) |
-| Api.Tests | `Contracts/ScanUploadRequestTests.cs` | 1 | 4 | Unit | kept | Upload size 1..100 at the DTO; boundary theories extended in a new class in step 03 (R7) |
+| Api.Tests | `Client/GeneratedClientTests.cs` | 7 | 7 | Integration | modified (step 02) | The demo timed its scans with `TimeProvider.System`, which the host on a fixed clock would see as future scans; the 3 demo tests now pass the host clock (renamed with AAA) |
+| Api.Tests | `Contracts/AutomaticValidationTests.cs` | 7 | 7 | Integration | modified (step 02) - more planned in step 03 | Step 02: the 3 scan tests take "now" from the host clock (renamed with AAA). Step 03: keep one valid and one invalid body per request type plus the nested Delivered-signature case |
+| Api.Tests | `Contracts/NotInFutureAttributeTests.cs` | 7 | 7 | Unit | modified (step 02) | Already used a fixed TimeProvider; the system-clock fallback test now reads `TimeProvider.System` with a 1 h margin and is the one documented clock exception (section 7); renamed with AAA |
+| Api.Tests | `Contracts/ScanItemTests.cs` | 11 | 36 | Unit | modified (step 03) | Courier-id theory got `CR-000`, `CR-099`, `CR-999` (valid) and `CR-1000` (invalid); renamed with AAA. Other methods unchanged (R7) |
+| Api.Tests | `Contracts/ScanUploadRequestTests.cs` | 1 | 4 | Unit | modified (step 03) | Was "extended in a new class": it already had 0 / 1 / 100 / 101, so it was renamed with AAA instead of being copied; the service-side limit with its exact message is proved in `TrackingLimitsTests` (R7) |
 | Api.Tests | `Contracts/ShipmentMappingTests.cs` | 7 | 7 | Unit | kept | Explicit DTO <-> command mapping, no host needed |
-| Api.Tests | `Contracts/ShipmentRequestTests.cs` | 12 | 34 | Unit | kept | Request DTO validation with Validator, the lowest level for these rules (R7) |
+| Api.Tests | `Contracts/ShipmentRequestTests.cs` | 12 | 34 | Unit | modified (step 03) | Tracking-number theory widened (missing dash, inner/trailing space, null); the string weight theory replaced by `decimal` `TheoryData` (0 / 0.0999 / 0.1 / 0.1001 / 30 / 30.001 / -1 / 70 / 1.0005) on create and update with the exact message. 1.0005 kg passes the `[Range]` attribute and is refused by the domain (documented in the test). Changed methods renamed with AAA (R7) |
 | Api.Tests | `Documentation/ContractTrackingTests.cs` | 2 | 3 | Integration | kept | OpenAPI documents produced by the real host (Part C contract) |
 | Api.Tests | `Documentation/DevelopmentDocumentationTests.cs` | 4 | 4 | Integration | kept | OpenAPI documents produced by the real host (Part C contract) |
 | Api.Tests | `Documentation/EnumSchemaTests.cs` | 2 | 3 | Integration | kept | OpenAPI documents produced by the real host (Part C contract) |
@@ -365,24 +562,37 @@ Decisions: 166 kept, 15 modified, 6 moved, 2 removed, 1 replaced (190 classes). 
 | Api.Tests | `Errors/ProductionErrorTests.cs` | 3 | 3 | Integration | kept | Production host hides stack trace and message (R8) |
 | Api.Tests | `Hosting/DevelopmentHostTests.cs` | 5 | 6 | Integration | kept | Development start-up migrates and seeds only in Development |
 | Api.Tests | `Security/AuthenticationTests.cs` | 6 | 12 | Integration | kept | JWT, roles, partner key and HTTPS through the real pipeline (R4) |
-| Api.Tests | `Security/AuthorizationTests.cs` | 8 | 9 | Integration | modified - planned in step 02 | Scan time from DateTime.UtcNow; use the host's fixed TimeProvider (R4) |
-| Api.Tests | `Security/DevTokenTests.cs` | 5 | 7 | Integration | modified - planned in step 02 | Expiry checked against DateTime.UtcNow; compare with the fixed TimeProvider |
+| Api.Tests | `Security/AuthorizationTests.cs` | 8 | 9 | Integration | modified (step 02) | The cross-courier v2 test takes its scan time from the host clock (renamed with AAA); tokens come from `TestTokens` on the fixed clock (R4) |
+| Api.Tests | `Security/DevTokenTests.cs` | 5 | 7 | Integration | modified (step 02) | Expiry is checked against the host clock: one hour after the request (renamed with AAA) |
 | Api.Tests | `Security/HttpsTests.cs` | 3 | 4 | Integration | kept | JWT, roles, partner key and HTTPS through the real pipeline (R4) |
 | Api.Tests | `Security/PartnerApiKeyTests.cs` | 6 | 10 | Integration | kept | JWT, roles, partner key and HTTPS through the real pipeline (R4) |
 | Api.Tests | `Security/PartnerKeyStoreTests.cs` | 4 | 9 | Unit | kept | Constant-time partner key lookup, no host needed |
 | Api.Tests | `Security/ProductionSecurityTests.cs` | 2 | 2 | Integration | kept | JWT, roles, partner key and HTTPS through the real pipeline (R4) |
-| Api.Tests | `Sync/HttpUploaderEndToEndTests.cs` | 4 | 4 | Integration | modified - planned in step 02 | Scan time from DateTimeOffset.UtcNow; use the fixed TimeProvider (R3, R6) |
+| Api.Tests | `Sync/HttpUploaderEndToEndTests.cs` | 4 | 4 | Integration | modified (step 02) | Scan helper timed from `ApiFactory.FixedNow` instead of `DateTimeOffset.UtcNow` (helper only) (R3, R6) |
 | Api.Tests | `Versioning/V1ContractSnapshotTests.cs` | 4 | 7 | Integration | kept | Exact Part B JSON snapshot guards the deprecated v1 contract (R9) |
-| Api.Tests | `Versioning/V2ContractTests.cs` | 7 | 7 | Integration | modified - planned in step 02 | Scan time from DateTime.UtcNow; use the fixed TimeProvider (R9) |
+| Api.Tests | `Versioning/V2ContractTests.cs` | 7 | 7 | Integration | modified (step 02) | Upload helper timed from `ApiFactory.FixedNow` instead of `DateTime.UtcNow` (helper only) (R9) |
 | Api.Tests | `Versioning/VersionHeaderTests.cs` | 5 | 12 | Integration | kept | v1 snapshot, v2 shape and version headers through the real host (R9) |
-| Courier.Offline.Tests | `Architecture/DomainDependencyTests.cs` | 3 | 3 | Unit | kept | Reflection guard: only Offline references Couchbase |
-| Courier.Offline.Tests | `Domain/ShipmentScanTests.cs` | 6 | 15 | Unit | removed - planned in step 03 | Duplicates Courier.UnitTests Scans/ShipmentScanTests; its 3 unique cases move there |
-| Courier.Offline.Tests | `Indexes/IndexTests.cs` | 3 | 4 | Integration | modified - planned in step 03 | Overlaps CourierDatabaseTests and ExplainQueries; merged with the moved CourierDatabaseTests |
+| Courier.UnitTests | `Architecture/DomainDependencyTests.cs` (was Courier.Offline.Tests) | 3 | 3 | Unit | moved (step 02) | Was "kept": the reflection guard (only Offline references Couchbase) needs no database, so it moved to the unit project and Courier.Offline.Tests now holds only Couchbase integration tests |
+| Courier.Offline.Tests | `Domain/ShipmentScanTests.cs` | 6 | 15 | Unit | removed (step 02) | Duplicate of Courier.UnitTests `Scans/ShipmentScanTests`; its 3 unique cases and its injection-style input moved there |
+| Courier.Offline.Tests | `Indexes/IndexTests.cs` | 3 | 4 | Integration | removed (step 02) | Was "modified": both facts duplicate `CourierDatabaseTests` (indexes exist, reopen creates none); the Explain theory is a query concern and moved to `CouchbaseScanQueriesTests` |
 | Courier.Offline.Tests | `Listener/ListenerDisposeTests.cs` | 1 | 1 | Integration | kept | Unique case: no listener callback after dispose (real Couchbase) |
 | Courier.Offline.Tests | `Outbox/BatchOutboxTests.cs` | 10 | 10 | Integration | kept | Batch path of the outbox on real Couchbase: batches of 20, rejected -> Failed, network error keeps Pending (R6) |
-| Courier.Offline.Tests | `Outbox/OutboxTests.cs` | 2 | 2 | Integration | removed - planned in step 03 | Both cases are already proved by OutboxServiceTests and BatchOutboxTests |
-| Courier.Offline.Tests | `Queries/ScanQueryTests.cs` | 5 | 9 | Integration | modified - planned in step 03 | Overlaps CouchbaseScanQueriesTests; only the courier-id injection case stays, merged with the moved class |
-| Courier.Offline.Tests | `Repository/KeyValueCrudTests.cs` | 4 | 4 | Integration | modified - planned in step 03 | Overlaps CouchbaseScanRepositoryTests; only the unique reopen case stays, merged with the moved class |
+| Courier.Offline.Tests | `Outbox/OutboxTests.cs` | 2 | 2 | Integration | removed (step 02) | Both cases are already proved by OutboxServiceTests (rejected -> Failed, synced not re-sent, failed only with includeFailed) and FakeShipmentUploaderTests (demo failure) |
+| Courier.Offline.Tests | `Queries/ScanQueryTests.cs` | 5 | 9 | Integration | removed (step 02) | Was "modified": its order, pending and count cases duplicate CouchbaseScanQueriesTests; the courier-id injection case and the 5 tracking-number injection inputs moved there, so nothing unique is left |
+| Courier.Offline.Tests | `Repository/KeyValueCrudTests.cs` | 4 | 4 | Integration | removed (step 02) | Was "modified": CRUD, duplicate id and unknown id duplicate CouchbaseScanRepositoryTests (the full-field round trip is also in ScanDocumentMapperTests); the reopen case moved there |
+
+### 5.3 Classes added in Week 5
+
+New classes are not part of the baseline review above; they follow every rule of section 7 from the start.
+
+| Step | Project | Class | Level | Why a new class and not an existing one |
+| --- | --- | --- | --- | --- |
+| 03 | Tracking.UnitTests | `Rules/TrackingLimitsTests.cs` | Unit | `TrackingLimits.CheckPage` / `CheckUpload` had no test of their own; the service tests only showed that *some* bad page or upload fails. This class proves page 0/1, page size 0/1/50/51 and upload 0/1/100/101 with the exact `ValidationFailedException` field and message, once, at the lowest level |
+| 04 | Tracking.UnitTests | `Services/ShipmentTrackingServiceMoqTests.cs` | Unit | The existing service classes use the stateful `InMemoryTracking` fake and prove outcomes; this class proves the *interactions* with Moq (`Verify` with `Times.Once` / `Never` / `Exactly`, `It.Is` on scan ids, token pass-through, `DiscardChanges` after `ThrowsAsync(DuplicateKeyException)`, `VerifyNoOtherCalls` on a forbidden upload). 15 methods, 19 cases (R1–R4) |
+| 04 | Courier.UnitTests | `Offline/OutboxServiceMoqTests.cs` | Unit | `OutboxServiceTests` needs real Couchbase (integration); this class tests the single-scan outbox path with mocked `IScanQueries`, `IScanSyncStatusUpdater` and `IShipmentUploader`: Synced / Failed per scan, one throwing upload does not stop the rest, nothing pending → uploader never called, oldest first with `includeFailed`, token rules. 7 methods, 7 cases (R6) |
+| 05 | Courier.ApiClient.Tests | `Client/ApexApiClientHttpHandlerTests.cs` | Unit | The client's HTTP cases were spread over four classes by mechanism, without the full pipeline for 404/409/400 and without any Moq handler. One test per case through auth + resilience: 200 v2 JSON, 404, 500 retried then failure, every attempt timing out, caller cancel, 409 ProblemDetails, 400 ValidationProblemDetails, and Moq `Protected()` `SendAsync` with `Verify` (section 4.4). 8 methods, 8 cases (R5) |
+| 05 | Courier.ApiClient.Tests | `Sync/HttpShipmentUploaderHttpHandlerTests.cs` | Unit | The uploader had no test for attempt timeout, caller cancellation, ProblemDetails text or the 500 attempt count. Same 8 cases as above, asserting what the outbox gets (`Completed` / `Refused` / `Retryable` + message, or the exception). 8 methods, 8 cases (R3, R5, R6) |
+| 05 | Courier.ApiClient.Tests | `Http/NetworkGuardHandlerTests.cs` | Unit | Proves the guard every client test now runs behind: fake host passes; `localhost`, a `.example` host and `10.0.2.2` fail the test before the fake is called; a real `SocketsHttpHandler` below the guard fails the test without sending. 3 methods, 5 cases |
 
 ## 6. Data access strategy
 
@@ -390,8 +600,8 @@ Decisions: 166 kept, 15 modified, 6 moved, 2 removed, 1 replaced (190 classes). 
 | --- | --- | --- | --- |
 | Moq on repository / query / unit-of-work ports | Service unit tests (`ShipmentTrackingService`, outbox) | The service calls the right port members in the right order, commits once, does not commit on failure, maps port exceptions to the right outcome | That the SQL is valid, that EF Core can translate the query, that the unique index exists, that rowversion detects a conflict, that the data really round-trips |
 | Hand-written in-memory fakes (`InMemoryTracking`, `InMemoryRepository`) | Existing service tests, BDD `ScanSync.feature` | Business flow over several calls with believable state | Same gaps as Moq; plus the fake can drift from the real repository – each fake is kept minimal and checked against the port contract |
-| Throw-away **SQL Server** database per fixture | `ApexPost.IntegrationTests/Sql`, Api tests (`ApiFactory`), moved `TrackingSqlTests` | Real migrations, constraints (UNIQUE, CHECK, FK Restrict), filtered indexes, rowversion, stored procedures, `datetime2` precision, SQL translation, transaction behaviour | Production data volume and real network latency; SQL Server version differences beyond the one used (CI: `mssql/server:2022-latest`) |
-| Embedded **Couchbase Lite** in a unique temp folder | `ApexPost.Courier.Offline.Tests` (after step 03, also the moved Courier classes) | Real document storage, SQL++ queries with parameters, value indexes (`Explain`), listeners, reopen behaviour | Sync over a real network; behaviour on Android/Windows device storage |
+| Throw-away **SQL Server** database per fixture | `ApexPost.IntegrationTests/Sql`, `ApexPost.IntegrationTests/Tracking`, Api tests (`ApiFactory`); all through `SqlTestServer` | Real migrations, constraints (UNIQUE, CHECK, FK Restrict), filtered indexes, rowversion, stored procedures, `datetime2` precision, SQL translation, transaction behaviour | Production data volume and real network latency; SQL Server version differences beyond the one used (CI: `mssql/server:2022-latest`) |
+| Embedded **Couchbase Lite** in a unique temp folder | `ApexPost.Courier.Offline.Tests` (since step 02 every Couchbase class except the harness tests) and `CourierHarnessTests` | Real document storage, SQL++ queries with parameters, value indexes (`Explain`), listeners, reopen behaviour | Sync over a real network; behaviour on Android/Windows device storage |
 | `WebApplicationFactory<Program>` in-process | Api and Web integration tests | Routing, model binding, filters, middleware order, authentication/authorization, status codes, headers, ProblemDetails | Kestrel/TLS configuration and reverse proxies in a real deployment |
 
 **Why not SQLite here.** The tracking and Week 3 schemas depend on SQL Server features that SQLite does not have or
@@ -406,33 +616,60 @@ handling, client evaluation), still passes. There are no constraints, so a dupli
 never raised. And the mock setup has to repeat what the implementation does (`Setup(x => x.Shipments.Where(…))`),
 so the test copies the implementation and passes even when both are wrong.
 
-**Local "no manual setup" chain (one shared helper, step 02).** Every SQL test fixture asks one helper for a server:
+**Local "no manual setup" chain (one shared helper, built in step 02).** Every SQL test fixture (`ApexFactory`,
+`ApiFactory` and their subclasses, `Tracking/TrackingDatabase`) asks `tests/Common/SqlTestServer.cs` for a server. The
+file is linked into `ApexPost.IntegrationTests` and `ApexPost.Api.Tests`, so there is one copy of the logic:
 
 1. environment variable `ConnectionStrings__ApexPostTestServer` (CI container);
-2. user-secrets of the web project (`ConnectionStrings:ApexPostTestServer`, then `ConnectionStrings:ApexPostDb`);
+2. user-secrets of the web and API projects (`ConnectionStrings:ApexPostTestServer`, then `ConnectionStrings:ApexPostDb`,
+   as written by `setup-secrets.bat`);
 3. on Windows, LocalDB `(localdb)\MSSQLLocalDB` if it answers;
-4. otherwise `Assert.Skip("SQL Server not available: …")` with the list of what was tried.
+4. otherwise `Assert.Skip("SQL Server not available: …")` with the list of what was tried and why LocalDB failed.
 
-Each fixture creates its own database (`ApexPostTests_<area>_<guid>`) and drops it when the fixture ends; the
-development database is never touched. In CI, step 1 always succeeds, so CI has 0 skipped tests.
+A server given by 1 or 2 is used as it is: if it is down, the tests fail instead of hiding the problem. When the
+variable `CI` is `true`, step 4 fails the test instead of skipping it, so CI can never report a skipped SQL test.
+
+Each fixture creates its own database (`ApexPostTests_<area>_<guid>`, area `Web`, `Api` or `Tracking`) and drops it
+when the fixture ends; the development database is never touched. xUnit v3 reports a skip thrown from a class fixture
+constructor as a *failure* (checked with a small experiment before writing the helper), so fixtures never skip while
+they are built: `ApexFactory` and `ApiFactory` skip in `CreateHost` (when a test first uses the host), and
+`TrackingDatabase` skips in `NewContext()`. Checked in step 02 by hiding the user-secrets (`APPDATA` pointed to an empty
+folder): the SQL tests were reported as skipped with the full message while the non-SQL tests in the same project
+passed, and with `CI=true` the same tests failed with "CI must not skip SQL tests". On the step 02 machine the LocalDB
+instance did not start in that run, so the LocalDB success path itself is not yet proved by a run.
+
+### 6.1 Production code changed for testability
+
+| Step | Change | Why | Behaviour change |
+| --- | --- | --- | --- |
+| 04 | New port `IScanSyncStatusUpdater` (`src/Courier/ApexPost.Courier.Domain/Ports/IScanSyncStatusUpdater.cs`, no packages); `CouchbaseScanRepository` implements it; the `OutboxService` constructor takes `IScanSyncStatusUpdater` instead of the concrete `CouchbaseScanRepository` | The outbox could only be built with a real Couchbase database, so it had no unit test and could not be mocked. A separate one-method port was chosen instead of adding the member to `IScanRepository`, which would have broken the other implementation (`InMemoryScanStore` in Presentation.Tests) | None: the method body is unchanged, the harness, `MauiProgram` and the existing tests still pass the same repository object |
 
 ## 7. Conventions
 
 - **AAA:** every new or modified test has `// Arrange`, `// Act`, `// Assert` comments.
-- **Naming:** new tests and every class touched in Week 5 use `Method_Scenario_ExpectedResult`
-  (e.g. `CanMove_FromDeliveredToAnyStatus_ReturnsFalse`). Untouched older tests keep their sentence-style names
-  (`Forward_moves_are_allowed`): renaming about 1,100 methods by hand adds review noise and merge risk and proves
-  nothing new; they are renamed only when a class is changed for another reason.
+- **Naming:** new tests use `Method_Scenario_ExpectedResult` (e.g. `CanMove_FromDeliveredToAnyStatus_ReturnsFalse`).
+  Untouched older tests keep their sentence-style names (`Forward_moves_are_allowed`): renaming about 1,100 methods by
+  hand adds review noise and merge risk and proves nothing new. How "touched" is applied (decided in step 02):
+  a class that is rewritten or merged is renamed as a whole (`TrackingSqlTests`, `ShipmentScanTests`,
+  `CouchbaseScanRepositoryTests`, `CouchbaseScanQueriesTests`); in other classes, each test method whose body changes
+  gets the new name and AAA comments. A class that only gets a trait, a namespace, a new folder or a changed private
+  helper keeps its names, because none of its tests changed. So some classes mix both styles for now.
 - **Traits:** `[Trait("Category", "Unit" | "Integration" | "Spec" | "Measurement")]` on every class. CI excludes
   `Measurement`.
 - **Parameterized tests** for rules with several cases: tracking number and courier id format, weight boundaries,
   the 6×6 status matrix, page / pageSize / upload-size limits, scan age (71 h / 72 h / 73 h).
 - **Exceptions and boundaries:** assert the exact exception type and the message or parameter name; test at, just
   below and just above each limit.
-- **Determinism:** no `DateTime.Now/UtcNow` in tests or code under test (`FakeTimeProvider` from
-  `Microsoft.Extensions.TimeProvider.Testing`, or fixed fictional times); no order dependency; no static mutable
-  state; unique temp folders and databases per fixture.
-- **No real network, fictional data, no secrets:** fake or Moq `HttpMessageHandler`; in-process hosts; `CR-101`,
+- **Determinism:** no `DateTime.Now/UtcNow`, `DateTimeOffset.UtcNow` or `TimeProvider.System` in tests or code under
+  test (`FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing`, or fixed fictional times). Both test hosts
+  expose their clock (`factory.Clock`, `ApexFactory.Today`, `ApiFactory.FixedNow`). The one exception is
+  `NotInFutureAttributeTests.IsValid_WithoutTimeProviderService_FallsBackToTheSystemClock`, whose subject is the
+  system-clock fallback (one-hour margin). Elapsed-time checks with `Stopwatch` (simulated delays) are not wall-clock
+  reads. No order dependency; no static mutable state; unique temp folders and databases per fixture.
+- **Shared test packages:** `tests/Directory.Build.props` adds Moq, `Microsoft.Extensions.TimeProvider.Testing` and
+  `coverlet.collector` (exact versions) to every test project and imports the root `Directory.Build.props` first, so
+  `TreatWarningsAsErrors` and NuGet audit stay on. Production projects do not get these packages.
+- **No real network, fictional data, no secrets:** fake or Moq `HttpMessageHandler` behind `NetworkGuardHandler` (base address `https://apexpost.test`, section 4.4); in-process hosts; `CR-101`,
   `APX-10000001`, `@apexpost.test`; keys and connection strings only from test configuration or user-secrets.
 - **Commands:**
 

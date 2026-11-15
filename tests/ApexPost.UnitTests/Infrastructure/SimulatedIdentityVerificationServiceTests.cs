@@ -4,6 +4,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Unit")]
 public sealed class SimulatedIdentityVerificationServiceTests
 {
     [Theory]

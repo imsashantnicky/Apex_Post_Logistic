@@ -9,6 +9,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 11: low stock (quantity at or below the threshold), money orders and reversals raise events.</summary>
+[Trait("Category", "Unit")]
 public sealed class NotificationEventRuleTests
 {
     [Theory]

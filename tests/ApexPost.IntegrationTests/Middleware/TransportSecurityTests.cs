@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace ApexPost.IntegrationTests.Middleware;
 
+[Trait("Category", "Integration")]
 public sealed class TransportSecurityTests(ProductionFactory factory) : IClassFixture<ProductionFactory>
 {
     [Fact]

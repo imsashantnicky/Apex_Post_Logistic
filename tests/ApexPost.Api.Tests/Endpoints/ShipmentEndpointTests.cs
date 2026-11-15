@@ -9,6 +9,7 @@ using static ApexPost.Api.Tests.Support.ApiClient;
 namespace ApexPost.Api.Tests.Endpoints;
 
 /// <summary>Every status code of the shipment endpoints, through the real host and a real SQL Server.</summary>
+[Trait("Category", "Integration")]
 public sealed class ShipmentEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string SeededCreated = "APX-20000001";

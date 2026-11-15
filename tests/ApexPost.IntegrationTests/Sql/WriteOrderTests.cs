@@ -11,6 +11,7 @@ namespace ApexPost.IntegrationTests.Sql;
 /// Reads the writes a sale really sends. Every commit takes its rows in one fixed order, stock rows by key first, so
 /// two sales or a sale and a void never lock the same rows in opposite order (PERFORMANCE.md, deadlock avoidance).
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class WriteOrderTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string LaterSku = "STA-0002";

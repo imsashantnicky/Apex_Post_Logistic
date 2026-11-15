@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace ApexPost.Courier.Offline.Tests.Outbox;
 
 /// <summary>The outbox with a batch uploader: batches of 20 per tracking number and the status of every outcome.</summary>
+[Trait("Category", "Integration")]
 public sealed class BatchOutboxTests : IDisposable
 {
     private readonly TempCourierDatabase _db = new();

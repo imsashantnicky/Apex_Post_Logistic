@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>How database and rule failures reach a caller: 409, 404 and 400 as Problem Details.</summary>
+[Trait("Category", "Integration")]
 public sealed class ErrorMappingTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string ProblemJson = "application/problem+json";

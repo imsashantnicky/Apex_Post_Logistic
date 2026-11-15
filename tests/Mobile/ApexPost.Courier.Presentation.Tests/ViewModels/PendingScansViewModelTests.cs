@@ -5,6 +5,7 @@ using ApexPost.Courier.Presentation.ViewModels;
 
 namespace ApexPost.Courier.Presentation.Tests.ViewModels;
 
+[Trait("Category", "Unit")]
 public sealed class PendingScansViewModelTests
 {
     private static readonly DateTimeOffset Start = new(2026, 11, 7, 8, 0, 0, TimeSpan.Zero);

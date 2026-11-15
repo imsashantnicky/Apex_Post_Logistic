@@ -7,6 +7,7 @@ using ApexPost.Web.Filters;
 
 namespace ApexPost.IntegrationTests.Filters;
 
+[Trait("Category", "Integration")]
 public sealed class ValidationAndDomainFilterTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string BadRecordPath = "/Transactions/Details/not-a-guid";

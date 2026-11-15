@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ApexPost.Courier.Offline.Tests.Listener;
 
+[Trait("Category", "Integration")]
 public sealed class ListenerDisposeTests : IDisposable
 {
     private static readonly TimeSpan EventTimeout = TimeSpan.FromSeconds(10);

@@ -6,6 +6,7 @@ using ApexPost.Tracking.UnitTests.Support;
 
 namespace ApexPost.Tracking.UnitTests.Services;
 
+[Trait("Category", "Unit")]
 public sealed class ShipmentTrackingServiceTests
 {
     private readonly InMemoryTracking _store = new();
@@ -93,17 +94,24 @@ public sealed class ShipmentTrackingServiceTests
     [InlineData(ShipmentStatus.InTransit, ShipmentStatus.PickedUp)]
     [InlineData(ShipmentStatus.InTransit, ShipmentStatus.InTransit)]
     [InlineData(ShipmentStatus.Delivered, ShipmentStatus.Failed)]
-    public async Task ChangeStatus_backward_same_or_after_final_throws_InvalidStatusTransitionException(
+    [InlineData(ShipmentStatus.Failed, ShipmentStatus.Delivered)]
+    public async Task ChangeStatusAsync_BackwardSameOrAfterFinal_ThrowsInvalidStatusTransitionException(
         ShipmentStatus current,
         ShipmentStatus wanted)
     {
+        // Arrange
         var shipment = TestData.Shipment();
         shipment.MoveTo(current);
         _store.Store(shipment);
 
+        // Act
         var error = await Assert.ThrowsAsync<InvalidStatusTransitionException>(() =>
             _service.ChangeStatusAsync(TestData.TrackingNumber, wanted, Ct));
 
+        // Assert
+        Assert.Equal(
+            $"Shipment APX-10000001 cannot move from {current} to {wanted}; a shipment only moves forward.",
+            error.Message);
         Assert.Equal(current, error.From);
         Assert.Equal(wanted, error.To);
         Assert.Equal(current, shipment.Status);
@@ -111,12 +119,20 @@ public sealed class ShipmentTrackingServiceTests
     }
 
     [Fact]
-    public async Task ChangeStatus_to_an_undefined_status_is_a_validation_error()
+    public async Task ChangeStatusAsync_UndefinedStatus_ThrowsValidationFailedExceptionForStatus()
     {
+        // Arrange
         _store.Store(TestData.Shipment());
 
-        await Assert.ThrowsAsync<ValidationFailedException>(() =>
+        // Act
+        var error = await Assert.ThrowsAsync<ValidationFailedException>(() =>
             _service.ChangeStatusAsync(TestData.TrackingNumber, (ShipmentStatus)99, Ct));
+
+        // Assert
+        var field = Assert.Single(error.Errors);
+        Assert.Equal("status", field.Key);
+        Assert.Equal(["Status '99' is not valid."], field.Value);
+        Assert.Equal(0, _store.Saves);
     }
 
     [Fact]

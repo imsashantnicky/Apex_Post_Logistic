@@ -7,6 +7,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 6: branch stock never goes negative; a short line stops the whole payment.</summary>
+[Trait("Category", "Unit")]
 public sealed class StockRuleTests
 {
     [Fact]

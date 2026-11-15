@@ -5,12 +5,13 @@ using ApexPost.IntegrationTests.Support;
 
 namespace ApexPost.IntegrationTests.Workflows;
 
+[Trait("Category", "Integration")]
 public sealed partial class ReportPagesTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Sku = "PKG-0001";
     private const string DateFormat = "yyyy-MM-dd";
 
-    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.UtcNow);
+    private static readonly DateOnly Today = ApexFactory.Today;
 
     private static string TodayText => Date(Today);
 

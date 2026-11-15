@@ -4,6 +4,7 @@ using ApexPost.IntegrationTests.Support;
 namespace ApexPost.IntegrationTests.Security;
 
 /// <summary>What the content security policy and section 11 require of every served page.</summary>
+[Trait("Category", "Integration")]
 public sealed partial class PageMarkupTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     public static TheoryData<string> AdminPages => new()

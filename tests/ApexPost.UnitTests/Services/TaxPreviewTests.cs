@@ -9,6 +9,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 namespace ApexPost.UnitTests.Services;
 
 /// <summary>Rule 9: tax is previewed on the open basket and frozen at payment.</summary>
+[Trait("Category", "Unit")]
 public sealed class TaxPreviewTests
 {
     [Fact]

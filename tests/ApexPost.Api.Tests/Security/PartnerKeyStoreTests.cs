@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 namespace ApexPost.Api.Tests.Security;
 
 /// <summary>The key lookup: exact match only, empty keys never match, no section means no partner.</summary>
+[Trait("Category", "Unit")]
 public sealed class PartnerKeyStoreTests
 {
     private static PartnerKeyStore StoreWith(params (string Partner, string? Key)[] keys) =>

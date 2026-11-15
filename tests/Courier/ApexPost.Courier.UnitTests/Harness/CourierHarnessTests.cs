@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ApexPost.Courier.UnitTests.Harness;
 
+[Trait("Category", "Integration")]
 public sealed class CourierHarnessTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 5, 8, 0, 0, TimeSpan.Zero);

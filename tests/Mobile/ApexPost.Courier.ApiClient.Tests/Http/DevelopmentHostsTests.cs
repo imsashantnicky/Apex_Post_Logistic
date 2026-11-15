@@ -2,6 +2,7 @@ using ApexPost.Courier.ApiClient.Http;
 
 namespace ApexPost.Courier.ApiClient.Tests.Http;
 
+[Trait("Category", "Unit")]
 public sealed class DevelopmentHostsTests
 {
     [Theory]

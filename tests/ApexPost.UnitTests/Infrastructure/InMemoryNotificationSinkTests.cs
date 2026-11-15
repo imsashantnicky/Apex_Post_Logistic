@@ -6,6 +6,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Unit")]
 public sealed class InMemoryNotificationSinkTests
 {
     private static readonly BranchCode Home = new(TestData.HomeBranch);

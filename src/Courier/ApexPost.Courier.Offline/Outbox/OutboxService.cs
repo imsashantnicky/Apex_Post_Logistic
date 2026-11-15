@@ -1,7 +1,6 @@
 using ApexPost.Courier.Domain.Enums;
 using ApexPost.Courier.Domain.Ports;
 using ApexPost.Courier.Domain.Scans;
-using ApexPost.Courier.Offline.Scans;
 using Microsoft.Extensions.Logging;
 
 namespace ApexPost.Courier.Offline.Outbox;
@@ -17,7 +16,7 @@ namespace ApexPost.Courier.Offline.Outbox;
 public sealed partial class OutboxService : IDisposable
 {
     private readonly IScanQueries _queries;
-    private readonly CouchbaseScanRepository _statusUpdater;
+    private readonly IScanSyncStatusUpdater _statusUpdater;
     private readonly IShipmentUploader _uploader;
     private readonly ILogger<OutboxService> _logger;
 
@@ -31,7 +30,7 @@ public sealed partial class OutboxService : IDisposable
     /// <param name="logger">Logs each run and every failed upload.</param>
     public OutboxService(
         IScanQueries queries,
-        CouchbaseScanRepository statusUpdater,
+        IScanSyncStatusUpdater statusUpdater,
         IShipmentUploader uploader,
         ILogger<OutboxService> logger)
     {

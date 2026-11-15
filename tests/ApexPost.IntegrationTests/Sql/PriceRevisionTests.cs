@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApexPost.IntegrationTests.Sql;
 
+[Trait("Category", "Integration")]
 public sealed class PriceRevisionTests(CommandLogFactory factory) : IClassFixture<CommandLogFactory>
 {
     private const string CataloguePath = "/Catalogue";

@@ -8,6 +8,7 @@ using ApexPost.Courier.Domain.Enums;
 namespace ApexPost.Courier.ApiClient.Tests.Resilience;
 
 /// <summary>Retry: transient failures of idempotent requests only, at most three retries.</summary>
+[Trait("Category", "Unit")]
 public sealed class RetryTests
 {
     private const string TrackingNumber = "APX-20000005";

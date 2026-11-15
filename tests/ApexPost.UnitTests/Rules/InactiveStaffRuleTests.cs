@@ -5,6 +5,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 2: inactive staff cannot open or process transactions, or sign in.</summary>
+[Trait("Category", "Unit")]
 public sealed class InactiveStaffRuleTests
 {
     [Fact]

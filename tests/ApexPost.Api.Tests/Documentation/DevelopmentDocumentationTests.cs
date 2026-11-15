@@ -6,6 +6,7 @@ using ApexPost.Api.Tests.Support;
 namespace ApexPost.Api.Tests.Documentation;
 
 /// <summary>In Development the built-in OpenAPI document and Swagger UI are served.</summary>
+[Trait("Category", "Integration")]
 public sealed class DevelopmentDocumentationTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

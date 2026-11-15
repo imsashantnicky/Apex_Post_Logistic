@@ -8,6 +8,7 @@ using ApexPost.UnitTests.Support;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Unit")]
 public sealed class DemoDataSetTests
 {
     private static readonly DemoDataSet Data =

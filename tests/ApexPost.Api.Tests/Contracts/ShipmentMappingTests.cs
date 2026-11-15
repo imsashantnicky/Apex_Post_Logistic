@@ -8,6 +8,7 @@ using UploadResult = ApexPost.Application.Tracking.ScanUploadResult;
 namespace ApexPost.Api.Tests.Contracts;
 
 /// <summary>Every field crosses the mapping unchanged, in both directions.</summary>
+[Trait("Category", "Unit")]
 public sealed class ShipmentMappingTests
 {
     private static readonly DateTime Now = FixedTimeProvider.DefaultNow.UtcDateTime;

@@ -2,6 +2,7 @@ using System.Reflection;
 
 namespace ApexPost.UnitTests.Architecture;
 
+[Trait("Category", "Unit")]
 public sealed class LayeringTests
 {
     private const string ProductPrefix = "ApexPost.";

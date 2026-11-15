@@ -11,7 +11,7 @@ namespace ApexPost.Courier.Offline.Scans;
 /// Reads by id are key-value lookups; lists use parameterised SQL++. Couchbase Lite is synchronous and
 /// thread-safe, so each method does its work inline and returns a completed task.
 /// </summary>
-public sealed class CouchbaseScanRepository : IScanRepository, IScanQueries
+public sealed class CouchbaseScanRepository : IScanRepository, IScanQueries, IScanSyncStatusUpdater
 {
     private const string ListAllQuery =
         "SELECT META().id AS id, * FROM _ WHERE type = $type ORDER BY scannedAtUtc, META().id";
@@ -136,8 +136,7 @@ public sealed class CouchbaseScanRepository : IScanRepository, IScanQueries
         return Task.FromResult<IReadOnlyList<ShipmentScan>>(scans);
     }
 
-    /// <summary>Changes only the sync status of a stored scan. Used by the outbox after an upload attempt.</summary>
-    /// <returns><see langword="false"/> when no scan with this id exists.</returns>
+    /// <inheritdoc />
     /// <exception cref="ArgumentException"><paramref name="status"/> is not a defined value.</exception>
     public Task<bool> UpdateSyncStatusAsync(string id, SyncStatus status, CancellationToken ct)
     {

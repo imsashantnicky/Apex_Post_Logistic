@@ -6,6 +6,7 @@ using ApexPost.Tracking.UnitTests.Support;
 namespace ApexPost.Tracking.UnitTests.Services;
 
 /// <summary>The upload of scans for one shipment, as used by POST /api/shipments/{trackingNumber}/scans.</summary>
+[Trait("Category", "Unit")]
 public sealed class ShipmentScanUploadTests
 {
     private readonly InMemoryTracking _store = new();

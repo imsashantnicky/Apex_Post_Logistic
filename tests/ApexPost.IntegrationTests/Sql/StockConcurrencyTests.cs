@@ -16,6 +16,7 @@ namespace ApexPost.IntegrationTests.Sql;
 /// The stock gate only covers one server, so these races run on two: each host has its own gate and only the
 /// RowVersion of the stock row stands between the clerks and an oversold item.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class StockConcurrencyTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Branch = "BR001";

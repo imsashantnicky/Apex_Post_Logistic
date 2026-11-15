@@ -5,6 +5,7 @@ using Couchbase.Lite;
 
 namespace ApexPost.Courier.UnitTests.Offline;
 
+[Trait("Category", "Unit")]
 public sealed class ScanDocumentMapperTests
 {
     private static readonly DateTimeOffset ScannedAt = new(2026, 11, 5, 9, 30, 0, TimeSpan.FromHours(2));

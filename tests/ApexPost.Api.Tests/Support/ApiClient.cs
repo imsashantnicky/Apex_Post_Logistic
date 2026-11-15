@@ -8,7 +8,7 @@ using ApexPost.Domain.Tracking;
 
 namespace ApexPost.Api.Tests.Support;
 
-/// <summary>Helpers for the endpoint tests: fresh tracking numbers, scans near the real clock, raw bodies.</summary>
+/// <summary>Helpers for the endpoint tests: fresh tracking numbers, scans timed from the host clock.</summary>
 public static class ApiClient
 {
     /// <summary>The Part B route, kept as an alias of v1.</summary>
@@ -27,7 +27,7 @@ public static class ApiClient
 
     public static string NewScanId() => TrackingFormats.ScanIdPrefix + Guid.NewGuid().ToString("D");
 
-    /// <summary>A valid scan; the host uses the real clock, so the time is taken from it.</summary>
+    /// <summary>A valid scan, timed from <see cref="ApiFactory.FixedNow"/> (the host clock).</summary>
     public static ScanItem Scan(string trackingNumber, ScanType type, int minutesAgo = 30, string? scanId = null) =>
         new()
         {
@@ -36,7 +36,7 @@ public static class ApiClient
             ScanType = type,
             CourierId = "CR-101",
             Location = "Central Hub",
-            ScannedAtUtc = DateTime.UtcNow.AddMinutes(-minutesAgo),
+            ScannedAtUtc = ApiFactory.FixedNow.UtcDateTime.AddMinutes(-minutesAgo),
             RecipientSignatureName = type == ScanType.Delivered ? "Ava Example" : null,
         };
 
