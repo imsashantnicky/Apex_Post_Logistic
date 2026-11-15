@@ -37,15 +37,15 @@ Likelihood and cost are rated Low / Medium / High. "Cost" is the damage if the d
 | # | Risk | Code location | Likelihood | Cost | Test level | Test classes (existing → planned) |
 | --- | --- | --- | --- | --- | --- | --- |
 | R1 | A shipment moves backwards, stays, or leaves Delivered/Failed | `Domain/Tracking/ShipmentStatusRules.cs` (`CanMove`, `StatusFor`), `ShipmentTrackingService.ChangeStatusAsync` / `TryRecordAsync` | Medium | High (wrong tracking shown to customers, delivered parcel re-opened) | Unit (full 6×6 matrix); integration only for 409 wiring | `ShipmentStatusRulesTests` (full 6×6 `MemberData` matrix since step 03), `ShipmentTrackingServiceTests` (exact `InvalidStatusTransitionException` message), `ShipmentEndpointTests.Patch_status_backward_returns_409_invalid_transition` |
-| R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `ShipmentTrackingServiceMoqTests` (duplicate → `SaveChangesAsync` never), `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409` → `ShipmentCreation.feature` (step 06) |
-| R3 | A re-sent scan is stored twice (offline retries make re-sends normal) | `ShipmentTrackingService.UploadAsync` / `UploadOnceAsync` (`DistinctBy`, `FindStoredScanIdsAsync`, retry on `DuplicateKeyException`), unique scan id index | High | High (history duplicated, status moved twice) | Unit (in-batch duplicates, stored ids), integration (parallel uploads on SQL Server), BDD | `ShipmentScanUploadTests`, `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once`, `HttpUploaderEndToEndTests` → `ScanSync.feature` (step 06) |
-| R4 | A courier uploads scans as another courier, or a role does what it must not | `Application/Tracking/ShipmentTrackingService.CheckBatch`, `Api/Security/ClaimsCurrentCourier.cs`, `Composition/ApiSecurityRegistration.cs` (policies) | Medium | High (forged delivery proof) | Unit (ownership rule with Moq `ICurrentCourier`), integration (real JWT pipeline, 401/403) | `ScanOwnershipTests`, `ShipmentTrackingServiceMoqTests` (Moq `ICurrentCourier`, repository never touched, since step 04), Api `AuthorizationTests`, `AuthenticationTests` → `TestAuthHandler` end-to-end test (later step) |
+| R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `ShipmentTrackingServiceMoqTests` (duplicate → `SaveChangesAsync` never), `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409`, `TrackingRepositorySqlTests` (two requests pass the check, the unique index refuses the second: `DuplicateKeyException` over `SqlException` 2601, since step 06) → `ShipmentCreation.feature` (later step) |
+| R3 | A re-sent scan is stored twice (offline retries make re-sends normal) | `ShipmentTrackingService.UploadAsync` / `UploadOnceAsync` (`DistinctBy`, `FindStoredScanIdsAsync`, retry on `DuplicateKeyException`), unique scan id index | High | High (history duplicated, status moved twice) | Unit (in-batch duplicates, stored ids), integration (parallel uploads on SQL Server), BDD | `ShipmentScanUploadTests`, `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once`, `HttpUploaderEndToEndTests`, `TrackingRepositorySqlTests` (same scan id in two requests → one row, since step 06), `ShipmentLifecycleEndToEndTests` (second upload counted as duplicates) → `ScanSync.feature` (later step) |
+| R4 | A courier uploads scans as another courier, or a role does what it must not | `Application/Tracking/ShipmentTrackingService.CheckBatch`, `Api/Security/ClaimsCurrentCourier.cs`, `Composition/ApiSecurityRegistration.cs` (policies) | Medium | High (forged delivery proof) | Unit (ownership rule with Moq `ICurrentCourier`), integration (real JWT pipeline, 401/403) | `ScanOwnershipTests`, `ShipmentTrackingServiceMoqTests` (Moq `ICurrentCourier`, repository never touched, since step 04), Api `AuthorizationTests`, `AuthenticationTests` (real JWT), `ShipmentLifecycleEndToEndTests` (`TestAuthHandler` scheme: Courier CR-101 flow, 401, 403, since step 06; section 6.3) |
 | R5 | The client retries a 4xx or a non-idempotent request (duplicate PATCH, hammering on 400) | `ApiClient/Resilience/ApexResilience.cs`, `TransientFailure.cs`, `IdempotentRequest.cs` | Medium | Medium (duplicate status change, battery/network waste, locked account) | Unit (fake `HttpMessageHandler`, Moq `Protected()`) | `RetryRuleTests`, `RetryTests`, `CircuitBreakerTests`, `TimeoutTests` (fake clock since step 05), `ApexApiClientHttpHandlerTests` and `HttpShipmentUploaderHttpHandlerTests` (one test per HTTP case, Moq `Protected()` `SendAsync` + `Verify`, since step 05) |
 | R6 | The outbox marks a scan `Synced` that the server did not store, or loses a scan on a network error | `Courier.Offline/Outbox/OutboxService.cs`, `OutboxService.Batches.cs` (`ApplyAsync`) | Medium | High (proof of delivery silently lost) | Integration (real Couchbase in a temp folder); unit with Moq `IShipmentUploader` | `OutboxServiceTests`, `BatchOutboxTests`, `OutboxServiceMoqTests` (Moq uploader and status updater, since step 04) → `ScanSync.feature` (step 06) |
 | R7 | A validation limit is off by one (weight 0.1–30 kg, upload 1–100 scans, page size 1–50, scan time 2 min ahead) | `Api/Contracts/ContractRules.cs`, `TrackingLimits.cs`, `TrackedShipment.MaximumWeightKg`, `NotInFutureAttribute.cs` | High | Medium | Unit (at, below and above each limit) | `ShipmentRequestTests`, `ScanItemTests`, `ScanUploadRequestTests`, `TrackedShipmentTests`, `TrackingLimitsTests` (boundary theories since step 03) |
 | R8 | An unexpected error leaks a stack trace or internal message to callers | `Api/Errors/ApiExceptionHandler.cs` (`StackTraceKey` only in Development), Web `ProblemExceptionHandler` | Low | High (information disclosure) | Integration (Production host) | Api `ProductionErrorTests`, `ExceptionMappingTests`, Web `ExceptionHandlingTests`, `ProblemExceptionHandlerTests` |
 | R9 | The deprecated v1 contract drifts and breaks existing partners | `Api/Contracts/V1/*`, `Controllers/V1/*`, `contracts/v1.json` | Medium | High (partner integrations break) | Integration (JSON snapshot through the real host) | `V1ContractSnapshotTests`, `ContractTrackingTests`, `VersionHeaderTests` |
-| R10 | Week 3 money or stock is wrong (rounding, tax, negative stock, lost update) | `Domain/Common/Money.cs`, `Domain/Inventory/StockItem.cs`, `Application/Services/CheckoutService`, rowversion on `BranchStock` | Low (mature, heavily tested) | High (financial loss) | Unit (rules), integration (concurrency on SQL Server) | `MoneyTests`, `StockRuleTests`, `TaxRuleTests`, `CheckoutServiceTests`, `StockConcurrencyTests`, `BusinessRulesOnSqlTests` – kept, not extended |
+| R10 | Week 3 money or stock is wrong (rounding, tax, negative stock, lost update) | `Domain/Common/Money.cs`, `Domain/Inventory/StockItem.cs`, `Application/Services/CheckoutService`, rowversion on `BranchStock` | Low (mature, heavily tested) | High (financial loss) | Unit (rules), integration (concurrency on SQL Server) | `MoneyTests`, `StockRuleTests`, `TaxRuleTests`, `CheckoutServiceTests`, `StockConcurrencyTests`, `BusinessRulesOnSqlTests` – kept; `CounterTransactionRowVersionTests` added in step 06 (stale `rowversion` on CounterTransactions → `ConcurrencyConflictException`) |
 | R11 | A test passes or fails depending on the wall clock | Tests using `DateTime.UtcNow` (section 5) | Medium | Medium (flaky CI, hidden bugs around midnight/expiry) | All | Fixed in step 02: both test hosts run on a fixed `FakeTimeProvider`, test data uses fixed times (section 5.1, finding 3) |
 
 ## 3. Test pyramid
@@ -179,7 +179,25 @@ Totals: 191 test classes, 1,176 test methods (952 `[Fact]`, 224 `[Theory]`), 1,9
 `NetworkGuardHandlerTests` (+3 methods, +5 cases). `TimeoutTests` was rewritten on a fake clock with the same two
 methods.
 
-### 3.6 Target
+### 3.6 After step 06 (integration)
+
+Real run on 2026-11-15 (`dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"`, SQL
+Server tests on real throw-away databases, nothing skipped). Three new integration classes; every other row is the
+same as in 3.5.
+
+| Project | Unit methods | Unit cases | Integration methods | Integration cases | Measurement methods |
+| --- | --- | --- | --- | --- | --- |
+| `tests/ApexPost.IntegrationTests` | 7 | 13 | 290 | 437 | 0 |
+| `tests/ApexPost.Api.Tests` | 45 | 113 | 141 | 211 | 0 |
+| other six projects | unchanged | unchanged | unchanged | unchanged | unchanged |
+| **Total** | **646** | **1,150** | **534** | **766** | **5** |
+| **Share** | 54.5 % | 60.0 % | 45.1 % | 40.0 % | 0.4 % of methods |
+
+Totals: 194 test classes, 1,185 test methods (961 `[Fact]`, 224 `[Theory]`), 1,916 executed cases, 0 failed,
+0 skipped. Added: `TrackingRepositorySqlTests` (+5), `CounterTransactionRowVersionTests` (+1) and
+`ShipmentLifecycleEndToEndTests` (+3).
+
+### 3.7 Target
 
 | Level | Target share (executed cases) | What belongs there |
 | --- | --- | --- |
@@ -593,6 +611,9 @@ New classes are not part of the baseline review above; they follow every rule of
 | 05 | Courier.ApiClient.Tests | `Client/ApexApiClientHttpHandlerTests.cs` | Unit | The client's HTTP cases were spread over four classes by mechanism, without the full pipeline for 404/409/400 and without any Moq handler. One test per case through auth + resilience: 200 v2 JSON, 404, 500 retried then failure, every attempt timing out, caller cancel, 409 ProblemDetails, 400 ValidationProblemDetails, and Moq `Protected()` `SendAsync` with `Verify` (section 4.4). 8 methods, 8 cases (R5) |
 | 05 | Courier.ApiClient.Tests | `Sync/HttpShipmentUploaderHttpHandlerTests.cs` | Unit | The uploader had no test for attempt timeout, caller cancellation, ProblemDetails text or the 500 attempt count. Same 8 cases as above, asserting what the outbox gets (`Completed` / `Refused` / `Retryable` + message, or the exception). 8 methods, 8 cases (R3, R5, R6) |
 | 05 | Courier.ApiClient.Tests | `Http/NetworkGuardHandlerTests.cs` | Unit | Proves the guard every client test now runs behind: fake host passes; `localhost`, a `.example` host and `10.0.2.2` fail the test before the fake is called; a real `SocketsHttpHandler` below the guard fails the test without sending. 3 methods, 5 cases |
+| 06 | IntegrationTests | `Tracking/TrackingRepositorySqlTests.cs` | Integration | `TrackingSqlTests` proves the service round trip; this class proves the repository / queries / unit of work against rules only SQL Server enforces, with two contexts as two requests: duplicate tracking number past the check → `DuplicateKeyException` (`SqlException` 2601), same scan id twice → one row (service retry and repository race), status + city + page 2 filtered and paged in SQL (command text captured by `SqlCommandCapture`), stale `Version` → `ConcurrencyConflictException` with the `UPDATE … WHERE [Version] = @…` captured. 5 methods, 5 cases (R2, R3) |
+| 06 | IntegrationTests | `Sql/CounterTransactionRowVersionTests.cs` | Integration | The tracking tables use an `int` `Version` token, so the real SQL Server `rowversion` is proved on the Week 3 table that has one and had no conflict test (`StockConcurrencyTests` covers `BranchStock`): two contexts, the second save of the same basket → `ConcurrencyConflictException`, row version moved. 1 method (R10) |
+| 06 | Api.Tests | `EndToEnd/ShipmentLifecycleEndToEndTests.cs` | Integration | The one clearly named end-to-end flow on `WebApplicationFactory<Program>` + throw-away SQL Server + `TestAuthHandler` (`TestAuthApiFactory`, registered in `ConfigureTestServices`): POST v2 → 201 + Location → GET → 200 → POST scans (2 accepted) → same batch again (2 duplicates) → GET scans → shipment InTransit; plus 401 without test credentials and 403 for Courier on an Admin action. 3 methods (R2, R3, R4; section 6.3) |
 
 ## 6. Data access strategy
 
@@ -609,12 +630,6 @@ emulates differently: `rowversion` concurrency tokens (`BranchStock`, `CounterTr
 indexes, stored procedures (`StoredProcedureTests`), `datetime2` precision and `SYSUTCDATETIME()` defaults, and
 `SqlException` numbers 2601/2627 that Infrastructure translates to `DuplicateKeyException`. A green SQLite run would
 not prove any of these, and would need a second set of migrations.
-
-**Why mocking `DbContext` / `DbSet` gives false confidence (never done here).** A mocked `DbSet` runs LINQ to Objects:
-a query EF Core cannot translate to SQL, or translates differently (string comparison, case sensitivity, `null`
-handling, client evaluation), still passes. There are no constraints, so a duplicate key or a CHECK violation is
-never raised. And the mock setup has to repeat what the implementation does (`Setup(x => x.Shipments.Where(…))`),
-so the test copies the implementation and passes even when both are wrong.
 
 **Local "no manual setup" chain (one shared helper, built in step 02).** Every SQL test fixture (`ApexFactory`,
 `ApiFactory` and their subclasses, `Tracking/TrackingDatabase`) asks `tests/Common/SqlTestServer.cs` for a server. The
@@ -643,6 +658,64 @@ instance did not start in that run, so the LocalDB success path itself is not ye
 | Step | Change | Why | Behaviour change |
 | --- | --- | --- | --- |
 | 04 | New port `IScanSyncStatusUpdater` (`src/Courier/ApexPost.Courier.Domain/Ports/IScanSyncStatusUpdater.cs`, no packages); `CouchbaseScanRepository` implements it; the `OutboxService` constructor takes `IScanSyncStatusUpdater` instead of the concrete `CouchbaseScanRepository` | The outbox could only be built with a real Couchbase database, so it had no unit test and could not be mocked. A separate one-method port was chosen instead of adding the member to `IScanRepository`, which would have broken the other implementation (`InMemoryScanStore` in Presentation.Tests) | None: the method body is unchanged, the harness, `MauiProgram` and the existing tests still pass the same repository object |
+
+### 6.2 Why mocking EF Core gives false confidence
+
+We never mock `DbContext` or `DbSet`. A mocked `DbSet` runs LINQ to Objects in memory. A query that EF Core cannot
+translate to SQL, or translates differently, still passes. Differences include string comparison, case sensitivity,
+`null` handling and client evaluation. A mock has no constraints, so it never raises a duplicate key or a CHECK
+violation. Its `SaveChangesAsync` returns whatever the setup says, so it never reports a concurrency conflict.
+Finally, the setup has to repeat the implementation (`Setup(x => x.Shipments.Where(…))`). The test then copies the
+code and passes even when both are wrong.
+
+Three concrete examples from this code. Each one is proved by `TrackingRepositorySqlTests` (step 06) on a real
+SQL Server database:
+
+1. **City filter, case.** `SqlTrackingQueries.ListAsync` filters with `shipment.Recipient.City == city`, and the API
+   documents the city filter as "ignoring case". On SQL Server the default collation is case-insensitive, so
+   `HARBOUR POINT` finds `Harbour Point`. Over a mocked `DbSet` the same `==` is an ordinal C# comparison. That test
+   would either fail, which pushes someone to add `ToLower()` (different SQL, and no index seek), or use the same
+   case and never check the documented behaviour. `ListAsync_StatusCityAndSecondPage_FiltersAndPagesInSqlNotInMemory`
+   searches with the city in upper case. It also checks the captured command text: `[RecipientCity] = @…`,
+   `[Status] = @…` and `OFFSET … ROWS FETCH NEXT @…`. So the filter and the page run in SQL, not in memory after
+   loading every row.
+2. **Duplicate scan in two parallel requests.** `ShipmentTrackingService` asks `FindStoredScanIdsAsync` first. When
+   two requests run at the same time, both get "not stored". Only the unique index `IX_TrackingScans_ScanId` stops
+   the second row, and `TrackingUnitOfWork` turns `SqlException` 2601 into `DuplicateKeyException`. A mock would store
+   both rows and no exception path would ever run.
+   `SaveChangesAsync_SameScanIdStagedByTwoRequests_SecondThrowsDuplicateKeyAndOneRowStays` shows the exception and
+   the single row.
+3. **Lost update.** `TrackingUnitOfWork` raises `Version` and relies on EF Core to send `UPDATE … WHERE [Version] = @…`.
+   It also relies on SQL Server reporting 0 affected rows when someone else changed the shipment first. A mocked
+   `SaveChangesAsync` always succeeds. `SaveChangesAsync_ShipmentChangedByTwoRequests_…` captures that `UPDATE` and
+   gets `ConcurrencyConflictException`, and the first change stays. The real `rowversion` column of
+   `CounterTransactions` is proved the same way by `CounterTransactionRowVersionTests`.
+
+The same Moq tests stay useful for what they do prove: a service commits once and never commits after a failure
+(section 4.3). They are not used to prove anything about SQL.
+
+### 6.3 Test authentication scheme versus real JWT tests
+
+`ShipmentLifecycleEndToEndTests` runs on `TestAuthApiFactory`. That is `ApiFactory` with `TestAuthHandler` registered
+as the default scheme in `ConfigureTestServices`. A request with the header `X-Test-Roles` becomes a principal with
+those roles. A Courier principal gets `courierId` CR-101, with the same claim names a real token uses. A request
+without the header is anonymous. Everything after authentication is real: the `[Authorize(Roles = …)]` rules,
+`ClaimsCurrentCourier`, the services, EF Core and SQL Server. The flow test is therefore about the business flow,
+and it does not depend on token building, signing keys or token lifetime.
+
+The existing real-JWT tests (`Security/AuthenticationTests`, `AuthorizationTests`, `DevTokenTests`, and every endpoint
+test that sends a `TestTokens` token through `ApiFactory`) are kept on purpose, because the test scheme replaces
+exactly the part they prove:
+
+- signature, issuer, audience, expiry and clock-skew checks, with expired, unsigned or wrong-key tokens → 401 with
+  ProblemDetails (`BearerProblemEvents`);
+- `MapInboundClaims = false`, so the short claim names `role` and `courierId` really arrive as written. A test scheme
+  that builds claims by hand cannot show this;
+- `/dev/token` issuing usable tokens in Development only.
+
+If only the test scheme were used, a broken JWT configuration (wrong role claim type, mapping switched back on) would
+still pass every test. If only real tokens were used, every flow test would also depend on key and clock setup. Each
+approach covers what the other one cannot.
 
 ## 7. Conventions
 
