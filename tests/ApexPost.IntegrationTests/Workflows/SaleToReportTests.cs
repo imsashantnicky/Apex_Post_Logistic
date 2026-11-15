@@ -31,7 +31,7 @@ public sealed partial class SaleToReportTests(ApexFactory factory) : IClassFixtu
     {
         get
         {
-            var today = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var today = ApexFactory.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             return $"/Reports/DailySales?from={today}&to={today}";
         }
     }

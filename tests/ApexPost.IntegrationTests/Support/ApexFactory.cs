@@ -2,11 +2,14 @@ using ApexPost.Infrastructure.Persistence;
 using ApexPost.Tests.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ApexPost.IntegrationTests.Support;
 
@@ -25,6 +28,9 @@ public class ApexFactory : WebApplicationFactory<Program>
 
     private const string ApplicationDatabaseName = SqlTestServer.ApplicationDatabaseName;
 
+    /// <summary>The fictional instant the host's clock starts at; "today" for every test of this host.</summary>
+    public static readonly DateTimeOffset FixedNow = new(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+
     private bool _databaseCreated;
 
     public ApexFactory()
@@ -35,6 +41,15 @@ public class ApexFactory : WebApplicationFactory<Program>
     public string ConnectionString { get; }
 
     public CapturedLogs Logs { get; } = new();
+
+    /// <summary>The business date of <see cref="FixedNow"/>.</summary>
+    public static DateOnly Today => DateOnly.FromDateTime(FixedNow.UtcDateTime);
+
+    /// <summary>
+    /// The host's clock instead of the wall clock: it starts at <see cref="FixedNow"/> and moves 1 ms on every read, so
+    /// rows still get distinct, ordered times and a test never depends on the real date or midnight.
+    /// </summary>
+    public FakeTimeProvider Clock { get; } = new(FixedNow) { AutoAdvanceAmount = TimeSpan.FromMilliseconds(1) };
 
     protected virtual string EnvironmentName => Environments.Development;
 
@@ -64,6 +79,7 @@ public class ApexFactory : WebApplicationFactory<Program>
                 ["Integration:ApiKeys:Burst"] = BurstPartnerKey,
             })
             .AddInMemoryCollection(ExtraSettings));
+        builder.ConfigureTestServices(services => services.Replace(ServiceDescriptor.Singleton<TimeProvider>(Clock)));
     }
 
     /// <summary>The application never migrates by itself, so the database must exist before the host starts.</summary>

@@ -14,8 +14,8 @@ public sealed class CapturedLogs : ILoggerProvider, ISupportExternalScope
     /// <summary>The pipeline logs after the client has its response, so an entry may still be on its way.</summary>
     public async Task<CapturedLog> WaitForAsync(Func<CapturedLog, bool> match)
     {
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
-        while (DateTimeOffset.UtcNow < deadline)
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!deadline.IsCancellationRequested)
         {
             if (_entries.FirstOrDefault(match) is { } entry)
             {

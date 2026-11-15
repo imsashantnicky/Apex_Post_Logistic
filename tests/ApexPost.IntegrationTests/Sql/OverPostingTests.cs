@@ -19,9 +19,10 @@ public sealed class OverPostingTests(ApexFactory factory) : IClassFixture<ApexFa
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task A_counter_sale_ignores_status_id_and_audit_columns_in_the_post()
+    public async Task CounterSale_PostWithForgedStatusIdAndAuditColumns_IgnoresThem()
     {
-        var started = DateTime.UtcNow;
+        // Arrange: CreatedAtUtc comes from the host's clock (audit interceptor), so it is compared with that clock.
+        var started = factory.Clock.GetUtcNow().UtcDateTime;
         var forgedId = Guid.NewGuid();
         var forged = Forged(forgedId);
         using var clerk = await CounterBrowser.SignInAsync(factory, DemoAccounts.Clerk);
@@ -29,6 +30,7 @@ public sealed class OverPostingTests(ApexFactory factory) : IClassFixture<ApexFa
         var branch = await factory.BranchAsync("BR001");
         var counterId = branch.Counters[0].Id.ToString();
 
+        // Act
         using var opened = await clerk.PostAsync(
             "/Transactions/New",
             "/Transactions/Create",
@@ -41,6 +43,7 @@ public sealed class OverPostingTests(ApexFactory factory) : IClassFixture<ApexFa
         });
         using var paid = await PostStepAsync(clerk, counter, "Pay", new(forged) { ["method"] = "Card" });
 
+        // Assert
         Assert.Equal(HttpStatusCode.Redirect, line.StatusCode);
         Assert.Equal(HttpStatusCode.Redirect, paid.StatusCode);
         Assert.Equal(counter.Path, paid.Headers.Location?.OriginalString);
@@ -66,7 +69,7 @@ public sealed class OverPostingTests(ApexFactory factory) : IClassFixture<ApexFa
         Assert.Equal(TransactionStatus.Paid, row.Status);
         Assert.Equal(1, storedLines);
         Assert.Equal(staffId.ToString(), row.By, ignoreCase: true);
-        Assert.InRange(row.At, started.AddMinutes(-1), DateTime.UtcNow);
+        Assert.InRange(row.At, started, factory.Clock.GetUtcNow().UtcDateTime);
     }
 
     [Fact]
