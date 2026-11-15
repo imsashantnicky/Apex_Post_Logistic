@@ -880,8 +880,9 @@ SpecFlow and uses the same Gherkin and binding attributes.
 
 - The **user** runs GitHub Copilot. Claude prepares the prompts and reviews the output; Claude never writes Copilot
   output itself or presents its own code as Copilot's.
-- Target: unit tests for an in-scope class with clear rules (candidate: Api request DTO validation or
-  `TransientFailure` retry classification).
+- Targets (step 09, prompts in `docs/copilot/PROMPTS.md`): (a) Moq + `FakeTimeProvider` unit tests for
+  `ShipmentTrackingService.UploadScansAsync` and `ChangeStatusAsync`; (b) `ShipmentStatusUpdate.feature` with
+  Reqnroll steps at service level, including an invalid backward move.
 - Raw output is saved unchanged in `docs/copilot/raw/`. `COPILOT-LOG.md` lists each prompt verbatim, what Copilot
   produced, and every generated test as kept / changed / rejected with the reason.
 - At least two mutation proofs: break the production code on purpose, save the failing output in
