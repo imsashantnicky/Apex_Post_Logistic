@@ -36,13 +36,13 @@ Likelihood and cost are rated Low / Medium / High. "Cost" is the damage if the d
 
 | # | Risk | Code location | Likelihood | Cost | Test level | Test classes (existing → planned) |
 | --- | --- | --- | --- | --- | --- | --- |
-| R1 | A shipment moves backwards, stays, or leaves Delivered/Failed | `Domain/Tracking/ShipmentStatusRules.cs` (`CanMove`, `StatusFor`), `ShipmentTrackingService.ChangeStatusAsync` / `TryRecordAsync` | Medium | High (wrong tracking shown to customers, delivered parcel re-opened) | Unit (full 6×6 matrix); integration only for 409 wiring | `ShipmentStatusRulesTests` (only 4 `InlineData` rows today), `ShipmentTrackingServiceTests`, `ShipmentEndpointTests.Patch_status_backward_returns_409_invalid_transition` → full `TheoryData` matrix (step 03) |
+| R1 | A shipment moves backwards, stays, or leaves Delivered/Failed | `Domain/Tracking/ShipmentStatusRules.cs` (`CanMove`, `StatusFor`), `ShipmentTrackingService.ChangeStatusAsync` / `TryRecordAsync` | Medium | High (wrong tracking shown to customers, delivered parcel re-opened) | Unit (full 6×6 matrix); integration only for 409 wiring | `ShipmentStatusRulesTests` (full 6×6 `MemberData` matrix since step 03), `ShipmentTrackingServiceTests` (exact `InvalidStatusTransitionException` message), `ShipmentEndpointTests.Patch_status_backward_returns_409_invalid_transition` |
 | R2 | Two shipments get the same tracking number | `ShipmentTrackingService.CreateAsync` (check), unique index `IX_TrackedShipments_TrackingNumber` (`Infrastructure/Tracking/Configurations/TrackedShipmentConfiguration.cs`), `SqlException` 2601/2627 → `DuplicateKeyException` | Medium | High (scans attached to the wrong parcel) | Unit (service check with Moq), integration (real unique index), BDD (business outcome) | `ShipmentTrackingServiceTests`, `TrackingModelTests.Tracking_number_and_scan_id_have_unique_indexes`, `ShipmentEndpointTests.Create_with_a_tracking_number_in_use_returns_409` → `ShipmentCreation.feature` (step 06) |
 | R3 | A re-sent scan is stored twice (offline retries make re-sends normal) | `ShipmentTrackingService.UploadAsync` / `UploadOnceAsync` (`DistinctBy`, `FindStoredScanIdsAsync`, retry on `DuplicateKeyException`), unique scan id index | High | High (history duplicated, status moved twice) | Unit (in-batch duplicates, stored ids), integration (parallel uploads on SQL Server), BDD | `ShipmentScanUploadTests`, `ShipmentScanEndpointTests.Parallel_uploads_of_the_same_batch_store_each_scan_once`, `HttpUploaderEndToEndTests` → `ScanSync.feature` (step 06) |
 | R4 | A courier uploads scans as another courier, or a role does what it must not | `Application/Tracking/ShipmentTrackingService.CheckBatch`, `Api/Security/ClaimsCurrentCourier.cs`, `Composition/ApiSecurityRegistration.cs` (policies) | Medium | High (forged delivery proof) | Unit (ownership rule with Moq `ICurrentCourier`), integration (real JWT pipeline, 401/403) | `ScanOwnershipTests`, Api `AuthorizationTests`, `AuthenticationTests` → Moq tests + `TestAuthHandler` end-to-end test (step 04) |
 | R5 | The client retries a 4xx or a non-idempotent request (duplicate PATCH, hammering on 400) | `ApiClient/Resilience/ApexResilience.cs`, `TransientFailure.cs`, `IdempotentRequest.cs` | Medium | Medium (duplicate status change, battery/network waste, locked account) | Unit (fake `HttpMessageHandler`, Moq `Protected()`) | `RetryRuleTests`, `RetryTests`, `CircuitBreakerTests`, `TimeoutTests` → typed client cases with Moq handler (step 04) |
 | R6 | The outbox marks a scan `Synced` that the server did not store, or loses a scan on a network error | `Courier.Offline/Outbox/OutboxService.cs`, `OutboxService.Batches.cs` (`ApplyAsync`) | Medium | High (proof of delivery silently lost) | Integration (real Couchbase in a temp folder); unit with Moq `IShipmentUploader` | `OutboxServiceTests`, `BatchOutboxTests`, `OutboxTests` (duplicates, see section 5) → `ScanSync.feature` (step 06) |
-| R7 | A validation limit is off by one (weight 0.1–30 kg, upload 1–100 scans, page size 1–50, scan time 2 min ahead) | `Api/Contracts/ContractRules.cs`, `TrackingLimits.cs`, `TrackedShipment.MaximumWeightKg`, `NotInFutureAttribute.cs` | High | Medium | Unit (at, below and above each limit) | `ShipmentRequestTests`, `ScanItemTests`, `ScanUploadRequestTests`, `TrackedShipmentTests` → parameterized boundary theories (step 03) |
+| R7 | A validation limit is off by one (weight 0.1–30 kg, upload 1–100 scans, page size 1–50, scan time 2 min ahead) | `Api/Contracts/ContractRules.cs`, `TrackingLimits.cs`, `TrackedShipment.MaximumWeightKg`, `NotInFutureAttribute.cs` | High | Medium | Unit (at, below and above each limit) | `ShipmentRequestTests`, `ScanItemTests`, `ScanUploadRequestTests`, `TrackedShipmentTests`, `TrackingLimitsTests` (boundary theories since step 03) |
 | R8 | An unexpected error leaks a stack trace or internal message to callers | `Api/Errors/ApiExceptionHandler.cs` (`StackTraceKey` only in Development), Web `ProblemExceptionHandler` | Low | High (information disclosure) | Integration (Production host) | Api `ProductionErrorTests`, `ExceptionMappingTests`, Web `ExceptionHandlingTests`, `ProblemExceptionHandlerTests` |
 | R9 | The deprecated v1 contract drifts and breaks existing partners | `Api/Contracts/V1/*`, `Controllers/V1/*`, `contracts/v1.json` | Medium | High (partner integrations break) | Integration (JSON snapshot through the real host) | `V1ContractSnapshotTests`, `ContractTrackingTests`, `VersionHeaderTests` |
 | R10 | Week 3 money or stock is wrong (rounding, tax, negative stock, lost update) | `Domain/Common/Money.cs`, `Domain/Inventory/StockItem.cs`, `Application/Services/CheckoutService`, rowversion on `BranchStock` | Low (mature, heavily tested) | High (financial loss) | Unit (rules), integration (concurrency on SQL Server) | `MoneyTests`, `StockRuleTests`, `TaxRuleTests`, `CheckoutServiceTests`, `StockConcurrencyTests`, `BusinessRulesOnSqlTests` – kept, not extended |
@@ -113,7 +113,39 @@ The level of a project and of its classes now agree, with two documented excepti
 `ApexPost.UnitTests` (Integration, kept in place as decided in step 01). The shares barely moved because this step
 removed duplicates on both levels; the unit share rises in step 03 (parameterized boundary theories).
 
-### 3.3 Target
+### 3.3 After step 03 (unit tests)
+
+Same counting rules; cases from real runs on 2026-11-15. Only unit classes changed, so the integration columns are
+the same as in 3.2.
+
+| Project | Unit methods | Unit cases | Integration methods | Integration cases | Measurement methods |
+| --- | --- | --- | --- | --- | --- |
+| `tests/ApexPost.UnitTests` | 328 | 489 | 37 | 45 | 5 |
+| `tests/ApexPost.Tracking.UnitTests` | 78 | 217 | 0 | 0 | 0 |
+| `tests/Courier/ApexPost.Courier.UnitTests` | 31 | 59 | 9 | 9 | 0 |
+| `tests/Mobile/ApexPost.Courier.ApiClient.Tests` | 74 | 159 | 0 | 0 | 0 |
+| `tests/Mobile/ApexPost.Courier.Presentation.Tests` | 42 | 53 | 0 | 0 | 0 |
+| `tests/ApexPost.IntegrationTests` | 7 | 13 | 284 | 431 | 0 |
+| `tests/ApexPost.Api.Tests` | 45 | 113 | 138 | 208 | 0 |
+| `tests/ApexPost.Courier.Offline.Tests` | 0 | 0 | 57 | 64 | 0 |
+| **Total** | **605** | **1,103** | **525** | **757** | **5** |
+| **Share** | 53.3 % | 59.3 % | 46.3 % | 40.7 % | 0.4 % of methods |
+
+Totals: 186 test classes, 1,135 test methods (914 `[Fact]`, 221 `[Theory]`), 1,860 executed cases, 0 failed,
+0 skipped. What changed (+15 methods, +112 cases):
+
+| Change | Methods | Cases |
+| --- | --- | --- |
+| `ShipmentStatusRulesTests` replaced: full 6×6 matrix, completeness guard, undefined statuses, `IsFinal`, `StatusFor` with message | +1 | +24 |
+| `TrackedShipmentTests`: wider tracking-number theory, `decimal` weight `TheoryData` on `Create` and `Replace`, exact messages | +3 | +26 |
+| `TrackingFormatsTests`: missing format rows, courier `CR-099` / `CR-1000` | 0 | +15 |
+| `TrackingLimitsTests` (new): page 0/1, page size 0/1/50/51, upload 0/1/100/101 with field and message | +7 | +21 |
+| `ShipmentTrackingServiceTests`: Failed → Delivered row for `InvalidStatusTransitionException` | 0 | +1 |
+| `ShipmentScanTests` (courier): courier-id boundaries, blank/null tracking number, undefined scan type, wrong id on `Restore` | +4 | +14 |
+| `ShipmentRequestTests`, `ScanItemTests`: more tracking-number, weight and courier-id rows | 0 | +11 |
+| **Net** | **+15** | **+112** |
+
+### 3.4 Target
 
 | Level | Target share (executed cases) | What belongs there |
 | --- | --- | --- |
@@ -241,12 +273,12 @@ Two changes apply to *every* class and are not repeated in each row: since step 
 5. **Presentation view-model tests versus scope.** The 9 classes test plain C# (commands, banners, sync status) with
    fakes, no MAUI types. → **kept, not extended** (UI is out of scope; the logic is cheap to keep green).
 6. **Status-transition coverage.** `ShipmentStatusRulesTests` has 4 `InlineData` rows; the full 6×6 matrix (36 pairs)
-   is not proved. → **replaced** by a `TheoryData<ShipmentStatus, ShipmentStatus, bool>` matrix test (step 03).
+   is not proved. → **replaced** by a `TheoryData<ShipmentStatus, ShipmentStatus, bool>` matrix test (done in step 03).
 
 ### 5.2 Review table
 
-Decisions after step 02: 163 kept, 14 modified, 7 moved, 5 removed, 1 replaced (190 classes of the baseline; a moved
-class is listed under its new project and path). Step 01 had 166 / 15 / 6 / 2 / 1; the differences are explained in
+Decisions after step 03: 157 kept, 20 modified, 7 moved, 5 removed, 1 replaced (190 classes of the baseline; a moved
+class is listed under its new project and path). Step 02 had 163 / 14 / 7 / 5 / 1 and step 01 166 / 15 / 6 / 2 / 1; the differences are explained in
 the rows that say "Was …". "Methods" and "Cases" are the baseline numbers of 3.1, except for merged classes, which show
 their numbers after the merge.
 
@@ -311,15 +343,15 @@ their numbers after the merge.
 | UnitTests | `Services/StockServiceTests.cs` | 8 | 9 | Unit | kept | Week 3 application service with in-memory fakes; rule-level checks (R10) |
 | UnitTests | `Services/TaxPreviewTests.cs` | 4 | 4 | Unit | kept | Week 3 application service with in-memory fakes; rule-level checks (R10) |
 | UnitTests | `Services/UnitOfWorkBoundaryTests.cs` | 15 | 15 | Unit | kept | Week 3 application service with in-memory fakes; rule-level checks (R10) |
-| Tracking.UnitTests | `Domain/TrackedShipmentTests.cs` | 9 | 23 | Unit | kept | Tracking domain invariant at unit level (R7) |
-| Tracking.UnitTests | `Domain/TrackingFormatsTests.cs` | 4 | 12 | Unit | kept | Tracking domain invariant at unit level (R7) |
+| Tracking.UnitTests | `Domain/TrackedShipmentTests.cs` | 9 | 23 | Unit | modified (step 03) | Tracking-number theory widened (lower case, 7/9 digits, missing dash, spaces, empty, null) with the exact `DomainException` message; the two `double` weight theories replaced by `decimal` `TheoryData` (0 / 0.0999 / 0.1 / 30 / 30.001 / -1 / 4 decimals) on `Create` and `Replace`; MoveTo split into forward and backward with the exact message; final-shipment `Replace` checks Delivered and Failed with the message. Changed methods renamed with AAA (R1, R7) |
+| Tracking.UnitTests | `Domain/TrackingFormatsTests.cs` | 4 | 12 | Unit | modified (step 03) | The two format theories got the missing rows (lower case, missing dash, inner/trailing space, empty; courier `CR-099`, `CR-000`, `CR-999` valid, `CR-1000` and `CR-99` invalid) and still compare with the device rule; renamed with AAA (R7) |
 | Tracking.UnitTests | `Domain/TrackingScanTests.cs` | 4 | 7 | Unit | kept | Tracking domain invariant at unit level (R7) |
 | Tracking.UnitTests | `Infrastructure/TrackingModelTests.cs` | 5 | 6 | Unit | kept | Reads EF model metadata with Server=unused and never connects, so it is a unit test |
 | IntegrationTests | `Tracking/TrackingSqlTests.cs` (was Tracking.UnitTests `Infrastructure/`) | 4 | 4 | Integration | moved (step 02) | Opens a real SQL Server database, so it left the unit project; its fixture `Tracking/TrackingDatabase.cs` uses the shared `SqlTestServer` (skips instead of throwing), a fixed `FakeTimeProvider` and a Moq courier; renamed with AAA |
-| Tracking.UnitTests | `Rules/ShipmentStatusRulesTests.cs` | 5 | 28 | Unit | replaced - planned in step 03 | Only 4 InlineData rows; replaced by a full 6x6 TheoryData matrix with Method_Scenario_ExpectedResult names (R1) |
+| Tracking.UnitTests | `Rules/ShipmentStatusRulesTests.cs` | 5 | 28 | Unit | replaced (step 03) | 22 hand-picked rows replaced by the full 6x6 table written out by hand (36 `MemberData` rows, 14 allowed), a guard that the table lists each of the 36 pairs once, undefined statuses, `IsFinal` for all 6 statuses, `StatusFor` for all 4 scan types and the exact `DomainException` message for an undefined scan type; all names Method_Scenario_ExpectedResult with AAA (R1) |
 | Tracking.UnitTests | `Services/ScanOwnershipTests.cs` | 6 | 8 | Unit | kept | Tracking service rules with the stateful InMemoryTracking fake (R1-R4); Moq tests are added in new classes (step 04) |
 | Tracking.UnitTests | `Services/ShipmentScanUploadTests.cs` | 5 | 6 | Unit | kept | Tracking service rules with the stateful InMemoryTracking fake (R1-R4); Moq tests are added in new classes (step 04) |
-| Tracking.UnitTests | `Services/ShipmentTrackingServiceTests.cs` | 29 | 40 | Unit | kept | Tracking service rules with the stateful InMemoryTracking fake (R1-R4); Moq tests are added in new classes (step 04) |
+| Tracking.UnitTests | `Services/ShipmentTrackingServiceTests.cs` | 29 | 40 | Unit | modified (step 03) | Two methods changed: the `InvalidStatusTransitionException` theory now asserts the exact message and has a Failed → Delivered row; the undefined-status test asserts the `ValidationFailedException` field `status`, its message and that nothing is saved. Both renamed with AAA. Page and upload limits stay here only as wiring (3 + 2 rows); their boundaries are proved in `TrackingLimitsTests`. Moq tests come in new classes (step 04) (R1-R4) |
 | Courier.UnitTests | `Harness/CourierHarnessTests.cs` | 9 | 9 | Integration | kept | Runs the harness on real Couchbase and carries the Integration trait. It stays here because the harness is `internal` and only this project has `InternalsVisibleTo`; moving it would need a production change for no gain |
 | Courier.UnitTests | `Harness/TableWriterTests.cs` | 2 | 4 | Unit | kept | Pure text formatting of the harness tables |
 | Courier.Offline.Tests | `Queries/CouchbaseScanQueriesTests.cs` (was Courier.UnitTests `Offline/`) | 12 | 18 | Integration | moved (step 02) | Real Couchbase; moved to the Couchbase integration project and merged with ScanQueryTests and IndexTests: the single injection case became a 6-row theory (its own input + the 5 of ScanQueryTests), plus the courier-id injection case and the `SEARCH _ USING INDEX` Explain theory; renamed with AAA |
@@ -329,7 +361,7 @@ their numbers after the merge.
 | Courier.Offline.Tests | `Outbox/OutboxServiceTests.cs` (was Courier.UnitTests `Offline/`) | 8 | 8 | Integration | moved (step 02) | Real Couchbase; moved unchanged next to BatchOutboxTests; covers both OutboxTests cases (R6) |
 | Courier.Offline.Tests | `Listener/ScanChangeMonitorTests.cs` (was Courier.UnitTests `Offline/`) | 6 | 6 | Integration | moved (step 02) | Real Couchbase listener; moved unchanged next to ListenerDisposeTests |
 | Courier.UnitTests | `Offline/ScanDocumentMapperTests.cs` | 8 | 11 | Unit | kept | Exact JSON field names and round trip of the scan document (shared contract) |
-| Courier.UnitTests | `Scans/ShipmentScanTests.cs` | 9 | 21 | Unit | modified (step 02) | Merged with the duplicate Offline.Tests class: took over its unique cases (scan:: + Guid id, two ids differ, starts Pending, injection-style tracking number); the clock is a fixed `FakeTimeProvider`; renamed with AAA |
+| Courier.UnitTests | `Scans/ShipmentScanTests.cs` | 9 | 21 | Unit | modified (step 02, 03) | Merged with the duplicate Offline.Tests class: took over its unique cases (scan:: + Guid id, two ids differ, starts Pending, injection-style tracking number); the clock is a fixed `FakeTimeProvider`; renamed with AAA. Step 03: exact `ArgumentException` message and parameter for a wrong tracking number and courier id, courier rows `CR-000`/`CR-099`/`CR-999` valid and `CR-99`/`CR-1000` invalid, blank (`ArgumentException`) and null (`ArgumentNullException`) tracking number, undefined scan type, and `Restore` with a wrong id |
 | Courier.ApiClient.Tests | `Auth/AccessTokenClaimsTests.cs` | 3 | 11 | Unit | kept | Auth header handler and token claims with a fake handler (R4) |
 | Courier.ApiClient.Tests | `Auth/AuthHeaderHandlerTests.cs` | 4 | 6 | Unit | kept | Auth header handler and token claims with a fake handler (R4) |
 | Courier.ApiClient.Tests | `Auth/HttpClientFactoryWiringTests.cs` | 1 | 1 | Unit | kept | Auth header handler and token claims with a fake handler (R4) |
@@ -406,10 +438,10 @@ their numbers after the merge.
 | Api.Tests | `Client/GeneratedClientTests.cs` | 7 | 7 | Integration | modified (step 02) | The demo timed its scans with `TimeProvider.System`, which the host on a fixed clock would see as future scans; the 3 demo tests now pass the host clock (renamed with AAA) |
 | Api.Tests | `Contracts/AutomaticValidationTests.cs` | 7 | 7 | Integration | modified (step 02) - more planned in step 03 | Step 02: the 3 scan tests take "now" from the host clock (renamed with AAA). Step 03: keep one valid and one invalid body per request type plus the nested Delivered-signature case |
 | Api.Tests | `Contracts/NotInFutureAttributeTests.cs` | 7 | 7 | Unit | modified (step 02) | Already used a fixed TimeProvider; the system-clock fallback test now reads `TimeProvider.System` with a 1 h margin and is the one documented clock exception (section 7); renamed with AAA |
-| Api.Tests | `Contracts/ScanItemTests.cs` | 11 | 36 | Unit | kept | Request DTO validation with Validator, the lowest level for these rules (R7) |
-| Api.Tests | `Contracts/ScanUploadRequestTests.cs` | 1 | 4 | Unit | kept | Upload size 1..100 at the DTO; boundary theories extended in a new class in step 03 (R7) |
+| Api.Tests | `Contracts/ScanItemTests.cs` | 11 | 36 | Unit | modified (step 03) | Courier-id theory got `CR-000`, `CR-099`, `CR-999` (valid) and `CR-1000` (invalid); renamed with AAA. Other methods unchanged (R7) |
+| Api.Tests | `Contracts/ScanUploadRequestTests.cs` | 1 | 4 | Unit | modified (step 03) | Was "extended in a new class": it already had 0 / 1 / 100 / 101, so it was renamed with AAA instead of being copied; the service-side limit with its exact message is proved in `TrackingLimitsTests` (R7) |
 | Api.Tests | `Contracts/ShipmentMappingTests.cs` | 7 | 7 | Unit | kept | Explicit DTO <-> command mapping, no host needed |
-| Api.Tests | `Contracts/ShipmentRequestTests.cs` | 12 | 34 | Unit | kept | Request DTO validation with Validator, the lowest level for these rules (R7) |
+| Api.Tests | `Contracts/ShipmentRequestTests.cs` | 12 | 34 | Unit | modified (step 03) | Tracking-number theory widened (missing dash, inner/trailing space, null); the string weight theory replaced by `decimal` `TheoryData` (0 / 0.0999 / 0.1 / 0.1001 / 30 / 30.001 / -1 / 70 / 1.0005) on create and update with the exact message. 1.0005 kg passes the `[Range]` attribute and is refused by the domain (documented in the test). Changed methods renamed with AAA (R7) |
 | Api.Tests | `Documentation/ContractTrackingTests.cs` | 2 | 3 | Integration | kept | OpenAPI documents produced by the real host (Part C contract) |
 | Api.Tests | `Documentation/DevelopmentDocumentationTests.cs` | 4 | 4 | Integration | kept | OpenAPI documents produced by the real host (Part C contract) |
 | Api.Tests | `Documentation/EnumSchemaTests.cs` | 2 | 3 | Integration | kept | OpenAPI documents produced by the real host (Part C contract) |
@@ -442,6 +474,14 @@ their numbers after the merge.
 | Courier.Offline.Tests | `Outbox/OutboxTests.cs` | 2 | 2 | Integration | removed (step 02) | Both cases are already proved by OutboxServiceTests (rejected -> Failed, synced not re-sent, failed only with includeFailed) and FakeShipmentUploaderTests (demo failure) |
 | Courier.Offline.Tests | `Queries/ScanQueryTests.cs` | 5 | 9 | Integration | removed (step 02) | Was "modified": its order, pending and count cases duplicate CouchbaseScanQueriesTests; the courier-id injection case and the 5 tracking-number injection inputs moved there, so nothing unique is left |
 | Courier.Offline.Tests | `Repository/KeyValueCrudTests.cs` | 4 | 4 | Integration | removed (step 02) | Was "modified": CRUD, duplicate id and unknown id duplicate CouchbaseScanRepositoryTests (the full-field round trip is also in ScanDocumentMapperTests); the reopen case moved there |
+
+### 5.3 Classes added in Week 5
+
+New classes are not part of the baseline review above; they follow every rule of section 7 from the start.
+
+| Step | Project | Class | Level | Why a new class and not an existing one |
+| --- | --- | --- | --- | --- |
+| 03 | Tracking.UnitTests | `Rules/TrackingLimitsTests.cs` | Unit | `TrackingLimits.CheckPage` / `CheckUpload` had no test of their own; the service tests only showed that *some* bad page or upload fails. This class proves page 0/1, page size 0/1/50/51 and upload 0/1/100/101 with the exact `ValidationFailedException` field and message, once, at the lowest level |
 
 ## 6. Data access strategy
 

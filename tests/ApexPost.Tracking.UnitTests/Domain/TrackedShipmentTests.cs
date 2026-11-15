@@ -18,43 +18,119 @@ public sealed class TrackedShipmentTests
         Assert.NotEqual(Guid.Empty, shipment.Id);
     }
 
+    private const string TrackingNumberMessage = "Tracking number must be APX- followed by 8 digits.";
+    private const string WeightMessage = "Weight must be above 0 and at most 30 kg, with at most 3 decimals.";
+
+    /// <summary>
+    /// Weights the domain accepts. The domain's lower limit is "above 0" with gram precision, so 0.001 kg is the
+    /// lightest; the API contract is stricter (0.1 kg, see ShipmentRequestTests).
+    /// </summary>
+    public static TheoryData<decimal> AcceptedWeights => new()
+    {
+        0.001m,
+        0.1m,
+        2.5m,
+        29.999m,
+        TrackedShipment.MaximumWeightKg,
+    };
+
+    /// <summary>Weights the domain rejects: zero, negative, above 30 kg, or more than 3 decimals.</summary>
+    public static TheoryData<decimal> RejectedWeights => new()
+    {
+        0m,
+        -1m,
+        -0.001m,
+        0.0999m,
+        0.0001m,
+        30.001m,
+        31m,
+        1.0005m,
+    };
+
     [Theory]
+    [InlineData("APX-10000001")]
+    [InlineData("APX-00000000")]
+    [InlineData("APX-99999999")]
+    public void Create_TrackingNumberInTheFormat_KeepsTheNumber(string trackingNumber)
+    {
+        // Arrange
+        var recipient = TestData.Recipient();
+
+        // Act
+        var shipment = TrackedShipment.Create(trackingNumber, recipient, 1m, TestData.Now);
+
+        // Assert
+        Assert.Equal(trackingNumber, shipment.TrackingNumber);
+    }
+
+    [Theory]
+    [InlineData("apx-12345678")]
+    [InlineData("Apx-12345678")]
     [InlineData("APX-1234567")]
     [InlineData("APX-123456789")]
+    [InlineData("APX12345678")]
     [InlineData("AP-12345678")]
-    [InlineData("apx-12345678")]
+    [InlineData(" APX-12345678")]
+    [InlineData("APX-12345678 ")]
+    [InlineData("APX-1234 5678")]
     [InlineData("APX-1234567A")]
     [InlineData("APX-١٢٣٤٥٦٧٨")]
     [InlineData("")]
-    public void A_wrong_tracking_number_is_rejected(string trackingNumber)
+    [InlineData(null)]
+    public void Create_TrackingNumberOutsideTheFormat_ThrowsDomainExceptionWithTheFormat(string? trackingNumber)
     {
-        Assert.Throws<DomainException>(() =>
-            TrackedShipment.Create(trackingNumber, TestData.Recipient(), 1m, TestData.Now));
+        // Arrange
+        var create = () => TrackedShipment.Create(trackingNumber!, TestData.Recipient(), 1m, TestData.Now);
+
+        // Act
+        var error = Assert.Throws<DomainException>(create);
+
+        // Assert
+        Assert.Equal(TrackingNumberMessage, error.Message);
     }
 
     [Theory]
-    [InlineData(0.001)]
-    [InlineData(30)]
-    public void Weights_at_the_limits_are_accepted(double weightKg)
+    [MemberData(nameof(AcceptedWeights))]
+    public void Create_WeightAboveZeroUpToThirtyKgWithGramPrecision_KeepsTheWeight(decimal weightKg)
     {
-        var shipment = TrackedShipment.Create(
-            TestData.TrackingNumber,
-            TestData.Recipient(),
-            (decimal)weightKg,
-            TestData.Now);
+        // Arrange
+        var recipient = TestData.Recipient();
 
-        Assert.Equal((decimal)weightKg, shipment.WeightKg);
+        // Act
+        var shipment = TrackedShipment.Create(TestData.TrackingNumber, recipient, weightKg, TestData.Now);
+
+        // Assert
+        Assert.Equal(weightKg, shipment.WeightKg);
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    [InlineData(30.001)]
-    [InlineData(1.0005)]
-    public void Weights_outside_the_limits_are_rejected(double weightKg)
+    [MemberData(nameof(RejectedWeights))]
+    public void Create_WeightOutsideTheLimitsOrPrecision_ThrowsDomainExceptionWithTheLimits(decimal weightKg)
     {
-        Assert.Throws<DomainException>(() =>
-            TrackedShipment.Create(TestData.TrackingNumber, TestData.Recipient(), (decimal)weightKg, TestData.Now));
+        // Arrange
+        var create = () => TrackedShipment.Create(TestData.TrackingNumber, TestData.Recipient(), weightKg, TestData.Now);
+
+        // Act
+        var error = Assert.Throws<DomainException>(create);
+
+        // Assert
+        Assert.Equal(WeightMessage, error.Message);
+    }
+
+    [Theory]
+    [MemberData(nameof(RejectedWeights))]
+    public void Replace_WeightOutsideTheLimitsOrPrecision_ThrowsDomainExceptionAndKeepsTheOldWeight(decimal weightKg)
+    {
+        // Arrange
+        var shipment = TestData.Shipment();
+        var before = shipment.WeightKg;
+
+        // Act
+        var error = Assert.Throws<DomainException>(() => shipment.Replace(TestData.Recipient(), weightKg));
+
+        // Assert
+        Assert.Equal(WeightMessage, error.Message);
+        Assert.Equal(before, shipment.WeightKg);
     }
 
     [Fact]
@@ -67,24 +143,47 @@ public sealed class TrackedShipmentTests
     }
 
     [Fact]
-    public void MoveTo_applies_a_forward_move_and_refuses_a_backward_one()
+    public void MoveTo_ForwardMove_ChangesTheStatus()
     {
+        // Arrange
         var shipment = TestData.Shipment();
 
+        // Act
         shipment.MoveTo(ShipmentStatus.InTransit);
 
-        Assert.Equal(ShipmentStatus.InTransit, shipment.Status);
-        Assert.Throws<DomainException>(() => shipment.MoveTo(ShipmentStatus.PickedUp));
+        // Assert
         Assert.Equal(ShipmentStatus.InTransit, shipment.Status);
     }
 
     [Fact]
-    public void A_final_shipment_cannot_be_replaced()
+    public void MoveTo_BackwardMove_ThrowsDomainExceptionAndKeepsTheStatus()
     {
+        // Arrange
         var shipment = TestData.Shipment();
-        shipment.MoveTo(ShipmentStatus.Delivered);
+        shipment.MoveTo(ShipmentStatus.InTransit);
 
-        Assert.Throws<DomainException>(() => shipment.Replace(TestData.Recipient(), 1m));
+        // Act
+        var error = Assert.Throws<DomainException>(() => shipment.MoveTo(ShipmentStatus.PickedUp));
+
+        // Assert
+        Assert.Equal("Shipment APX-10000001 cannot move from InTransit to PickedUp.", error.Message);
+        Assert.Equal(ShipmentStatus.InTransit, shipment.Status);
+    }
+
+    [Theory]
+    [InlineData(ShipmentStatus.Delivered)]
+    [InlineData(ShipmentStatus.Failed)]
+    public void Replace_FinalShipment_ThrowsDomainExceptionNamingTheStatus(ShipmentStatus final)
+    {
+        // Arrange
+        var shipment = TestData.Shipment();
+        shipment.MoveTo(final);
+
+        // Act
+        var error = Assert.Throws<DomainException>(() => shipment.Replace(TestData.Recipient(), 1m));
+
+        // Assert
+        Assert.Equal($"Shipment APX-10000001 is {final} and can no longer change.", error.Message);
     }
 
     [Theory]

@@ -41,7 +41,27 @@ public sealed partial class ShipmentScanTests
     [InlineData("APX-1234567A")]
     [InlineData("APX-١٢٣٤٥٦٧٨")]
     [InlineData("APX-12345678' OR '1'='1")]
-    public void CreateNew_TrackingNumberOutsideTheFormat_ThrowsArgumentException(string input)
+    [InlineData("APX-1234 5678")]
+    public void CreateNew_TrackingNumberOutsideTheFormat_ThrowsArgumentExceptionWithThePattern(string input)
+    {
+        // Arrange
+        var create = () => Create(input, ValidCourierId);
+
+        // Act
+        var error = Assert.Throws<ArgumentException>(create);
+
+        // Assert
+        Assert.Equal("trackingNumber", error.ParamName);
+        Assert.Equal(
+            $"'{input.Trim().ToUpperInvariant()}' does not match the format {ScanRules.TrackingNumberPattern}. "
+            + "(Parameter 'trackingNumber')",
+            error.Message);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void CreateNew_BlankTrackingNumber_ThrowsArgumentException(string input)
     {
         // Arrange
         var create = () => Create(input, ValidCourierId);
@@ -53,9 +73,25 @@ public sealed partial class ShipmentScanTests
         Assert.Equal("trackingNumber", error.ParamName);
     }
 
+    [Fact]
+    public void CreateNew_NullTrackingNumber_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var create = () => Create(null!, ValidCourierId);
+
+        // Act
+        var error = Assert.Throws<ArgumentNullException>(create);
+
+        // Assert
+        Assert.Equal("trackingNumber", error.ParamName);
+    }
+
     [Theory]
     [InlineData("CR-101")]
     [InlineData(" CR-007 ")]
+    [InlineData("CR-000")]
+    [InlineData("CR-099")]
+    [InlineData("CR-999")]
     public void CreateNew_ValidCourierId_IsAcceptedTrimmed(string input)
     {
         // Arrange
@@ -74,7 +110,9 @@ public sealed partial class ShipmentScanTests
     [InlineData("cr-101")]
     [InlineData("CR101")]
     [InlineData("XX-101")]
-    public void CreateNew_CourierIdOutsideTheFormat_ThrowsArgumentException(string input)
+    [InlineData("CR-99")]
+    [InlineData("CR-1000")]
+    public void CreateNew_CourierIdOutsideTheFormat_ThrowsArgumentExceptionWithThePattern(string input)
     {
         // Arrange
         var create = () => Create(ValidTrackingNumber, input);
@@ -84,6 +122,44 @@ public sealed partial class ShipmentScanTests
 
         // Assert
         Assert.Equal("courierId", error.ParamName);
+        Assert.Equal(
+            $"'{input}' does not match the format {ScanRules.CourierIdPattern}. (Parameter 'courierId')",
+            error.Message);
+    }
+
+    [Fact]
+    public void CreateNew_UndefinedScanType_ThrowsArgumentExceptionForScanType()
+    {
+        // Arrange
+        var create = () => ShipmentScan.CreateNew(
+            ValidTrackingNumber, (ScanType)99, ValidCourierId, Location, null, new FakeTimeProvider(ScannedAt));
+
+        // Act
+        var error = Assert.Throws<ArgumentException>(create);
+
+        // Assert
+        Assert.Equal("scanType", error.ParamName);
+        Assert.Equal("Unknown ScanType value 99. (Parameter 'scanType')", error.Message);
+    }
+
+    [Theory]
+    [InlineData("not-a-scan-id")]
+    [InlineData("scan::not-a-guid")]
+    [InlineData("0f8fad5b-d9cb-469f-a165-70867728950e")]
+    [InlineData("")]
+    public void Restore_IdNotScanPrefixAndGuid_ThrowsArgumentExceptionForId(string id)
+    {
+        // Arrange
+        var restore = () => ShipmentScan.Restore(
+            id, ValidTrackingNumber, ScanType.Pickup, ValidCourierId, Location,
+            ScannedAt, null, SyncStatus.Pending);
+
+        // Act
+        var error = Assert.Throws<ArgumentException>(restore);
+
+        // Assert
+        Assert.Equal("id", error.ParamName);
+        Assert.Equal("Scan id must look like 'scan::{guid}'. (Parameter 'id')", error.Message);
     }
 
     [Fact]
