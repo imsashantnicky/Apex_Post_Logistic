@@ -337,7 +337,8 @@ The rest of the 30 steps are in [docs/screenshots/](docs/screenshots/). The imag
 ## Running the tests
 
 Every test class carries a `Category` trait, so the trait, not the project, decides the level
-([TESTING-STRATEGY.md](TESTING-STRATEGY.md) section 5 lists each class). The commands work from the repository root:
+([TESTING-STRATEGY.md](TESTING-STRATEGY.md) section 5 lists each class; diagrams in
+[docs/testing/TEST-STRATEGY-DIAGRAM.md](docs/testing/TEST-STRATEGY-DIAGRAM.md)). The commands work from the repository root:
 
 ```bash
 # Build once: 0 warnings, 0 errors
