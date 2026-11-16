@@ -2,7 +2,8 @@
 
 This document was written **before any new Week 5 test**. Every number in it comes from the repository at commit
 `51ed2f3` (`main` after Week 4) or from a real test run on that commit. It is updated in every Week 5 step so that it
-stays true to the code; the Progress log in `docs/WEEK5-CONTEXT.md` says what changed when.
+stays true to the code; the step pull requests on GitHub say what changed when. Diagrams of this strategy:
+[docs/testing/TEST-STRATEGY-DIAGRAM.md](docs/testing/TEST-STRATEGY-DIAGRAM.md).
 
 Baseline run (2026-11-15, `dotnet build Apex_Post_Logistic.slnx -c Release` then
 `dotnet test Apex_Post_Logistic.slnx -c Release --no-build --filter "Category!=Measurement"`):
