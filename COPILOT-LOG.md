@@ -43,7 +43,7 @@ invented (APIs that do not exist, wrong messages, real-looking data)._
 
 ### Check against the Week 5 test rules
 
-| Rule (CLAUDE.md W5.3) | Met by the generated code? | Fix made |
+| Rule (TESTING-STRATEGY.md section 7) | Met by the generated code? | Fix made |
 | --- | --- | --- |
 | AAA comments | _to fill_ | _to fill_ |
 | `Method_Scenario_ExpectedResult` names | _to fill_ | _to fill_ |
@@ -82,7 +82,7 @@ ambiguous or duplicate step bindings, static state._
 
 ### Check against the Week 5 BDD rules
 
-| Rule (CLAUDE.md W5.6) | Met by the generated code? | Fix made |
+| Rule (TESTING-STRATEGY.md section 9) | Met by the generated code? | Fix made |
 | --- | --- | --- |
 | Business language only | _to fill_ | _to fill_ |
 | Background and Scenario Outline with Examples | _to fill_ | _to fill_ |
