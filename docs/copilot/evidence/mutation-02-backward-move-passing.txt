@@ -1,0 +1,29 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  ApexPost.Courier.Domain -> <path>\src\Courier\ApexPost.Courier.Domain\bin\Release\net10.0\ApexPost.Courier.Domain.dll
+  ApexPost.Domain -> <path>\src\ApexPost.Domain\bin\Release\net10.0\ApexPost.Domain.dll
+  ApexPost.Courier.Offline -> <path>\src\Courier\ApexPost.Courier.Offline\bin\Release\net10.0\ApexPost.Courier.Offline.dll
+  ApexPost.Application -> <path>\src\ApexPost.Application\bin\Release\net10.0\ApexPost.Application.dll
+  ApexPost.Infrastructure -> <path>\src\ApexPost.Infrastructure\bin\Release\net10.0\ApexPost.Infrastructure.dll
+  ApexPost.Api -> <path>\src\ApexPost.Api\bin\Release\net10.0\ApexPost.Api.dll
+  ApexPost.Specs -> <path>\tests\ApexPost.Specs\bin\Release\net10.0\ApexPost.Specs.dll
+Test run for <path>\tests\ApexPost.Specs\bin\Release\net10.0\ApexPost.Specs.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v4.0.1+0f7d528729 (64-bit .NET 10.0.13)
+[xUnit.net 00:00:00.53]   Discovering: ApexPost.Specs
+[xUnit.net 00:00:00.96]   Discovered:  ApexPost.Specs
+[xUnit.net 00:00:01.29]   Starting:    ApexPost.Specs
+[xUnit.net 00:00:02.05]   Finished:    ApexPost.Specs (ID = '5b19941ac60f7e23256b5d6cb28775385a2902e1e10427dfffe132b8f7ed6add')
+  Passed A backward move is refused [198 ms]
+  Passed An unknown shipment cannot be changed [19 ms]
+  Passed A shipment moves forward step by step [9 ms]
+  Passed A status change follows the shipment journey(from: "In Transit", to: "Picked Up", outcome: "refused", result: "In Transit", __pickleIndex: "5", exampleTags: []) [4 ms]
+  Passed A status change follows the shipment journey(from: "Failed", to: "Delivered", outcome: "refused", result: "Failed", __pickleIndex: "7", exampleTags: []) [1 ms]
+  Passed A status change follows the shipment journey(from: "Picked Up", to: "Picked Up", outcome: "refused", result: "Picked Up", __pickleIndex: "6", exampleTags: []) [1 ms]
+  Passed A status change follows the shipment journey(from: "Created", to: "In Transit", outcome: "allowed", result: "In Transit", __pickleIndex: "4", exampleTags: []) [1 ms]
+  Passed A delivered shipment cannot change any more [3 ms]
+
+Test Run Successful.
+Total tests: 8
+     Passed: 8
+ Total time: 2.7366 Seconds
