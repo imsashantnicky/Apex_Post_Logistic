@@ -1,0 +1,64 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  ApexPost.Courier.Domain -> <path>\src\Courier\ApexPost.Courier.Domain\bin\Release\net10.0\ApexPost.Courier.Domain.dll
+  ApexPost.Domain -> <path>\src\ApexPost.Domain\bin\Release\net10.0\ApexPost.Domain.dll
+  ApexPost.Application -> <path>\src\ApexPost.Application\bin\Release\net10.0\ApexPost.Application.dll
+  ApexPost.Infrastructure -> <path>\src\ApexPost.Infrastructure\bin\Release\net10.0\ApexPost.Infrastructure.dll
+  ApexPost.Tracking.UnitTests -> <path>\tests\ApexPost.Tracking.UnitTests\bin\Release\net10.0\ApexPost.Tracking.UnitTests.dll
+Test run for <path>\tests\ApexPost.Tracking.UnitTests\bin\Release\net10.0\ApexPost.Tracking.UnitTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v4.0.1+0f7d528729 (64-bit .NET 10.0.13)
+[xUnit.net 00:00:00.40]   Discovering: ApexPost.Tracking.UnitTests
+[xUnit.net 00:00:00.88]   Discovered:  ApexPost.Tracking.UnitTests
+[xUnit.net 00:00:01.17]   Starting:    ApexPost.Tracking.UnitTests
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_BackwardOrAfterDelivered_RejectsWithReason(currentStatus: Delivered, scanType: InTransit, expectedReason: "A InTransit scan cannot move shipment APX-10000001"···) [165 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_BackwardOrAfterDelivered_RejectsWithReason(currentStatus: Delivered, scanType: Failed, expectedReason: "A Failed scan cannot move shipment APX-10000001 fr"···) [3 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_BackwardOrAfterDelivered_RejectsWithReason(currentStatus: Delivered, scanType: Delivered, expectedReason: "A Delivered scan cannot move shipment APX-10000001"···) [1 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_BackwardOrAfterDelivered_RejectsWithReason(currentStatus: InTransit, scanType: Pickup, expectedReason: "A Pickup scan cannot move shipment APX-10000001 fr"···) [1 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_BackwardOrAfterDelivered_RejectsWithReason(currentStatus: Delivered, scanType: Pickup, expectedReason: "A Pickup scan cannot move shipment APX-10000001 fr"···) [1 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_InvalidBatchSize_ThrowsValidationFailedException(count: 101) [9 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_InvalidBatchSize_ThrowsValidationFailedException(count: 0) [1 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_CallerToken_IsPassedToRepositoryAndUnitOfWork [10 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_ValidPickupScan_AcceptsAndStagesScan [14 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: OutForDelivery, requestedStatus: Delivered) [6 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: Created, requestedStatus: Failed) [5 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: PickedUp, requestedStatus: InTransit) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: InTransit, requestedStatus: OutForDelivery) [5 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: Created, requestedStatus: PickedUp) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: InTransit, requestedStatus: Delivered) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: Created, requestedStatus: InTransit) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: PickedUp, requestedStatus: Delivered) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: InTransit, requestedStatus: Failed) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: Created, requestedStatus: OutForDelivery) [5 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: OutForDelivery, requestedStatus: Failed) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: Created, requestedStatus: Delivered) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: PickedUp, requestedStatus: OutForDelivery) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_AllowedForwardMove_UpdatesAndReturnsQueryView(currentStatus: PickedUp, requestedStatus: Failed) [4 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.ChangeStatusAsync_UndefinedStatus_ThrowsValidationFailedException [2 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_UnknownTrackingNumber_RejectsWithoutSaving [3 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_SaveThrowsDuplicateKey_DiscardsAndRetriesUpload [12 ms]
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_ScanAgeBoundary_AcceptsWithinLimitAndRejectsOlder(hoursOld: 73, extraSecondsOld: 0, accepted: False) [3 ms]
+[xUnit.net 00:00:01.69]     ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_ScanAgeBoundary_AcceptsWithinLimitAndRejectsOlder(hoursOld: 72, extraSecondsOld: 0, accepted: True) [FAIL]
+[xUnit.net 00:00:01.69]       Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:01.69]       Expected: 1
+[xUnit.net 00:00:01.69]       Actual:   0
+[xUnit.net 00:00:01.69]       Stack Trace:
+[xUnit.net 00:00:01.69]         <path>\tests\ApexPost.Tracking.UnitTests\Services\ShipmentTrackingServiceCopilotTests.cs(121,0): at ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_ScanAgeBoundary_AcceptsWithinLimitAndRejectsOlder(Int32 hoursOld, Int32 extraSecondsOld, Boolean accepted)
+[xUnit.net 00:00:01.69]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:01.72]   Finished:    ApexPost.Tracking.UnitTests (ID = 'cc238886b2b93c692437aba89bcb503a48426cf5700863c988765d05e57ad665')
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_ScanAgeBoundary_AcceptsWithinLimitAndRejectsOlder(hoursOld: 72, extraSecondsOld: 1, accepted: False) [1 ms]
+  Failed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_ScanAgeBoundary_AcceptsWithinLimitAndRejectsOlder(hoursOld: 72, extraSecondsOld: 0, accepted: True) [2 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   0
+  Stack Trace:
+     at ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_ScanAgeBoundary_AcceptsWithinLimitAndRejectsOlder(Int32 hoursOld, Int32 extraSecondsOld, Boolean accepted) in <path>\tests\ApexPost.Tracking.UnitTests\Services\ShipmentTrackingServiceCopilotTests.cs:line 121
+--- End of stack trace from previous location ---
+  Passed ApexPost.Tracking.UnitTests.Services.ShipmentTrackingServiceCopilotTests.UploadScansAsync_ScanAgeBoundary_AcceptsWithinLimitAndRejectsOlder(hoursOld: 71, extraSecondsOld: 0, accepted: True) [3 ms]
+
+Test Run Failed.
+Total tests: 30
+     Passed: 29
+     Failed: 1
+ Total time: 2.3483 Seconds

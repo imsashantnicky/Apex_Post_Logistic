@@ -234,6 +234,23 @@ Courier.ApiClient.Tests 180, Courier.Presentation.Tests 53, Api.Tests 330, Specs
 **1,941 passed, 0 failed, 0 skipped**. The Spec share is below the ~5 % target on purpose: each scenario shows a
 business outcome whose rules are already proved below (section 9), so more scenarios would only repeat them.
 
+### 3.8a After step 10 (Copilot)
+
+Real run on 2026-11-16 (same commands as 3.8; 0 warnings, 0 errors). Only two rows changed: Tracking.UnitTests
+gained `ShipmentTrackingServiceCopilotTests` (9 methods, 30 cases) and Specs gained `ShipmentStatusUpdate.feature`
+(5 scenarios, 1 outline, 8 cases).
+
+| Level | Methods (scenarios) | Executed cases | Share of cases |
+| --- | --- | --- | --- |
+| Unit | 662 | 1,191 | 60.2 % |
+| Integration | 536 | 768 | 38.8 % |
+| Spec (`tests/ApexPost.Specs`) | 12 scenarios (3 of them outlines) | 20 | 1.0 % |
+| **Total** | **1,210 + 5 measurement methods** | **1,979** | 100 % |
+
+Per project (cases): Courier.Offline.Tests 64, Tracking.UnitTests 273, UnitTests 534, Courier.UnitTests 75,
+Courier.ApiClient.Tests 180, Courier.Presentation.Tests 53, Api.Tests 330, Specs 20, IntegrationTests 450;
+**1,979 passed, 0 failed, 0 skipped**.
+
 ### 3.9 Target
 
 | Level | Target share (executed cases) | What belongs there |
@@ -657,6 +674,8 @@ New classes are not part of the baseline review above; they follow every rule of
 
 | 08 | Specs | `Features/ShipmentCreation.feature` (+ `Steps/ShipmentCreationSteps.cs`) | Spec | BDD at API level (section 9): valid registration, duplicate refused, Scenario Outline for invalid weights. 3 scenarios, 6 cases (R2, weight rule) |
 | 08 | Specs | `Features/ScanSync.feature` (+ `Steps/ScanSyncSteps.cs`) | Spec | BDD at service level (section 9): offline scans synced, lost answer → stored once, unknown tracking number rejected, Scenario Outline for scan age. 4 scenarios, 6 cases (R3, R6, R12) |
+| 10 | Tracking.UnitTests | `Services/ShipmentTrackingServiceCopilotTests.cs` | Unit | Copilot-drafted (prompt A), reviewed in `COPILOT-LOG.md`: 7 generated methods that repeated `ShipmentTrackingServiceMoqTests` were deleted. What is left adds what no class had: exact backward / after-Delivered scan reasons, the full 14-move forward matrix through the service, unknown tracking number with Moq, scan age at 71 / 72 / 72 h + 1 s / 73 h, upload size message, retry that re-stages and saves twice, undefined status refused before any read, token pass-through for `ChangeStatusAsync`. 9 methods, 30 cases (R1, R3, R7, R12) |
+| 10 | Specs | `Features/ShipmentStatusUpdate.feature` (+ `Contexts/ShipmentStatusContext.cs`, `Steps/ShipmentStatusUpdateSteps.cs`) | Spec | Copilot-drafted (prompt B), service level like `ScanSync.feature`: forward step by step, backward move refused, delivered shipment locked, unknown shipment, Scenario Outline for 4 from/to pairs. Bindings scoped to the feature because one step text is shared with `ScanSyncSteps`. 5 scenarios, 8 cases (R1) |
 
 Step 07 also changed the constructor call (only) of the Week 5 classes `ShipmentTrackingServiceMoqTests` and
 `TrackingRepositorySqlTests`: both pass the `ScanAgePolicy` with its default 72 hours; no assertion changed.
@@ -878,6 +897,10 @@ returns". The status codes, ProblemDetails and sync statuses are checked in the 
 SpecFlow and uses the same Gherkin and binding attributes.
 
 ## 10. Copilot plan
+
+**Status: done (step 10).** The results are in `COPILOT-LOG.md`: both prompts verbatim, 16 generated methods
+(39 cases) and 5 scenarios reviewed (Prompt A: 7 kept, 2 changed, 7 rejected; Prompt B: 6 kept, 1 changed), and
+two mutation proofs with failing and passing output in `docs/copilot/evidence/`. The plan as written before the run:
 
 - The **user** runs GitHub Copilot. Claude prepares the prompts and reviews the output; Claude never writes Copilot
   output itself or presents its own code as Copilot's.

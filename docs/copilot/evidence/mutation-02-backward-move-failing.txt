@@ -1,0 +1,166 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  ApexPost.Courier.Domain -> <path>\src\Courier\ApexPost.Courier.Domain\bin\Release\net10.0\ApexPost.Courier.Domain.dll
+  ApexPost.Domain -> <path>\src\ApexPost.Domain\bin\Release\net10.0\ApexPost.Domain.dll
+  ApexPost.Application -> <path>\src\ApexPost.Application\bin\Release\net10.0\ApexPost.Application.dll
+  ApexPost.Courier.Offline -> <path>\src\Courier\ApexPost.Courier.Offline\bin\Release\net10.0\ApexPost.Courier.Offline.dll
+  ApexPost.Infrastructure -> <path>\src\ApexPost.Infrastructure\bin\Release\net10.0\ApexPost.Infrastructure.dll
+  ApexPost.Api -> <path>\src\ApexPost.Api\bin\Release\net10.0\ApexPost.Api.dll
+  ApexPost.Specs -> <path>\tests\ApexPost.Specs\bin\Release\net10.0\ApexPost.Specs.dll
+Test run for <path>\tests\ApexPost.Specs\bin\Release\net10.0\ApexPost.Specs.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v4.0.1+0f7d528729 (64-bit .NET 10.0.13)
+[xUnit.net 00:00:00.51]   Discovering: ApexPost.Specs
+[xUnit.net 00:00:00.88]   Discovered:  ApexPost.Specs
+[xUnit.net 00:00:01.30]   Starting:    ApexPost.Specs
+[xUnit.net 00:00:01.94]     A backward move is refused [FAIL]
+[xUnit.net 00:00:01.94]       Assert.IsType() Failure: Value is null
+[xUnit.net 00:00:01.94]       Expected: typeof(ApexPost.Application.Tracking.InvalidStatusTransitionException)
+[xUnit.net 00:00:01.94]       Actual:   null
+[xUnit.net 00:00:01.94]       Stack Trace:
+[xUnit.net 00:00:01.94]            at lambda_method4(Closure, IContextManager)
+[xUnit.net 00:00:01.94]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:01.94]            at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+[xUnit.net 00:00:01.94]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:01.94]            at Reqnroll.Bindings.BindingInvoker.InvokeBindingAsync(IBinding binding, IContextManager contextManager, Object[] arguments, ITestTracer testTracer, DurationHolder durationHolder)
+[xUnit.net 00:00:01.94]            at Reqnroll.Infrastructure.TestExecutionEngine.ExecuteStepMatchAsync(BindingMatch match, Object[] arguments, DurationHolder durationHolder)
+[xUnit.net 00:00:01.94]            at Reqnroll.Infrastructure.TestExecutionEngine.ExecuteStepMatchAsync(BindingMatch match, Object[] arguments, DurationHolder durationHolder)
+[xUnit.net 00:00:01.94]            at Reqnroll.Infrastructure.TestExecutionEngine.<>c__DisplayClass57_0.<<ExecuteStepAsync>b__7>d.MoveNext()
+[xUnit.net 00:00:01.95]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:01.95]            at Reqnroll.Infrastructure.TestExecutionEngine.<>c__DisplayClass57_0.<<ExecuteStepAsync>g__HandleStepExecutionExceptions|0>d.MoveNext()
+[xUnit.net 00:00:01.95]            at Reqnroll.Infrastructure.TestExecutionEngine.OnAfterLastStepAsync()
+[xUnit.net 00:00:01.95]            at Reqnroll.TestRunner.CollectScenarioErrorsAsync()
+[xUnit.net 00:00:01.95]            at ApexPost.Specs.Features.ShipmentStatusUpdateFeature.ScenarioCleanupAsync()
+[xUnit.net 00:00:01.95]         <path>\tests\ApexPost.Specs\Features\ShipmentStatusUpdate.feature(21,0): at ApexPost.Specs.Features.ShipmentStatusUpdateFeature.ABackwardMoveIsRefused()
+[xUnit.net 00:00:01.95]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:01.95]       Output:
+[xUnit.net 00:00:01.95]         Given the dispatcher registers shipment "APX-40000001" for "Ava Example" in "Harbour Point"
+[xUnit.net 00:00:01.95]         -> done: ShipmentStatusUpdateSteps.GivenTheDispatcherRegistersShipment("APX-40000001", "Ava Example", "Harbour Point") (0.0s)
+[xUnit.net 00:00:01.95]         Given shipment "APX-40000001" is currently at status "In Transit"
+[xUnit.net 00:00:01.95]         -> done: ShipmentStatusUpdateSteps.GivenShipmentIsCurrentlyAtStatus("APX-40000001", "In Transit") (0.0s)
+[xUnit.net 00:00:01.95]         When the dispatcher changes shipment "APX-40000001" to "Picked Up"
+[xUnit.net 00:00:01.95]         -> done: ShipmentStatusUpdateSteps.WhenTheDispatcherChangesShipment("APX-40000001", "Picked Up") (0.0s)
+[xUnit.net 00:00:01.95]         Then the dispatcher is told that the shipment only moves forward
+[xUnit.net 00:00:01.95]         -> error: Assert.IsType() Failure: Value is null
+[xUnit.net 00:00:01.95]         Expected: typeof(ApexPost.Application.Tracking.InvalidStatusTransitionException)
+[xUnit.net 00:00:01.95]         Actual:   null (0.0s)
+[xUnit.net 00:00:01.95]         And shipment "APX-40000001" has status "In Transit"
+[xUnit.net 00:00:01.95]         -> skipped because of previous errors
+[xUnit.net 00:00:02.00]     A status change follows the shipment journey(from: "In Transit", to: "Picked Up", outcome: "refused", result: "In Transit", __pickleIndex: "5", exampleTags: []) [FAIL]
+[xUnit.net 00:00:02.00]       Assert.IsType() Failure: Value is null
+[xUnit.net 00:00:02.00]       Expected: typeof(ApexPost.Application.Tracking.InvalidStatusTransitionException)
+[xUnit.net 00:00:02.00]       Actual:   null
+[xUnit.net 00:00:02.00]       Stack Trace:
+[xUnit.net 00:00:02.00]            at lambda_method7(Closure, IContextManager, String)
+[xUnit.net 00:00:02.00]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:02.00]            at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+[xUnit.net 00:00:02.00]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:02.00]            at Reqnroll.Bindings.BindingInvoker.InvokeBindingAsync(IBinding binding, IContextManager contextManager, Object[] arguments, ITestTracer testTracer, DurationHolder durationHolder)
+[xUnit.net 00:00:02.00]            at Reqnroll.Infrastructure.TestExecutionEngine.ExecuteStepMatchAsync(BindingMatch match, Object[] arguments, DurationHolder durationHolder)
+[xUnit.net 00:00:02.00]            at Reqnroll.Infrastructure.TestExecutionEngine.ExecuteStepMatchAsync(BindingMatch match, Object[] arguments, DurationHolder durationHolder)
+[xUnit.net 00:00:02.00]            at Reqnroll.Infrastructure.TestExecutionEngine.<>c__DisplayClass57_0.<<ExecuteStepAsync>b__7>d.MoveNext()
+[xUnit.net 00:00:02.00]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:02.00]            at Reqnroll.Infrastructure.TestExecutionEngine.<>c__DisplayClass57_0.<<ExecuteStepAsync>g__HandleStepExecutionExceptions|0>d.MoveNext()
+[xUnit.net 00:00:02.00]            at Reqnroll.Infrastructure.TestExecutionEngine.OnAfterLastStepAsync()
+[xUnit.net 00:00:02.00]            at Reqnroll.TestRunner.CollectScenarioErrorsAsync()
+[xUnit.net 00:00:02.00]            at ApexPost.Specs.Features.ShipmentStatusUpdateFeature.ScenarioCleanupAsync()
+[xUnit.net 00:00:02.00]         <path>\tests\ApexPost.Specs\Features\ShipmentStatusUpdate.feature(37,0): at ApexPost.Specs.Features.ShipmentStatusUpdateFeature.AStatusChangeFollowsTheShipmentJourney(String from, String to, String outcome, String result, String __pickleIndex, String[] exampleTags)
+[xUnit.net 00:00:02.00]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:02.00]       Output:
+[xUnit.net 00:00:02.00]         Given the dispatcher registers shipment "APX-40000001" for "Ava Example" in "Harbour Point"
+[xUnit.net 00:00:02.00]         -> done: ShipmentStatusUpdateSteps.GivenTheDispatcherRegistersShipment("APX-40000001", "Ava Example", "Harbour Point") (0.0s)
+[xUnit.net 00:00:02.00]         Given shipment "APX-40000001" is currently at status "In Transit"
+[xUnit.net 00:00:02.00]         -> done: ShipmentStatusUpdateSteps.GivenShipmentIsCurrentlyAtStatus("APX-40000001", "In Transit") (0.0s)
+[xUnit.net 00:00:02.00]         When the dispatcher changes shipment "APX-40000001" to "Picked Up"
+[xUnit.net 00:00:02.00]         -> done: ShipmentStatusUpdateSteps.WhenTheDispatcherChangesShipment("APX-40000001", "Picked Up") (0.0s)
+[xUnit.net 00:00:02.00]         Then the change is "refused"
+[xUnit.net 00:00:02.00]         -> error: Assert.IsType() Failure: Value is null
+[xUnit.net 00:00:02.00]         Expected: typeof(ApexPost.Application.Tracking.InvalidStatusTransitionException)
+[xUnit.net 00:00:02.00]         Actual:   null (0.0s)
+[xUnit.net 00:00:02.00]         And shipment "APX-40000001" has status "In Transit"
+[xUnit.net 00:00:02.00]         -> skipped because of previous errors
+[xUnit.net 00:00:02.06]   Finished:    ApexPost.Specs (ID = '5b19941ac60f7e23256b5d6cb28775385a2902e1e10427dfffe132b8f7ed6add')
+  Failed A backward move is refused [147 ms]
+  Error Message:
+   Assert.IsType() Failure: Value is null
+Expected: typeof(ApexPost.Application.Tracking.InvalidStatusTransitionException)
+Actual:   null
+  Stack Trace:
+     at lambda_method4(Closure, IContextManager)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+--- End of stack trace from previous location ---
+   at Reqnroll.Bindings.BindingInvoker.InvokeBindingAsync(IBinding binding, IContextManager contextManager, Object[] arguments, ITestTracer testTracer, DurationHolder durationHolder)
+   at Reqnroll.Infrastructure.TestExecutionEngine.ExecuteStepMatchAsync(BindingMatch match, Object[] arguments, DurationHolder durationHolder)
+   at Reqnroll.Infrastructure.TestExecutionEngine.ExecuteStepMatchAsync(BindingMatch match, Object[] arguments, DurationHolder durationHolder)
+   at Reqnroll.Infrastructure.TestExecutionEngine.<>c__DisplayClass57_0.<<ExecuteStepAsync>b__7>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Reqnroll.Infrastructure.TestExecutionEngine.<>c__DisplayClass57_0.<<ExecuteStepAsync>g__HandleStepExecutionExceptions|0>d.MoveNext()
+   at Reqnroll.Infrastructure.TestExecutionEngine.OnAfterLastStepAsync()
+   at Reqnroll.TestRunner.CollectScenarioErrorsAsync()
+   at ApexPost.Specs.Features.ShipmentStatusUpdateFeature.ScenarioCleanupAsync()
+   at ApexPost.Specs.Features.ShipmentStatusUpdateFeature.ABackwardMoveIsRefused() in <path>\tests\ApexPost.Specs\Features\ShipmentStatusUpdate.feature:line 21
+--- End of stack trace from previous location ---
+  Standard Output Messages:
+ Given the dispatcher registers shipment "APX-40000001" for "Ava Example" in "Harbour Point"
+ -> done: ShipmentStatusUpdateSteps.GivenTheDispatcherRegistersShipment("APX-40000001", "Ava Example", "Harbour Point") (0.0s)
+ Given shipment "APX-40000001" is currently at status "In Transit"
+ -> done: ShipmentStatusUpdateSteps.GivenShipmentIsCurrentlyAtStatus("APX-40000001", "In Transit") (0.0s)
+ When the dispatcher changes shipment "APX-40000001" to "Picked Up"
+ -> done: ShipmentStatusUpdateSteps.WhenTheDispatcherChangesShipment("APX-40000001", "Picked Up") (0.0s)
+ Then the dispatcher is told that the shipment only moves forward
+ -> error: Assert.IsType() Failure: Value is null
+ Expected: typeof(ApexPost.Application.Tracking.InvalidStatusTransitionException)
+ Actual:   null (0.0s)
+ And shipment "APX-40000001" has status "In Transit"
+ -> skipped because of previous errors
+
+
+  Passed An unknown shipment cannot be changed [19 ms]
+  Passed A shipment moves forward step by step [7 ms]
+  Failed A status change follows the shipment journey(from: "In Transit", to: "Picked Up", outcome: "refused", result: "In Transit", __pickleIndex: "5", exampleTags: []) [5 ms]
+  Error Message:
+   Assert.IsType() Failure: Value is null
+Expected: typeof(ApexPost.Application.Tracking.InvalidStatusTransitionException)
+Actual:   null
+  Stack Trace:
+     at lambda_method7(Closure, IContextManager, String)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+--- End of stack trace from previous location ---
+   at Reqnroll.Bindings.BindingInvoker.InvokeBindingAsync(IBinding binding, IContextManager contextManager, Object[] arguments, ITestTracer testTracer, DurationHolder durationHolder)
+   at Reqnroll.Infrastructure.TestExecutionEngine.ExecuteStepMatchAsync(BindingMatch match, Object[] arguments, DurationHolder durationHolder)
+   at Reqnroll.Infrastructure.TestExecutionEngine.ExecuteStepMatchAsync(BindingMatch match, Object[] arguments, DurationHolder durationHolder)
+   at Reqnroll.Infrastructure.TestExecutionEngine.<>c__DisplayClass57_0.<<ExecuteStepAsync>b__7>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Reqnroll.Infrastructure.TestExecutionEngine.<>c__DisplayClass57_0.<<ExecuteStepAsync>g__HandleStepExecutionExceptions|0>d.MoveNext()
+   at Reqnroll.Infrastructure.TestExecutionEngine.OnAfterLastStepAsync()
+   at Reqnroll.TestRunner.CollectScenarioErrorsAsync()
+   at ApexPost.Specs.Features.ShipmentStatusUpdateFeature.ScenarioCleanupAsync()
+   at ApexPost.Specs.Features.ShipmentStatusUpdateFeature.AStatusChangeFollowsTheShipmentJourney(String from, String to, String outcome, String result, String __pickleIndex, String[] exampleTags) in <path>\tests\ApexPost.Specs\Features\ShipmentStatusUpdate.feature:line 37
+--- End of stack trace from previous location ---
+  Standard Output Messages:
+ Given the dispatcher registers shipment "APX-40000001" for "Ava Example" in "Harbour Point"
+ -> done: ShipmentStatusUpdateSteps.GivenTheDispatcherRegistersShipment("APX-40000001", "Ava Example", "Harbour Point") (0.0s)
+ Given shipment "APX-40000001" is currently at status "In Transit"
+ -> done: ShipmentStatusUpdateSteps.GivenShipmentIsCurrentlyAtStatus("APX-40000001", "In Transit") (0.0s)
+ When the dispatcher changes shipment "APX-40000001" to "Picked Up"
+ -> done: ShipmentStatusUpdateSteps.WhenTheDispatcherChangesShipment("APX-40000001", "Picked Up") (0.0s)
+ Then the change is "refused"
+ -> error: Assert.IsType() Failure: Value is null
+ Expected: typeof(ApexPost.Application.Tracking.InvalidStatusTransitionException)
+ Actual:   null (0.0s)
+ And shipment "APX-40000001" has status "In Transit"
+ -> skipped because of previous errors
+
+
+  Passed A status change follows the shipment journey(from: "Failed", to: "Delivered", outcome: "refused", result: "Failed", __pickleIndex: "7", exampleTags: []) [3 ms]
+  Passed A status change follows the shipment journey(from: "Picked Up", to: "Picked Up", outcome: "refused", result: "Picked Up", __pickleIndex: "6", exampleTags: []) [1 ms]
+  Passed A status change follows the shipment journey(from: "Created", to: "In Transit", outcome: "allowed", result: "In Transit", __pickleIndex: "4", exampleTags: []) [1 ms]
+  Passed A delivered shipment cannot change any more [3 ms]
+
+Test Run Failed.
+Total tests: 8
+     Passed: 6
+     Failed: 2
+ Total time: 2.6658 Seconds
