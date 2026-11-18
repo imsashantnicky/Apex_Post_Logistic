@@ -5,6 +5,7 @@ using ApexPost.Courier.ApiClient.Tests.Support;
 namespace ApexPost.Courier.ApiClient.Tests.Client;
 
 /// <summary>Bad success bodies never crash the app: each becomes an <see cref="ApiFailureKind.InvalidResponse"/>.</summary>
+[Trait("Category", "Unit")]
 public sealed class ResponseRobustnessTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

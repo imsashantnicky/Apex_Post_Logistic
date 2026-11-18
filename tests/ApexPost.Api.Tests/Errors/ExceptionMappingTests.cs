@@ -6,6 +6,7 @@ using ApexPost.Api.Tests.Support;
 namespace ApexPost.Api.Tests.Errors;
 
 /// <summary>Every exception becomes ProblemDetails with the right status, a trace id and, in Development, a stack trace.</summary>
+[Trait("Category", "Integration")]
 public sealed class ExceptionMappingTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

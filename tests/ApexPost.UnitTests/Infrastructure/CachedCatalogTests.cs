@@ -10,6 +10,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Infrastructure;
 
+[Trait("Category", "Unit")]
 public sealed class CachedCatalogTests : IDisposable
 {
     private const int CacheSeconds = 60;

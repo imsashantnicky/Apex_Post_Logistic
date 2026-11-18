@@ -8,6 +8,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Services;
 
+[Trait("Category", "Integration")]
 public sealed class AuditServiceTests : IDisposable
 {
     private readonly TempDataFolder _folder = new();

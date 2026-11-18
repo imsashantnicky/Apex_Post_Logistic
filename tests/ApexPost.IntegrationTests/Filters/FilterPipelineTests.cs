@@ -16,6 +16,7 @@ using Microsoft.Extensions.Options;
 
 namespace ApexPost.IntegrationTests.Filters;
 
+[Trait("Category", "Integration")]
 public sealed class FilterPipelineTests(SlowActionFactory factory) : IClassFixture<SlowActionFactory>
 {
     [Fact]

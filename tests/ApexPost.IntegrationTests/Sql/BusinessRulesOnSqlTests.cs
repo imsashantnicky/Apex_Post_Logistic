@@ -8,6 +8,7 @@ namespace ApexPost.IntegrationTests.Sql;
 /// The boundaries of the Week 2 rules, walked through the real application and stored in SQL Server. The Week 2 unit
 /// tests prove them on fakes; these prove that nothing was lost on the way through EF Core and the constraints.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class BusinessRulesOnSqlTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Reason = "Customer changed their mind.";

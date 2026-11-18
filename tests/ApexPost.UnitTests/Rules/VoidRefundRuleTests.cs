@@ -7,6 +7,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 5: voids and refunds need an active manager of the branch and a reason; stock comes back.</summary>
+[Trait("Category", "Unit")]
 public sealed class VoidRefundRuleTests
 {
     private const string Reason = "Customer changed mind";

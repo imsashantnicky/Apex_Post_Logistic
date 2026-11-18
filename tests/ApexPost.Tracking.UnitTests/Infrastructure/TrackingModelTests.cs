@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ApexPost.Tracking.UnitTests.Infrastructure;
 
 /// <summary>The tracking model, read without a database: nothing here opens a connection.</summary>
+[Trait("Category", "Unit")]
 public sealed class TrackingModelTests
 {
     private const string UnusedConnection = "Server=unused;Database=unused";

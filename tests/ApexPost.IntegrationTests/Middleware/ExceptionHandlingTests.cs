@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace ApexPost.IntegrationTests.Middleware;
 
 /// <summary>Outside Development. A broken staff repository makes the sign-in fail unexpectedly.</summary>
+[Trait("Category", "Integration")]
 public sealed class ExceptionHandlingTests(BrokenSignInFactory factory) : IClassFixture<BrokenSignInFactory>
 {
     private const string LoginPath = "/Account/Login";

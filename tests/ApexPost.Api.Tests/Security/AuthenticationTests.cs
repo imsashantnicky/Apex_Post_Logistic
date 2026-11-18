@@ -9,6 +9,7 @@ namespace ApexPost.Api.Tests.Security;
 /// Every endpoint needs a valid bearer token. A missing, expired, badly signed or foreign token is answered with
 /// 401 ProblemDetails (WWW-Authenticate: Bearer); a valid token of any role may read, in v1 and v2.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class AuthenticationTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string Seeded = "APX-20000001";

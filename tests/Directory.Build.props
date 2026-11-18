@@ -1,0 +1,22 @@
+<Project>
+
+  <!--
+    Settings for every test project under tests/. MSBuild stops at the first Directory.Build.props it finds, so the
+    root file is imported first: net10.0, C# 14, nullable, TreatWarningsAsErrors and NuGet audit stay as they are.
+  -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!--
+    Shared test packages (Week 5 rule W5.0: allowed in test projects only, exact versions).
+    Moq isolates service dependencies, FakeTimeProvider replaces the wall clock, coverlet collects coverage.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Moq" Version="4.21.0" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="11.0.0" />
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

@@ -10,6 +10,7 @@ namespace ApexPost.Api.Tests.Security;
 /// developer's localhost is never pinned. Plain HTTP is redirected to HTTPS in every environment once the HTTPS
 /// port is known.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class HttpsTests(ProductionApiFactory production, ApiFactory development)
     : IClassFixture<ProductionApiFactory>, IClassFixture<ApiFactory>
 {

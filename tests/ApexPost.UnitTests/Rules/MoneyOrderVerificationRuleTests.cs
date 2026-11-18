@@ -7,6 +7,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 4: a money order above the threshold needs a passed identity check in the same transaction.</summary>
+[Trait("Category", "Unit")]
 public sealed class MoneyOrderVerificationRuleTests
 {
     [Theory]

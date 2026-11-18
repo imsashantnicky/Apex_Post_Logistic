@@ -6,6 +6,7 @@ using Polly.CircuitBreaker;
 namespace ApexPost.Courier.ApiClient.Tests.Resilience;
 
 /// <summary>Circuit breaker: opens after repeated failures, blocks calls while open, closes after a good trial.</summary>
+[Trait("Category", "Unit")]
 public sealed class CircuitBreakerTests
 {
     private const string TrackingNumber = "APX-20000005";

@@ -334,6 +334,59 @@ machine, so they show `sqlcmd` and `dotnet` output, not SSMS windows.
 The rest of the 30 steps are in [docs/screenshots/](docs/screenshots/). The images in
 [docs/screenshots/earlier-run/](docs/screenshots/earlier-run/) come from an earlier run.
 
+## Running the tests
+
+Every test class carries a `Category` trait, so the trait, not the project, decides the level
+([TESTING-STRATEGY.md](TESTING-STRATEGY.md) section 5 lists each class; diagrams in
+[docs/testing/TEST-STRATEGY-DIAGRAM.md](docs/testing/TEST-STRATEGY-DIAGRAM.md)). The commands work from the repository root:
+
+```bash
+# Build once: 0 warnings, 0 errors
+dotnet build Apex_Post_Logistic.slnx -c Release
+
+# Everything CI runs (all levels, measurements excluded)
+dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement"
+
+# One level at a time
+dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category=Unit"
+dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category=Integration"
+dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category=Spec"
+
+# Check that every test and every theory row is discovered, without running anything
+dotnet test Apex_Post_Logistic.slnx -c Release --no-build --list-tests
+
+# Evidence file: a TRX report plus the console log
+dotnet test Apex_Post_Logistic.slnx -c Release --filter "Category!=Measurement" \
+  --logger "trx;LogFileName=week5.trx" --logger "console;verbosity=normal"
+```
+
+The unit level needs nothing installed. `Category=Spec` runs the 12 Reqnroll scenario cases of `tests/ApexPost.Specs`
+(`ShipmentCreation.feature` at API level needs SQL Server; `ScanSync.feature` at service level needs nothing);
+[TESTING-STRATEGY.md](TESTING-STRATEGY.md) section 9 explains both levels.
+
+**Visual Studio Test Explorer.** Open `Apex_Post_Logistic.slnx`, build, and open *Test > Test Explorer*. Choose
+*Group By > Traits* to see the `Category` groups (Unit, Integration, Spec, Measurement), then run one group with its
+context menu. Every `[Theory]` row appears as its own test, for example the 36 rows of
+`CanMove_StatusPairOfTheLifecycleTable_ReturnsTheExpectedAnswer`. Typing `Trait:"Category=Unit"` in the search box
+filters the same way.
+
+**SQL Server and skipped tests.** Repository, query and API tests run against a throw-away SQL Server database. The
+shared helper `tests/Common/SqlTestServer.cs` looks for a server in this order: the environment variable
+`ConnectionStrings__ApexPostTestServer` (CI), the user-secrets `ConnectionStrings:ApexPostTestServer` or
+`ConnectionStrings:ApexPostDb` (only the server part is used), and LocalDB `(localdb)\MSSQLLocalDB` on Windows. If
+none answers, each SQL test is **skipped** with the message `SQL Server not available: …` and the list of what was
+tried; unit tests still run. In CI (`CI=true`) a missing server fails the tests instead, so CI always reports
+0 skipped. Every test class creates its own `ApexPostTests_<guid>` database and drops it afterwards; the development
+database is never touched.
+
+Week 5 run on 2026-11-15 (Windows 11, SQL Server reachable), Release build with 0 warnings:
+
+| Filter | Passed | Failed | Skipped |
+| --- | --- | --- | --- |
+| `Category=Unit` | 1,103 | 0 | 0 |
+| `Category=Integration` | 757 | 0 | 0 |
+| `Category!=Measurement` (all of CI) | 1,860 | 0 | 0 |
+
 ## Test results
 
 Verified on 2026-11-02 after the evaluator fixes: Windows 11, .NET SDK 10.0.402, SQL Server 2025. The Release build

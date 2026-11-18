@@ -9,6 +9,7 @@ namespace ApexPost.Tracking.UnitTests.Services;
 /// A courier may upload only the scans it recorded: the courierId of every scan must equal the courier of the
 /// request (the token claim in the API), or the whole batch is refused with 403 and nothing is stored.
 /// </summary>
+[Trait("Category", "Unit")]
 public sealed class ScanOwnershipTests
 {
     private const string OtherCourier = "CR-102";
@@ -100,5 +101,5 @@ public sealed class ScanOwnershipTests
     }
 
     private ShipmentTrackingService ServiceFor(string? courierId) =>
-        new(_store, _store, _store, new FixedCourier(courierId), new FixedTimeProvider());
+        new(_store, _store, _store, new FixedCourier(courierId), new FixedTimeProvider(), TestData.ScanAge());
 }

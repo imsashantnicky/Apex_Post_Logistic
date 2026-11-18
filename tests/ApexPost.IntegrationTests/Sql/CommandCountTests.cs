@@ -10,6 +10,7 @@ namespace ApexPost.IntegrationTests.Sql;
 /// shows. Each count includes the query that revalidates the signed-in user and, on pages that show it, the branch
 /// name in the page header. An N+1 would grow with the rows.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class CommandCountTests(CommandLogFactory factory) : IClassFixture<CommandLogFactory>
 {
     [Theory]

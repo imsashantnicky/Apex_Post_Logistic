@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApexPost.IntegrationTests.Authentication;
 
+[Trait("Category", "Integration")]
 public sealed class SignInTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string LoginPath = "/Account/Login";

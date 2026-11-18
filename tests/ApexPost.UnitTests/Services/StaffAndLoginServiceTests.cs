@@ -7,6 +7,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 
 namespace ApexPost.UnitTests.Services;
 
+[Trait("Category", "Unit")]
 public sealed class StaffAndLoginServiceTests
 {
     private const string Password = "correct-horse-battery";

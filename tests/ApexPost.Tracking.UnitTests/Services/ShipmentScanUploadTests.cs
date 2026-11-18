@@ -6,6 +6,7 @@ using ApexPost.Tracking.UnitTests.Support;
 namespace ApexPost.Tracking.UnitTests.Services;
 
 /// <summary>The upload of scans for one shipment, as used by POST /api/shipments/{trackingNumber}/scans.</summary>
+[Trait("Category", "Unit")]
 public sealed class ShipmentScanUploadTests
 {
     private readonly InMemoryTracking _store = new();
@@ -13,7 +14,8 @@ public sealed class ShipmentScanUploadTests
 
     public ShipmentScanUploadTests()
     {
-        _service = new ShipmentTrackingService(_store, _store, _store, new FixedCourier(), new FixedTimeProvider());
+        _service = new ShipmentTrackingService(
+            _store, _store, _store, new FixedCourier(), new FixedTimeProvider(), TestData.ScanAge());
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

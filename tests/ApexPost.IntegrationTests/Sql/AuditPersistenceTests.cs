@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 namespace ApexPost.IntegrationTests.Sql;
 
 /// <summary>The audit log has its own transaction: it follows the business commit and can never undo it.</summary>
+[Trait("Category", "Integration")]
 public sealed class AuditPersistenceTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string Sku = "PKG-0012";

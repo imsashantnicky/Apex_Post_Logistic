@@ -6,6 +6,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rule 7: letters up to 2 kg; parcels up to 30 / 20 / 10 kg for Standard / Express / Registered.</summary>
+[Trait("Category", "Unit")]
 public sealed class WeightLimitRuleTests
 {
     [Theory]

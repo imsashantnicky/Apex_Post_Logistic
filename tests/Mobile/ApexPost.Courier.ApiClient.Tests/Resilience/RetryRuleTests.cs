@@ -7,6 +7,7 @@ using Polly.Timeout;
 namespace ApexPost.Courier.ApiClient.Tests.Resilience;
 
 /// <summary>The two predicates behind the retry: which outcomes are transient, which requests may repeat.</summary>
+[Trait("Category", "Unit")]
 public sealed class RetryRuleTests
 {
     [Theory]

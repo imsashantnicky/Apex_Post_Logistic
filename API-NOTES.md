@@ -170,7 +170,9 @@ designed so that a repeat changes nothing. The rules hold for both versions.
 4. **Oldest first.** New scans are applied in `scannedAtUtc` order, so a Pickup and a Delivered in the same batch end
    as Delivered.
 5. **Per-item rejection.** A scan is rejected with a reason, while the valid scans of the batch are still stored,
-   when it is for another shipment than the route, for an unknown shipment, would move the status back, or follows
+   when it is for another shipment than the route, was made more than 72 hours before the upload ("Scan is older than
+   72 hours.", limit `Tracking:MaxScanAgeHours`; exactly 72 hours is accepted; Week 5 TDD rule, see `TDD-LOG.md`),
+   is for an unknown shipment, would move the status back, or follows
    Delivered or Failed. Format errors in the body (scan id, courier id, missing signature, future time) are a 400 for
    the whole request instead, because the device sent a malformed batch.
 6. **Parallel uploads.** When two uploads of the same scans commit at the same time, the database refuses the second

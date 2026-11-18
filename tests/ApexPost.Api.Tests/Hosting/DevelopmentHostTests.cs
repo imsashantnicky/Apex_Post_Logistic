@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ApexPost.Api.Tests.Hosting;
 
 /// <summary>The host wires Week 3 and tracking services, and in Development migrates and seeds its database.</summary>
+[Trait("Category", "Integration")]
 public sealed class DevelopmentHostTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

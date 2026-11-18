@@ -2,6 +2,7 @@ using ApexPost.Courier.Presentation.Mvvm;
 
 namespace ApexPost.Courier.Presentation.Tests.Mvvm;
 
+[Trait("Category", "Unit")]
 public sealed class AsyncCommandTests
 {
     [Fact]

@@ -9,6 +9,7 @@ namespace ApexPost.Api.Tests.Documentation;
 /// One OpenAPI document per version: v1 lists only deprecated /api/v1 operations with V1 operationIds, v2 lists the
 /// /api/v2 operations with bare operationIds and string enums. The unversioned alias is in neither document.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class VersionedDocumentTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private static readonly string[] V2OperationIds =

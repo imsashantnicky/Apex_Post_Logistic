@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ApexPost.UnitTests.Infrastructure;
 
 /// <summary>The committed deployment script must keep up with the migrations it stands in for.</summary>
+[Trait("Category", "Unit")]
 public sealed class MigrationScriptTests
 {
     private const string SolutionFile = "Apex_Post_Logistic.slnx";

@@ -40,3 +40,11 @@ VIVA.md
 
 # Week 4 courier: change listener log (logs/listener.log)
 **/logs/
+
+# Reqnroll: code generated from .feature files at build time
+*.feature.cs
+
+# AI assistant instructions and session notes stay local
+CLAUDE.md
+docs/WEEK4-CONTEXT.md
+docs/WEEK5-CONTEXT.md

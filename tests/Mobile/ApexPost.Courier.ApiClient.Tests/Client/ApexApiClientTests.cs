@@ -7,17 +7,21 @@ using ApexPost.Courier.Domain.Enums;
 
 namespace ApexPost.Courier.ApiClient.Tests.Client;
 
+[Trait("Category", "Unit")]
 public sealed class ApexApiClientTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task GetShipment_reads_the_v2_shipment_with_string_enums_and_nested_recipient()
+    public async Task GetShipmentAsync_V2Json_ReadsStringEnumsNestedRecipientAndCallsTheFakeHost()
     {
+        // Arrange
         var handler = FakeHttpMessageHandler.Returning(HttpStatusCode.OK, SampleJson.Shipment, SampleJson.Json);
 
+        // Act
         var result = await ClientFactory.Create(handler).GetShipmentAsync("APX-20000005", Ct);
 
+        // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(ShipmentStatus.InTransit, result.Value.Status);
         Assert.Equal("Northgate", result.Value.Recipient.City);
@@ -25,7 +29,7 @@ public sealed class ApexApiClientTests
         Assert.Equal(DateTimeKind.Utc, result.Value.CreatedAtUtc.Kind);
         var sent = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Get, sent.Method);
-        Assert.Equal("https://localhost:7310/api/v2/shipments/APX-20000005", sent.Uri.AbsoluteUri);
+        Assert.Equal("https://apexpost.test/api/v2/shipments/APX-20000005", sent.Uri.AbsoluteUri);
     }
 
     [Fact]

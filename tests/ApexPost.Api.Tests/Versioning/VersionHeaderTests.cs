@@ -7,6 +7,7 @@ using static ApexPost.Api.Tests.Support.ApiClient;
 namespace ApexPost.Api.Tests.Versioning;
 
 /// <summary>ReportApiVersions: every versioned answer names the supported and the deprecated versions.</summary>
+[Trait("Category", "Integration")]
 public sealed class VersionHeaderTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string Supported = "api-supported-versions";

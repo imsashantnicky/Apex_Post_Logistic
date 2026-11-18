@@ -6,6 +6,7 @@ using ApexPost.Web.Filters;
 
 namespace ApexPost.IntegrationTests.Filters;
 
+[Trait("Category", "Integration")]
 public sealed class AuditPageTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string AuditPath = "/Audit";

@@ -9,6 +9,7 @@ using static ApexPost.UnitTests.Support.TestData;
 namespace ApexPost.UnitTests.Rules;
 
 /// <summary>Rules 4 to 7 across the whole life of a transaction, where one step depends on an earlier one.</summary>
+[Trait("Category", "Unit")]
 public sealed class TransactionLifecycleRuleTests
 {
     private const string Reason = "Customer changed their mind.";

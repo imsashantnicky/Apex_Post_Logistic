@@ -10,6 +10,7 @@ using ApexPost.Courier.Domain.Scans;
 namespace ApexPost.Courier.ApiClient.Tests.Sync;
 
 /// <summary>The HTTP uploader through the full client pipeline (auth, retry, breaker) with a scripted server.</summary>
+[Trait("Category", "Unit")]
 public sealed class HttpShipmentUploaderTests
 {
     private const string TrackingNumber = "APX-20000005";

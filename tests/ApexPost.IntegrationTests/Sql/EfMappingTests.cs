@@ -12,6 +12,7 @@ namespace ApexPost.IntegrationTests.Sql;
 /// The EF Core mapping against a real, migrated schema: what the model promises, what a save really stores and what
 /// the database refuses by itself when the domain is bypassed.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class EfMappingTests(ApexFactory factory) : IClassFixture<ApexFactory>
 {
     private const string DocumentNumber = "P12345678";

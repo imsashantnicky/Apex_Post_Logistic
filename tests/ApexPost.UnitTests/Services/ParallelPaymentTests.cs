@@ -9,6 +9,7 @@ using static ApexPost.UnitTests.Support.CounterSteps;
 namespace ApexPost.UnitTests.Services;
 
 /// <summary>The stock gate serialises stock changes per branch, so parallel sales never oversell.</summary>
+[Trait("Category", "Unit")]
 public sealed class ParallelPaymentTests
 {
     [Fact]
